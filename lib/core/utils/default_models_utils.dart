@@ -109,7 +109,7 @@ final defaultFocusModeModel = FocusMode(
 
 const defaultFocusProfileModel = FocusProfile(
   sessionType: SessionType.study,
-  sessionDuration: 0,
+  sessionDuration: 30 * 60,
   shouldStartDnd: false,
   enforceSession: false,
   distractingApps: [],

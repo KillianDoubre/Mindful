@@ -54,6 +54,4 @@
     <string name="emergency_pause_notification_title">Pausa di emergenza</string>
     <string name="emergency_pause_ended_notification_info">La pausa di emergenza è terminata, e il blocco delle app è di nuovo attivo. Le distrazioni sono ora bloccate, resta concentrato!</string>
     <string name="focus_session_notification_title">Sessione di concentrazione</string>
-    <string name="focus_session_success_notification_info">Congratulazioni! Hai completato con successo la tua sessione di concentrazione. Ottimo lavoro nel mantenere la costanza, continua cosi!</string>
-    <string name="focus_session_giveup_notification_info">Ti sei arreso, ma non preoccuparti. Potrai fare meglio la prossima volta. Ogni sforzo conta: continua ad andare avanti</string>
 </resources>

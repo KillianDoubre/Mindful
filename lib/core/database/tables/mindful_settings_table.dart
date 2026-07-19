@@ -65,6 +65,5 @@ class MindfulSettingsTable extends Table {
       boolean().withDefault(const Constant(false))();
 
   /// The currently installed version of Mindful.
-  /// Mainly used to show changelogs screen.
   TextColumn get appVersion => text().withDefault(const Constant(""))();
 }

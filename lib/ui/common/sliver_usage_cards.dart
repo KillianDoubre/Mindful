@@ -114,7 +114,7 @@ class SliverUsageCards extends StatelessWidget {
     return DefaultListTile(
       isPrimary: true,
       margin: const EdgeInsets.only(top: 2),
-      leading: Icon(icon),
+      leadingIcon: icon,
       position: position,
       title: StyledText(
         title,

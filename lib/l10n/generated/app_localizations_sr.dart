@@ -327,18 +327,8 @@ class AppLocalizationsSr extends AppLocalizations {
       'Изабери бар једну апликацију која одвлачи пажњу.';
 
   @override
-  String get donation_card_title => 'Подржи нас';
-
-  @override
-  String get donation_card_info =>
-      'Mindful је бесплатна апликација отвореног кода, развијана месецима уз велику посвећеност. Ако ти је била од помоћи, донација би нам значила пуно. Сваки допринос нам помаже да наставимо са унапређивањем и одржавањем апликације за све.';
-
-  @override
   String get operation_failed_snack_alert =>
       'Mindful је бесплатна апликација отвореног кода, развијана месецима уз велику посвећеност. Ако ти је била од помоћи, донација би нам значила пуно. Сваки допринос нам помаже да наставимо са унапређивањем и одржавањем апликације за све.\n';
-
-  @override
-  String get donation_card_button_donate => 'Донирај';
 
   @override
   String get app_restart_dialog_title => 'Потребно је поновно покретање';
@@ -1193,26 +1183,6 @@ class AppLocalizationsSr extends AppLocalizations {
       'Главу горе. Не брини, следећи пут ћеш бити бољи. Сваки напор се рачуна – само настави да радиш на себи';
 
   @override
-  String get active_session_quote_one =>
-      'Сваки корак се рачуна, остани снажан и настави даље';
-
-  @override
-  String get active_session_quote_two =>
-      'Остани фокусиран! Ово су сјајни резултати';
-
-  @override
-  String get active_session_quote_three =>
-      'На правом си путу! Настави са одличним радом';
-
-  @override
-  String get active_session_quote_four => 'Само још мало, иде ти супер';
-
-  @override
-  String active_session_quote_five(String durationString) {
-    return 'Браво! 🎉 \n Завршио си своју сесију фокуса у трајању од $durationString.\n\nОдличан посао, настави са невероватним радом';
-  }
-
-  @override
   String get restriction_groups_tab_title => 'Групе ограничења';
 
   @override
@@ -1550,15 +1520,6 @@ class AppLocalizationsSr extends AppLocalizations {
   String get about_tab_title => 'О нама';
 
   @override
-  String get changelog_tile_title => 'Историја измена';
-
-  @override
-  String get changelog_tile_subtitle => 'Сазнај шта је ново.';
-
-  @override
-  String get full_changelog_tile_title => 'Целокупан дневник измена';
-
-  @override
   String get redirected_to_github_subtitle => 'Бићеш преусмерен на GitHub.';
 
   @override
@@ -1592,4 +1553,40 @@ class AppLocalizationsSr extends AppLocalizations {
 
   @override
   String get more_details_button => 'Још детаља';
+
+  @override
+  String get group_name_hint => 'Social media, entertainment, games, etc.';
+
+  @override
+  String get notification_schedule_name_hint => 'Morning, noon, work, etc.';
+
+  @override
+  String get focus_reflection_hint => 'Write your goal or accomplishments...';
+
+  @override
+  String get tips_and_tricks_heading => 'Tips & Tricks';
+
+  @override
+  String get productivity_heading => 'Productivity';
+
+  @override
+  String get habits_tile_title => 'Habits';
+
+  @override
+  String get habits_tile_subtitle => 'Build better habits and track them.';
+
+  @override
+  String get tasks_tile_title => 'Tasks and todos';
+
+  @override
+  String get tasks_tile_subtitle => 'Plan your future with tasks and todos.';
+
+  @override
+  String get notes_tile_title => 'Notes and lists';
+
+  @override
+  String get notes_tile_subtitle => 'Capture thoughts, checklists, or ideas.';
+
+  @override
+  String get coming_soon_snack_alert => 'Coming soon...';
 }

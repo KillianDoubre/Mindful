@@ -21,45 +21,45 @@ BorderRadius getBorderRadiusFromPosition(ItemPosition position) =>
       ItemPosition.fit => BorderRadius.circular(0),
 
       /// Default all sides
-      ItemPosition.none => BorderRadius.circular(24),
+      ItemPosition.none => BorderRadius.circular(26),
 
       /// Top
       ItemPosition.topLeft =>
-        const BorderRadius.all(Radius.circular(6)).copyWith(
-          topLeft: const Radius.circular(24),
+        const BorderRadius.all(Radius.circular(10)).copyWith(
+          topLeft: const Radius.circular(26),
         ),
       ItemPosition.top => const BorderRadius.vertical(
-          top: Radius.circular(24),
-          bottom: Radius.circular(6),
+          top: Radius.circular(26),
+          bottom: Radius.circular(10),
         ),
       ItemPosition.topRight =>
-        const BorderRadius.all(Radius.circular(6)).copyWith(
-          topRight: const Radius.circular(24),
+        const BorderRadius.all(Radius.circular(10)).copyWith(
+          topRight: const Radius.circular(26),
         ),
 
       // Mid
       ItemPosition.left => const BorderRadius.horizontal(
-          right: Radius.circular(6),
-          left: Radius.circular(24),
+          right: Radius.circular(10),
+          left: Radius.circular(26),
         ),
-      ItemPosition.mid => BorderRadius.circular(6),
+      ItemPosition.mid => BorderRadius.circular(10),
       ItemPosition.right => const BorderRadius.horizontal(
-          left: Radius.circular(6),
-          right: Radius.circular(24),
+          left: Radius.circular(10),
+          right: Radius.circular(26),
         ),
 
       // Bottom
       ItemPosition.bottomLeft =>
-        const BorderRadius.all(Radius.circular(6)).copyWith(
-          bottomLeft: const Radius.circular(24),
+        const BorderRadius.all(Radius.circular(10)).copyWith(
+          bottomLeft: const Radius.circular(26),
         ),
       ItemPosition.bottom => const BorderRadius.vertical(
-          top: Radius.circular(6),
-          bottom: Radius.circular(24),
+          top: Radius.circular(10),
+          bottom: Radius.circular(26),
         ),
       ItemPosition.bottomRight =>
-        const BorderRadius.all(Radius.circular(6)).copyWith(
-          bottomRight: const Radius.circular(24),
+        const BorderRadius.all(Radius.circular(10)).copyWith(
+          bottomRight: const Radius.circular(26),
         ),
     };
 

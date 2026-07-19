@@ -50,7 +50,7 @@ class SessionCard extends ConsumerWidget {
     final stateColors = [
       Theme.of(context).colorScheme.tertiary,
       Theme.of(context).colorScheme.primary,
-      Theme.of(context).colorScheme.error,
+      Theme.of(context).colorScheme.outline,
     ];
 
     final stateColor = stateColors[session.state.index];

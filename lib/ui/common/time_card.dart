@@ -52,7 +52,7 @@ class TimeCard extends StatelessWidget {
       tag: heroTag,
       child: RoundedContainer(
         color: bgColor,
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(17),
         onPressed: enabled
             ? () async {
                 if (!(isModifiable?.call() ?? true)) return;
@@ -74,10 +74,21 @@ class TimeCard extends StatelessWidget {
             if (icon != null)
               Padding(
                 padding: const EdgeInsets.only(right: 16),
-                child: Icon(
-                  icon,
-                  size: iconSize,
-                  color: enabled ? iconColor : Theme.of(context).disabledColor,
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: (iconColor ?? Theme.of(context).colorScheme.primary)
+                        .withValues(alpha: enabled ? 0.11 : 0.06),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(
+                    icon,
+                    size: iconSize.clamp(20, 24),
+                    color:
+                        enabled ? iconColor : Theme.of(context).disabledColor,
+                  ),
                 ),
               ),
 
@@ -89,6 +100,8 @@ class TimeCard extends StatelessWidget {
                   /// Label
                   StyledText(
                     label,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w500,
                     isSubtitle: !enabled,
                   ),
                   4.vBox,
@@ -99,8 +112,9 @@ class TimeCard extends StatelessWidget {
                       StyledText(
                         timeParts.firstOrNull ?? timeString,
                         height: 1,
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 30,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.7,
                         isSubtitle: !enabled,
                       ),
                       4.hBox,

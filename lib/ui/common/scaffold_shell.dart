@@ -15,6 +15,8 @@ import 'package:mindful/config/app_constants.dart';
 import 'package:mindful/config/navigation/app_routes.dart';
 import 'package:mindful/core/extensions/ext_build_context.dart';
 import 'package:mindful/core/extensions/ext_num.dart';
+import 'package:mindful/ui/common/glass_surface.dart';
+import 'package:mindful/ui/common/mindful_background.dart';
 import 'package:mindful/ui/common/styled_text.dart';
 import 'package:mindful/ui/controllers/tab_controller_provider.dart';
 import 'package:skeletonizer/skeletonizer.dart';
@@ -49,8 +51,8 @@ class ScaffoldShell extends StatefulWidget {
     super.key,
     this.initialTab,
     this.canGoBack = true,
-    this.appBarExpandedHeight = 200,
-    this.bodyPadding = const EdgeInsets.symmetric(horizontal: 12),
+    this.appBarExpandedHeight = 184,
+    this.bodyPadding = const EdgeInsets.symmetric(horizontal: 16),
     required this.items,
   });
 
@@ -107,60 +109,75 @@ class _ScaffoldShellState extends State<ScaffoldShell>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.transparent,
       floatingActionButton:
           widget.items[_selectedTabIndex].fab ?? const SizedBox.shrink(),
       floatingActionButtonAnimator: FloatingActionButtonAnimator.scaling,
       extendBody: true,
       extendBodyBehindAppBar: true,
       bottomNavigationBar: _haveMultiTabs ? _bottomNavBar() : null,
-      body: TabBarView(
-        controller: _tabController,
-        physics: const BouncingScrollPhysics(),
-        children: List.generate(
-          widget.items.length,
-          (i) => NotificationListener<ScrollNotification>(
-            onNotification: (notification) {
-              if (notification is ScrollUpdateNotification) {
-                /// Add app bar offset if current scroll offset is from body
-                final currentOffset = notification.metrics.pixels +
-                    (notification.depth == 1 ? _appBarScrollOffSet.value : 0);
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          const MindfulBackground(),
+          TabBarView(
+            controller: _tabController,
+            physics: const BouncingScrollPhysics(),
+            children: List.generate(
+              widget.items.length,
+              (i) => NotificationListener<ScrollNotification>(
+                onNotification: (notification) {
+                  // Always restore the expanded header when the outer scroll
+                  // position reaches the top, including after an overscroll.
+                  if (notification.depth == 0 &&
+                      notification.metrics.pixels <= 0) {
+                    _appBarScrollOffSet.value = 0;
+                  }
 
-                /// Show/Hide bottom bar
-                if (currentOffset >= widget.appBarExpandedHeight &&
-                    (currentOffset >= _wholeScreenScrollOffSet + 1)) {
-                  _isBottomNavVisible.value = false;
-                } else if (currentOffset <= _wholeScreenScrollOffSet - 1) {
-                  _isBottomNavVisible.value = true;
-                }
+                  if (notification is ScrollUpdateNotification) {
+                    /// Add app bar offset if current scroll offset is from body
+                    final currentOffset = notification.metrics.pixels +
+                        (notification.depth == 1
+                            ? _appBarScrollOffSet.value
+                            : 0);
 
-                /// Cache offset for whole screen
-                _wholeScreenScrollOffSet = currentOffset == 0
-                    ? _wholeScreenScrollOffSet
-                    : currentOffset;
+                    /// Show/Hide bottom bar
+                    if (currentOffset >= widget.appBarExpandedHeight &&
+                        (currentOffset >= _wholeScreenScrollOffSet + 1)) {
+                      _isBottomNavVisible.value = false;
+                    } else if (currentOffset <= _wholeScreenScrollOffSet - 1) {
+                      _isBottomNavVisible.value = true;
+                    }
 
-                /// Cache offset for just the app bar only
-                if (notification.depth == 0) {
-                  _appBarScrollOffSet.value = currentOffset == 0
-                      ? _appBarScrollOffSet.value
-                      : currentOffset;
-                }
-              }
-              return false;
-            },
-            child: NestedScrollView(
-              physics: const BouncingScrollPhysics(),
-              headerSliverBuilder: (_, innerBoxIsScrolled) =>
-                  [_sliverAppBar(i, innerBoxIsScrolled)],
-              body: TabControllerProvider(
-                controller: _tabController,
-                child: Padding(
-                  padding: widget.bodyPadding,
-                  child: widget.items[i].sliverBody,
+                    final normalizedOffset =
+                        currentOffset < 0 ? 0.0 : currentOffset;
+
+                    /// Cache offset for whole screen
+                    _wholeScreenScrollOffSet = normalizedOffset;
+
+                    /// Cache offset for just the app bar only
+                    if (notification.depth == 0) {
+                      _appBarScrollOffSet.value = normalizedOffset;
+                    }
+                  }
+                  return false;
+                },
+                child: NestedScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  headerSliverBuilder: (_, innerBoxIsScrolled) =>
+                      [_sliverAppBar(i, innerBoxIsScrolled)],
+                  body: TabControllerProvider(
+                    controller: _tabController,
+                    child: Padding(
+                      padding: widget.bodyPadding,
+                      child: widget.items[i].sliverBody,
+                    ),
+                  ),
                 ),
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -180,10 +197,12 @@ class _ScaffoldShellState extends State<ScaffoldShell>
                 (widget.appBarExpandedHeight - kToolbarHeight))
             .clamp(0.0, 1.0);
 
-        // Interpolate the color for the AppBar
+        final colors = Theme.of(context).colorScheme;
+
+        // Keep the expanded bar airy and progressively strengthen its surface.
         final appBarColor = Color.lerp(
-          Theme.of(context).colorScheme.surface,
-          Theme.of(context).colorScheme.secondaryContainer,
+          Colors.transparent,
+          colors.surface.withValues(alpha: 0.94),
           percentage,
         );
 
@@ -193,34 +212,32 @@ class _ScaffoldShellState extends State<ScaffoldShell>
         return SliverAppBar(
           expandedHeight: widget.appBarExpandedHeight,
           collapsedHeight: kToolbarHeight,
-          pinned: !_haveMultiTabs,
+          pinned: true,
           stretch: true,
           primary: true,
-          backgroundColor: _haveMultiTabs
-              ? Theme.of(context).colorScheme.surface
-              : appBarColor,
-          surfaceTintColor:
-              _haveMultiTabs ? Theme.of(context).colorScheme.surfaceTint : null,
+          backgroundColor: appBarColor,
+          surfaceTintColor: Colors.transparent,
+          scrolledUnderElevation: 0,
           automaticallyImplyLeading: false,
           actions: [
             ...navItem.actions ?? [],
             widget.bodyPadding.right.hBox,
           ],
           leading: widget.canGoBack
-              ? IconButton(
+              ? IconButton.filledTonal(
                   icon: Icon(
-                    FluentIcons.chevron_left_24_filled,
-                    color: Theme.of(context).colorScheme.onSecondaryContainer,
+                    FluentIcons.chevron_left_24_regular,
+                    color: colors.onSecondaryContainer,
                   ),
                   onPressed: () => context.popOrPushReplace(AppRoutes.homePath),
                 )
               : null,
           flexibleSpace: FlexibleSpaceBar(
-            expandedTitleScale: 1.75,
+            expandedTitleScale: 1.55,
             background: innerBoxIsScrolled ? null : navItem.appBarBg,
             collapseMode: CollapseMode.parallax,
             titlePadding: EdgeInsets.only(
-              bottom: 13,
+              bottom: 16,
               left: isRtl ? 0 : widget.bodyPadding.left + leftPadding,
               right: isRtl ? widget.bodyPadding.right + leftPadding : 0,
             ),
@@ -235,40 +252,86 @@ class _ScaffoldShellState extends State<ScaffoldShell>
   Widget _bottomNavBar() {
     return ValueListenableBuilder<bool>(
       valueListenable: _isBottomNavVisible,
-      builder: (context, isVisible, child) => AnimatedContainer(
-        height: isVisible ? (60 + MediaQuery.of(context).padding.bottom) : 0,
-        duration: 300.ms,
-        curve: isVisible ? Curves.easeOut : Curves.easeOut.flipped,
-        alignment: Alignment.bottomCenter,
-        child: SingleChildScrollView(child: child),
-      ),
-      child: NavigationBar(
-        selectedIndex: _selectedTabIndex,
-        height: 60,
-        animationDuration: AppConstants.defaultAnimDuration,
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
-        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
-        onDestinationSelected: (index) => _tabController.animateTo(
-          index,
-          duration: AppConstants.defaultAnimDuration,
-          curve: AppConstants.defaultCurve,
+      builder: (context, isVisible, child) {
+        final safeBottom = MediaQuery.paddingOf(context).bottom;
+        return AnimatedContainer(
+          height: isVisible ? 62 + safeBottom : 0,
+          duration: 320.ms,
+          curve: isVisible ? Curves.easeOutCubic : Curves.easeInCubic,
+          alignment: Alignment.bottomCenter,
+          child: SingleChildScrollView(child: child),
+        );
+      },
+      child: GlassSurface(
+        blur: 18,
+        height: 54,
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+        margin: EdgeInsets.fromLTRB(
+          14,
+          0,
+          14,
+          8 + MediaQuery.paddingOf(context).bottom,
         ),
-        destinations: widget.items.map((e) {
-          final title = e.titleText!;
-          final trimmedTitle =
-              title.length >= 14 ? "${title.substring(0, 9)}..." : title;
+        borderRadius: BorderRadius.circular(22),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: List.generate(
+            widget.items.length,
+            (index) => _bottomNavDestination(index),
+          ),
+        ),
+      ),
+    );
+  }
 
-          return NavigationDestination(
-            label: trimmedTitle,
-            icon: Icon(e.icon),
-            selectedIcon: Icon(e.filledIcon).animate().scale(
-                  begin: const Offset(0.5, 0.5),
-                  end: const Offset(1.05, 1.05),
-                  curve: Curves.elasticOut,
-                  duration: 1.seconds,
+  Widget _bottomNavDestination(int index) {
+    final colors = Theme.of(context).colorScheme;
+    final item = widget.items[index];
+    final isSelected = index == _selectedTabIndex;
+
+    return Expanded(
+      child: Semantics(
+        button: true,
+        selected: isSelected,
+        label: item.titleText,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(17),
+            onTap: () => _tabController.animateTo(
+              index,
+              duration: AppConstants.defaultAnimDuration,
+              curve: AppConstants.defaultCurve,
+            ),
+            child: Center(
+              child: AnimatedContainer(
+                duration: 240.ms,
+                curve: Curves.easeOutCubic,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
                 ),
-          );
-        }).toList(),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? colors.primary.withValues(alpha: 0.16)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(17),
+                ),
+                child: AnimatedScale(
+                  scale: isSelected ? 1 : 0.92,
+                  duration: 240.ms,
+                  curve: Curves.easeOutCubic,
+                  child: Icon(
+                    isSelected ? item.filledIcon : item.icon,
+                    size: 22,
+                    color:
+                        isSelected ? colors.primary : colors.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -289,7 +352,8 @@ class AppBarTitle extends StatelessWidget {
         titleText.isEmpty ? "Title" : titleText,
         fontSize: 24,
         maxLines: 2,
-        fontWeight: FontWeight.w600,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.5,
         overflow: TextOverflow.ellipsis,
       ),
     );

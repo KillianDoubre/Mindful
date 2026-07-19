@@ -17,6 +17,7 @@ import 'package:mindful/core/extensions/ext_num.dart';
 import 'package:mindful/core/utils/date_time_utils.dart';
 import 'package:mindful/models/usage_model.dart';
 import 'package:mindful/ui/common/default_bar_chart.dart';
+import 'package:mindful/ui/common/rounded_container.dart';
 import 'package:mindful/ui/common/styled_text.dart';
 
 class SliverUsageChartPanel extends StatelessWidget {
@@ -65,9 +66,9 @@ class SliverUsageChartPanel extends StatelessWidget {
         8.vBox,
 
         /// Selected day changer
-        Container(
-          height: 48,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+        RoundedContainer(
+          height: 54,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
           child: Row(
             children: [
               /// Previous week

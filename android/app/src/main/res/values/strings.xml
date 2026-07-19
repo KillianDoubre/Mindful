@@ -72,8 +72,8 @@
     <string name="focus_session_notification_title">Focus Session</string>
     <string name="focus_session_notification_info" comment="Time string as placeholder. ex: 'Focus session will end in 33m 15s'" formatted="true">Focus session will end in %s</string>
     <string name="focus_session_infinite_notification_info" comment="Time string as placeholder. ex: 'You've been focused for 33m 15s'" formatted="true">You\'ve been focused for %s</string>
-    <string name="focus_session_success_notification_info">Congratulations! You\'ve successfully completed your focus session. Great job staying on track! Keep up the amazing work!</string>
-    <string name="focus_session_giveup_notification_info">You gave up! Don\'t worry, you can do better next time. Every effort counts - just keep going</string>
+    <string name="focus_session_completed_notification_info">Focus session completed.</string>
+    <string name="focus_session_stopped_notification_info">Focus session stopped.</string>
 
     <string name="notification_schedule_batch_title">Unread notifications</string>
     <string name="notification_schedule_batch_summery" comment="Number of notifications as placeholder" formatted="true">You have %d unread notifications while you were away. They’ll be marked as read after 24 hours.</string>

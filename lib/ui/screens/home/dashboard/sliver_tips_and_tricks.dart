@@ -45,7 +45,7 @@ class _SliverTipsAndTricksState extends State<SliverTipsAndTricks> {
   Widget build(BuildContext context) {
     return MultiSliver(
       children: [
-        const ContentSectionHeader(title: "Tips & Tricks"),
+        ContentSectionHeader(title: context.locale.tips_and_tricks_heading),
         SliverList.builder(
           itemCount: _randomTips.length,
           itemBuilder: (context, index) {
@@ -111,12 +111,6 @@ class _SliverTipsAndTricksState extends State<SliverTipsAndTricks> {
           Navigator.of(ctx).pushNamed(AppRoutes.focusModePath),
       ctx.locale.session_timeline_tip: (_) => Navigator.of(ctx)
           .pushNamed(AppRoutes.focusModePath, arguments: {"tab": 1}),
-
-      /// Changelogs
-      ctx.locale.quick_focus_tile_tip: (_) =>
-          Navigator.of(ctx).pushNamed(AppRoutes.changeLogsPath),
-      ctx.locale.app_shortcuts_tip: (_) =>
-          Navigator.of(ctx).pushNamed(AppRoutes.changeLogsPath),
 
       /// Shorts blocking
       ctx.locale.accessibility_tip: (_) =>

@@ -326,18 +326,8 @@ class AppLocalizationsDa extends AppLocalizations {
       'Select at least one distracting app.';
 
   @override
-  String get donation_card_title => 'Support us';
-
-  @override
-  String get donation_card_info =>
-      'Mindful is free and open-source, developed with months of dedication. If it has helped you, your donation would mean the world to us. Every contribution helps us continue improving and maintaining it for everyone.';
-
-  @override
   String get operation_failed_snack_alert =>
       'Operation failed, something went wrong!';
-
-  @override
-  String get donation_card_button_donate => 'Donate';
 
   @override
   String get app_restart_dialog_title => 'Need restart';
@@ -1136,10 +1126,10 @@ class AppLocalizationsDa extends AppLocalizations {
   String get focus_session_state_active => 'Active';
 
   @override
-  String get focus_session_state_successful => 'Successful';
+  String get focus_session_state_successful => 'Completed';
 
   @override
-  String get focus_session_state_failed => 'Failed';
+  String get focus_session_state_failed => 'Stopped';
 
   @override
   String get active_session_tab_title => 'Session';
@@ -1149,21 +1139,20 @@ class AppLocalizationsDa extends AppLocalizations {
       'No active session found. Returning to the home screen.';
 
   @override
-  String get active_session_dialog_button_keep_pushing => 'Keep pushing';
+  String get active_session_dialog_button_keep_pushing => 'Continue session';
 
   @override
   String get active_session_finish_dialog_title => 'Finish';
 
   @override
-  String get active_session_finish_dialog_info =>
-      'Stay strong! You\'re building valuable focus. Are you sure you want to end this focus session? Every extra moment counts toward your goals.';
+  String get active_session_finish_dialog_info => 'End this focus session now?';
 
   @override
-  String get active_session_giveup_dialog_title => 'Give up';
+  String get active_session_giveup_dialog_title => 'Stop';
 
   @override
   String get active_session_giveup_dialog_info =>
-      'Hold on! You\'re almost there don\'t give up now! Are you sure you want to end this focus session early? Progress will be lost.';
+      'Stop this focus session before its planned end?';
 
   @override
   String get active_session_reflection_dialog_title => 'Session reflection';
@@ -1177,29 +1166,7 @@ class AppLocalizationsDa extends AppLocalizations {
       'Tip: You can always edit this later in the session timeline.';
 
   @override
-  String get active_session_giveup_snack_alert =>
-      'You gave up! Don\'t worry, you can do better next time. Every effort counts - just keep going';
-
-  @override
-  String get active_session_quote_one =>
-      'Every step counts, stay strong and keep going';
-
-  @override
-  String get active_session_quote_two =>
-      'Stay focused! you\'re making amazing progress';
-
-  @override
-  String get active_session_quote_three =>
-      'You\'re crushing it! Keep the momentum going';
-
-  @override
-  String get active_session_quote_four =>
-      'Just a little more to go, you\'re doing fantastic';
-
-  @override
-  String active_session_quote_five(String durationString) {
-    return 'Congratulations 🎉 \n You\'ve completed your focus session of $durationString.\n\nGreat job, keep up the amazing work';
-  }
+  String get active_session_giveup_snack_alert => 'Session stopped.';
 
   @override
   String get restriction_groups_tab_title => 'Restriction groups';
@@ -1536,15 +1503,6 @@ class AppLocalizationsDa extends AppLocalizations {
   String get about_tab_title => 'About';
 
   @override
-  String get changelog_tile_title => 'Changelog';
-
-  @override
-  String get changelog_tile_subtitle => 'Find out what\'s new.';
-
-  @override
-  String get full_changelog_tile_title => 'Full changelog';
-
-  @override
   String get redirected_to_github_subtitle =>
       'You will be redirected to GitHub.';
 
@@ -1579,4 +1537,40 @@ class AppLocalizationsDa extends AppLocalizations {
 
   @override
   String get more_details_button => 'More details';
+
+  @override
+  String get group_name_hint => 'Social media, entertainment, games, etc.';
+
+  @override
+  String get notification_schedule_name_hint => 'Morning, noon, work, etc.';
+
+  @override
+  String get focus_reflection_hint => 'Write your goal or accomplishments...';
+
+  @override
+  String get tips_and_tricks_heading => 'Tips & Tricks';
+
+  @override
+  String get productivity_heading => 'Productivity';
+
+  @override
+  String get habits_tile_title => 'Habits';
+
+  @override
+  String get habits_tile_subtitle => 'Build better habits and track them.';
+
+  @override
+  String get tasks_tile_title => 'Tasks and todos';
+
+  @override
+  String get tasks_tile_subtitle => 'Plan your future with tasks and todos.';
+
+  @override
+  String get notes_tile_title => 'Notes and lists';
+
+  @override
+  String get notes_tile_subtitle => 'Capture thoughts, checklists, or ideas.';
+
+  @override
+  String get coming_soon_snack_alert => 'Coming soon...';
 }

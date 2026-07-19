@@ -179,17 +179,17 @@ class TabDashboard extends ConsumerWidget {
 
   static List<Widget> _productivity(BuildContext context) => [
         /// Productivity
-        const ContentSectionHeader(title: "Productivity"),
+        ContentSectionHeader(title: context.locale.productivity_heading),
 
         /// Habits
         DefaultListTile(
           position: ItemPosition.top,
           leadingIcon: FluentIcons.drink_coffee_20_regular,
-          titleText: "Habits",
-          subtitleText: "Build better habits and track them.",
+          titleText: context.locale.habits_tile_title,
+          subtitleText: context.locale.habits_tile_subtitle,
           trailing: const Icon(FluentIcons.chevron_right_20_regular),
           onPressed: () => context.showSnackAlert(
-            "Coming soon...",
+            context.locale.coming_soon_snack_alert,
             icon: FluentIcons.info_20_filled,
           ),
         ),
@@ -198,11 +198,11 @@ class TabDashboard extends ConsumerWidget {
         DefaultListTile(
           position: ItemPosition.mid,
           leadingIcon: FluentIcons.reading_list_20_regular,
-          titleText: "Tasks and todos",
-          subtitleText: "Plan your future with tasks and todos.",
+          titleText: context.locale.tasks_tile_title,
+          subtitleText: context.locale.tasks_tile_subtitle,
           trailing: const Icon(FluentIcons.chevron_right_20_regular),
           onPressed: () => context.showSnackAlert(
-            "Coming soon...",
+            context.locale.coming_soon_snack_alert,
             icon: FluentIcons.info_20_filled,
           ),
         ),
@@ -211,11 +211,11 @@ class TabDashboard extends ConsumerWidget {
         DefaultListTile(
           position: ItemPosition.bottom,
           leadingIcon: FluentIcons.note_20_regular,
-          titleText: "Notes and lists",
-          subtitleText: "Capture thoughts, checklists, or ideas.",
+          titleText: context.locale.notes_tile_title,
+          subtitleText: context.locale.notes_tile_subtitle,
           trailing: const Icon(FluentIcons.chevron_right_20_regular),
           onPressed: () => context.showSnackAlert(
-            "Coming soon...",
+            context.locale.coming_soon_snack_alert,
             icon: FluentIcons.info_20_filled,
           ),
         ),

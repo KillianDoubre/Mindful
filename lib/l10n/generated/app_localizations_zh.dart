@@ -310,17 +310,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get minimum_distracting_apps_snack_alert => '至少选择一个分散注意力的应用。';
 
   @override
-  String get donation_card_title => '支持我们';
-
-  @override
-  String get donation_card_info =>
-      'Mindful 是免费且开源的，经过数月的奉献开发。如果它对您有帮助，您的捐款将对我们意义重大。每一份贡献都帮助我们继续改进和维护它，以造福所有人。';
-
-  @override
   String get operation_failed_snack_alert => '操作失败，出了问题！';
-
-  @override
-  String get donation_card_button_donate => '捐赠';
 
   @override
   String get app_restart_dialog_title => '需要重启';
@@ -1104,23 +1094,6 @@ class AppLocalizationsZh extends AppLocalizations {
       '你放弃了！别担心，下次你可以做得更好。每一次努力都很重要——继续前进吧';
 
   @override
-  String get active_session_quote_one => '每一步都很重要，坚强地继续前进';
-
-  @override
-  String get active_session_quote_two => '保持专注！你正在取得惊人的进步';
-
-  @override
-  String get active_session_quote_three => '你做得非常棒！继续保持动力';
-
-  @override
-  String get active_session_quote_four => '只剩一点了，你做得非常出色';
-
-  @override
-  String active_session_quote_five(String durationString) {
-    return '恭喜你 🎉 \n 你已完成时长为 $durationString 的专注会话。\n\n 做得非常好，继续保持惊人的工作';
-  }
-
-  @override
   String get restriction_groups_tab_title => '限制组';
 
   @override
@@ -1440,15 +1413,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get about_tab_title => '关于';
 
   @override
-  String get changelog_tile_title => '更新日志';
-
-  @override
-  String get changelog_tile_subtitle => '了解最新变化。';
-
-  @override
-  String get full_changelog_tile_title => '完整更新日志';
-
-  @override
   String get redirected_to_github_subtitle => '您将被重定向到 GitHub。';
 
   @override
@@ -1481,4 +1445,40 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get more_details_button => '更多详情';
+
+  @override
+  String get group_name_hint => 'Social media, entertainment, games, etc.';
+
+  @override
+  String get notification_schedule_name_hint => 'Morning, noon, work, etc.';
+
+  @override
+  String get focus_reflection_hint => 'Write your goal or accomplishments...';
+
+  @override
+  String get tips_and_tricks_heading => 'Tips & Tricks';
+
+  @override
+  String get productivity_heading => 'Productivity';
+
+  @override
+  String get habits_tile_title => 'Habits';
+
+  @override
+  String get habits_tile_subtitle => 'Build better habits and track them.';
+
+  @override
+  String get tasks_tile_title => 'Tasks and todos';
+
+  @override
+  String get tasks_tile_subtitle => 'Plan your future with tasks and todos.';
+
+  @override
+  String get notes_tile_title => 'Notes and lists';
+
+  @override
+  String get notes_tile_subtitle => 'Capture thoughts, checklists, or ideas.';
+
+  @override
+  String get coming_soon_snack_alert => 'Coming soon...';
 }

@@ -327,17 +327,7 @@ class AppLocalizationsAr extends AppLocalizations {
       'حدد تطبيقًا واحدًا علي الأقل يشتت انتباهك.';
 
   @override
-  String get donation_card_title => 'ادعمنا';
-
-  @override
-  String get donation_card_info =>
-      'Mindful هو تطبيق مجاني ومفتوح المصدر، تم تطويره بعد شهور من التفاني. إذا ساعدك التطبيق، فإن تبرعك يعني الكثير بالنسبة لنا. تساعدنا كل مساهمة في تحسينه وصيانته من أجل الجميع.';
-
-  @override
   String get operation_failed_snack_alert => 'فشلت العملية، حدث خطأ ما!';
-
-  @override
-  String get donation_card_button_donate => 'تبرع';
 
   @override
   String get app_restart_dialog_title => 'بحاجة لإعادة التشغيل';
@@ -1181,25 +1171,6 @@ class AppLocalizationsAr extends AppLocalizations {
       'لقد استسلمت! لا تقلق، يمكنك أن تكون أفضل في المرة القادمة. كل جهد يحتسب – فقط واصل المحاولة';
 
   @override
-  String get active_session_quote_one =>
-      'كل خطوة تحتسب، ابق قويا واستمر في المضي قدما';
-
-  @override
-  String get active_session_quote_two => 'ابق مركزا! أنت تحقق تقدما مذهلا';
-
-  @override
-  String get active_session_quote_three =>
-      'أنت تتألق! حافظ على هذا الزخم واستمر';
-
-  @override
-  String get active_session_quote_four => 'تبقى القليل فقط، أنت تقوم بعمل رائع';
-
-  @override
-  String active_session_quote_five(String durationString) {
-    return 'تهانينا 🎉\nلقد أتممت جلسة التركيز التي استغرقت $durationString.\n\nعمل رائع، استمر في هذا الأداء المذهل';
-  }
-
-  @override
   String get restriction_groups_tab_title => 'مجموعات القيود';
 
   @override
@@ -1535,15 +1506,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get about_tab_title => 'حول';
 
   @override
-  String get changelog_tile_title => 'سجل التغييرات';
-
-  @override
-  String get changelog_tile_subtitle => 'اكتشف الجديد.';
-
-  @override
-  String get full_changelog_tile_title => 'سجل التغييرات الكامل';
-
-  @override
   String get redirected_to_github_subtitle => 'سيتم توجيهك إلى GitHub.';
 
   @override
@@ -1577,4 +1539,40 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get more_details_button => 'مزيد من التفاصيل';
+
+  @override
+  String get group_name_hint => 'Social media, entertainment, games, etc.';
+
+  @override
+  String get notification_schedule_name_hint => 'Morning, noon, work, etc.';
+
+  @override
+  String get focus_reflection_hint => 'Write your goal or accomplishments...';
+
+  @override
+  String get tips_and_tricks_heading => 'Tips & Tricks';
+
+  @override
+  String get productivity_heading => 'Productivity';
+
+  @override
+  String get habits_tile_title => 'Habits';
+
+  @override
+  String get habits_tile_subtitle => 'Build better habits and track them.';
+
+  @override
+  String get tasks_tile_title => 'Tasks and todos';
+
+  @override
+  String get tasks_tile_subtitle => 'Plan your future with tasks and todos.';
+
+  @override
+  String get notes_tile_title => 'Notes and lists';
+
+  @override
+  String get notes_tile_subtitle => 'Capture thoughts, checklists, or ideas.';
+
+  @override
+  String get coming_soon_snack_alert => 'Coming soon...';
 }

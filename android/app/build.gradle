@@ -91,9 +91,10 @@ android {
         }
 
         profile {
-            // app_links library is causing error so commenting it out
-            // applicationIdSuffix ".profile"
-            resValue "string", "app_name", "Mindful Profile"
+            // Keep the development installation and its data while running
+            // without Flutter's debug-only visual overflow indicators.
+            applicationIdSuffix ".debug"
+            resValue "string", "app_name", "Mindful"
             signingConfig System.getenv("KEYSTORE_FILE") != null ? signingConfigs.release : signingConfigs.debug
         }
     }

@@ -36,7 +36,7 @@ class FocusModeNotifier extends StateNotifier<FocusModeModel>
   late DynamicRecordsDao _dynamicDao;
   late UniqueRecordsDao _uniqueDao;
   Timer? _activeSessionTimer;
-  VoidCallback? _sessionSuccessCallback;
+  VoidCallback? _sessionCompletionCallback;
   bool _isAppPaused = false;
 
   FocusModeNotifier()
@@ -125,9 +125,9 @@ class FocusModeNotifier extends StateNotifier<FocusModeModel>
     );
   }
 
-  /// Sets a callback function to be executed when a session completes successfully.
-  void setSessionSuccessCallback(VoidCallback callback) =>
-      _sessionSuccessCallback = callback;
+  /// Sets a callback function to be executed when a session reaches its end.
+  void setSessionCompletionCallback(VoidCallback callback) =>
+      _sessionCompletionCallback = callback;
 
   /// set the duration for the session
   void setSessionDuration(int durationSec) {
@@ -265,7 +265,7 @@ class FocusModeNotifier extends StateNotifier<FocusModeModel>
 
     if (isTheSessionSuccessful) {
       _incrementOrResetStreaks();
-      _sessionSuccessCallback?.call();
+      _sessionCompletionCallback?.call();
     }
   }
 

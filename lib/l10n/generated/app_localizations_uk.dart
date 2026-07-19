@@ -332,18 +332,8 @@ class AppLocalizationsUk extends AppLocalizations {
       'Оберіть принаймні один застосунок, що відволікає.';
 
   @override
-  String get donation_card_title => 'Підтримайте нас';
-
-  @override
-  String get donation_card_info =>
-      'Mindful є безплатний та відкритий, розроблений з відданістю протягом місяців. Якщо застосунок вам допоміг, ваша пожертва буде безмежно цінною для нас. Кожен внесок нам допомагає вдосконалювати для підтримувати застосунок для кожного.';
-
-  @override
   String get operation_failed_snack_alert =>
       'Помилка операції, щось пішло не так!';
-
-  @override
-  String get donation_card_button_donate => 'Пожертвувати';
 
   @override
   String get app_restart_dialog_title => 'Потрібен перезапуск';
@@ -1196,27 +1186,6 @@ class AppLocalizationsUk extends AppLocalizations {
       'Ви здалися! Не хвилюйтеся, наступного разу у вас вийде краще. Кожне зусилля має значення - просто продовжуйте';
 
   @override
-  String get active_session_quote_one =>
-      'Кожен крок має значення, будьте сильними й не зупиняється на досягнутому.';
-
-  @override
-  String get active_session_quote_two =>
-      'Зосередьтеся! Ви робите дивовижні успіхи';
-
-  @override
-  String get active_session_quote_three =>
-      'У вас чудово виходить. Не втрачайте темп';
-
-  @override
-  String get active_session_quote_four =>
-      'Залишилося ще трохи, ви прекрасно справляєтесь';
-
-  @override
-  String active_session_quote_five(String durationString) {
-    return 'Вітаю 🎉 \n Ви завершили сеанс в $durationString.\n\nЧудово, продовжуйте в тому ж дусі';
-  }
-
-  @override
   String get restriction_groups_tab_title => 'Групи обмежень';
 
   @override
@@ -1555,15 +1524,6 @@ class AppLocalizationsUk extends AppLocalizations {
   String get about_tab_title => 'Про додаток';
 
   @override
-  String get changelog_tile_title => 'Журнал змін';
-
-  @override
-  String get changelog_tile_subtitle => 'Дізнайтеся, що нового.';
-
-  @override
-  String get full_changelog_tile_title => 'Повний журнал змін';
-
-  @override
   String get redirected_to_github_subtitle =>
       'Вас буде перенаправлено на GitHub.';
 
@@ -1598,4 +1558,40 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get more_details_button => 'Детальніше';
+
+  @override
+  String get group_name_hint => 'Social media, entertainment, games, etc.';
+
+  @override
+  String get notification_schedule_name_hint => 'Morning, noon, work, etc.';
+
+  @override
+  String get focus_reflection_hint => 'Write your goal or accomplishments...';
+
+  @override
+  String get tips_and_tricks_heading => 'Tips & Tricks';
+
+  @override
+  String get productivity_heading => 'Productivity';
+
+  @override
+  String get habits_tile_title => 'Habits';
+
+  @override
+  String get habits_tile_subtitle => 'Build better habits and track them.';
+
+  @override
+  String get tasks_tile_title => 'Tasks and todos';
+
+  @override
+  String get tasks_tile_subtitle => 'Plan your future with tasks and todos.';
+
+  @override
+  String get notes_tile_title => 'Notes and lists';
+
+  @override
+  String get notes_tile_subtitle => 'Capture thoughts, checklists, or ideas.';
+
+  @override
+  String get coming_soon_snack_alert => 'Coming soon...';
 }

@@ -329,18 +329,8 @@ class AppLocalizationsEl extends AppLocalizations {
       'Επέλεξε τουλάχιστον μία εφαρμογή που αποσπά την προσοχή.';
 
   @override
-  String get donation_card_title => 'Υποστήριξέ μας';
-
-  @override
-  String get donation_card_info =>
-      'Το Mindful είναι ελεύθερο και ανοικτού κώδικα, που αναπτύχθηκε με μήνες αφοσίωσης. Αν σ\' έχει βοηθήσει, η δωρεά σου θα σήμαινε τα πάντα σε εμάς. Κάθε συνεισφορά μάς βοηθά να συνεχίσουμε να την βελτιώνουμε και να την συντηρούμε για όλους.';
-
-  @override
   String get operation_failed_snack_alert =>
       'Η λειτουργία απέτυχε, κάτι πήγε στραβά!';
-
-  @override
-  String get donation_card_button_donate => 'Δωρεά';
 
   @override
   String get app_restart_dialog_title => 'Απαιτείται επανεκκίνηση';
@@ -1199,26 +1189,6 @@ class AppLocalizationsEl extends AppLocalizations {
       'Τα παράτησες! Μην ανησυχείς, μπορείς να τα πας καλύτερα την επόμενη φορά. Κάθε προσπάθεια μετράει - απλά συνέχισε';
 
   @override
-  String get active_session_quote_one =>
-      'Κάθε βήμα μετράει, κράτα γερά και συνέχισε';
-
-  @override
-  String get active_session_quote_two =>
-      'Μείνε σε συγκέντρωση! Κάνεις εκπληκτική πρόοδο';
-
-  @override
-  String get active_session_quote_three => 'Τα σπας! Κράτα την ορμή ζωντανή';
-
-  @override
-  String get active_session_quote_four =>
-      'Λίγο ακόμα για να τα καταφέρεις, τα πας φανταστικά';
-
-  @override
-  String active_session_quote_five(String durationString) {
-    return 'Συγχαρητήρια 🎉 \n Ολοκλήρωσες την συνεδρία εστίασης του $durationString.\n\nΕξαιρετικά, συνέχισε την καταπληκτική δουλειά';
-  }
-
-  @override
   String get restriction_groups_tab_title => 'Ομάδες περιορισμών';
 
   @override
@@ -1561,15 +1531,6 @@ class AppLocalizationsEl extends AppLocalizations {
   String get about_tab_title => 'Σχετικά';
 
   @override
-  String get changelog_tile_title => 'Αρχείο αλλαγών';
-
-  @override
-  String get changelog_tile_subtitle => 'Δες τι άλλαξε.';
-
-  @override
-  String get full_changelog_tile_title => 'Πλήρες αρχείο αλλαγών';
-
-  @override
   String get redirected_to_github_subtitle => 'Θα μεταφερθείς στο GitHub.';
 
   @override
@@ -1602,4 +1563,40 @@ class AppLocalizationsEl extends AppLocalizations {
 
   @override
   String get more_details_button => 'Περισσότερες λεπτομέρειες';
+
+  @override
+  String get group_name_hint => 'Social media, entertainment, games, etc.';
+
+  @override
+  String get notification_schedule_name_hint => 'Morning, noon, work, etc.';
+
+  @override
+  String get focus_reflection_hint => 'Write your goal or accomplishments...';
+
+  @override
+  String get tips_and_tricks_heading => 'Tips & Tricks';
+
+  @override
+  String get productivity_heading => 'Productivity';
+
+  @override
+  String get habits_tile_title => 'Habits';
+
+  @override
+  String get habits_tile_subtitle => 'Build better habits and track them.';
+
+  @override
+  String get tasks_tile_title => 'Tasks and todos';
+
+  @override
+  String get tasks_tile_subtitle => 'Plan your future with tasks and todos.';
+
+  @override
+  String get notes_tile_title => 'Notes and lists';
+
+  @override
+  String get notes_tile_subtitle => 'Capture thoughts, checklists, or ideas.';
+
+  @override
+  String get coming_soon_snack_alert => 'Coming soon...';
 }

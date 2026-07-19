@@ -93,7 +93,7 @@ class _SettingsButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return DefaultHero(
       tag: HeroTags.donationDialogTag,
-      child: IconButton(
+      child: IconButton.filledTonal(
         icon: const Icon(FluentIcons.settings_20_filled),
         onPressed: () =>
             Navigator.of(context).pushNamed(AppRoutes.settingsPath),

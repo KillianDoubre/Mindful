@@ -41,49 +41,61 @@ class RoundedContainer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = color ?? Theme.of(context).colorScheme.surfaceContainer;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+    final bgColor = color ?? colors.surfaceContainerHigh;
+    final fill = color != null && bgColor.a < 1
+        ? bgColor
+        : bgColor.withValues(
+            alpha:
+                color == null ? (isDark ? 0.62 : 0.68) : (isDark ? 0.74 : 0.78),
+          );
     final radius = borderRadius ?? BorderRadius.circular(circularRadius);
-    return onPressed == null
+    final decoration = BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Color.alphaBlend(
+            Colors.white.withValues(alpha: isDark ? 0.04 : 0.18),
+            fill,
+          ),
+          fill,
+        ],
+      ),
+      borderRadius: radius,
+      border: Border.all(
+        color: colors.outlineVariant.withValues(
+          alpha: isDark ? 0.24 : 0.32,
+        ),
+      ),
+    );
 
-        /// Static container
-        ? Container(
-            width: width,
-            height: height,
-            margin: margin,
-            padding: padding,
-            alignment: alignment,
-            decoration: BoxDecoration(
-              color: bgColor,
-              borderRadius: radius,
-            ),
-            child: child,
-          )
+    final content = Padding(
+      padding: padding,
+      child: Align(alignment: alignment, child: child),
+    );
 
-        /// Interactive container
-        : Container(
-            height: height,
-            width: width,
-            margin: margin,
-            child: Material(
-              color: bgColor,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: radius,
-              ),
-              child: InkWell(
-                onTap: onPressed,
-                splashFactory: InkSparkle.splashFactory,
-                splashColor: Theme.of(context).colorScheme.secondaryContainer,
-                borderRadius: radius,
-                child: Padding(
-                  padding: padding,
-                  child: Align(
-                    alignment: alignment,
-                    child: child,
-                  ),
+    return Container(
+      width: width,
+      height: height,
+      margin: margin,
+      decoration: decoration,
+      child: ClipRRect(
+        borderRadius: radius,
+        child: onPressed == null
+            ? content
+            : Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: onPressed,
+                  splashColor: colors.primary.withValues(alpha: 0.10),
+                  highlightColor: colors.primary.withValues(alpha: 0.055),
+                  child: content,
                 ),
               ),
-            ),
-          );
+      ),
+    );
   }
 }

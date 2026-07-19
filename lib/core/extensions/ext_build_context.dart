@@ -91,12 +91,21 @@ extension ExtBuildContext on BuildContext {
             SnackBar(
               dismissDirection: DismissDirection.down,
               shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+                borderRadius: BorderRadius.all(Radius.circular(18)),
               ),
               backgroundColor: bgColor,
               content: Row(
                 children: [
-                  Icon(icon, color: fgColor),
+                  Container(
+                    width: 36,
+                    height: 36,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: fgColor.withValues(alpha: 0.13),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(icon, color: fgColor, size: 20),
+                  ),
                   12.hBox,
                   Expanded(
                     child: StyledText(

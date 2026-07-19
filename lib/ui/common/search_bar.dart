@@ -45,11 +45,7 @@ class _DefaultSearchBarState extends State<DefaultSearchBar> {
   @override
   Widget build(BuildContext context) {
     return DefaultListTile(
-      color: Theme.of(context).colorScheme.secondaryContainer,
-      leading: Icon(
-        FluentIcons.search_20_filled,
-        color: Theme.of(context).hintColor,
-      ),
+      leadingIcon: FluentIcons.search_20_filled,
       title: TextField(
         textInputAction: TextInputAction.search,
         decoration: InputDecoration.collapsed(

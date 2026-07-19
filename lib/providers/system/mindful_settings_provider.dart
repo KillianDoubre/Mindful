@@ -27,14 +27,30 @@ final mindfulSettingsProvider =
 
 /// This class manages the state of mindful settings.
 class MindfulSettingsNotifier extends StateNotifier<MindfulSettings> {
+  static const _focusDurationDefaultMigrationVersion = "1.2.1";
+  static const _defaultFocusDurationSecs = 30 * 60;
+
   MindfulSettingsNotifier() : super(defaultMindfulSettingsModel) {
     init(addListenerToo: true);
   }
 
   /// Initializes the settings state by loading from the database and setting up a listener for saving changes.
   Future<MindfulSettings> init({bool addListenerToo = false}) async {
-    final dao = DriftDbService.instance.driftDb.uniqueRecordsDao;
-    state = await dao.loadMindfulSettings();
+    final database = DriftDbService.instance.driftDb;
+    final dao = database.uniqueRecordsDao;
+    final savedSettings = await dao.loadMindfulSettings();
+    final currentVersion =
+        MethodChannelService.instance.deviceInfo.mindfulVersion;
+    state = savedSettings.copyWith(appVersion: currentVersion);
+
+    if (savedSettings.appVersion != currentVersion) {
+      if (currentVersion == _focusDurationDefaultMigrationVersion) {
+        await database.dynamicRecordsDao.migrateFocusDurationDefault(
+          _defaultFocusDurationSecs,
+        );
+      }
+      await dao.saveMindfulSettings(state);
+    }
     await MethodChannelService.instance
         .updateLocale(languageCode: state.localeCode);
 
@@ -115,9 +131,4 @@ class MindfulSettingsNotifier extends StateNotifier<MindfulSettings> {
 
   /// Mark onboarding as completed
   void markOnboardingDone() => state = state.copyWith(isOnboardingDone: true);
-
-  /// Update app version
-  void updateAppVersion() => state = state.copyWith(
-        appVersion: MethodChannelService.instance.deviceInfo.mindfulVersion,
-      );
 }

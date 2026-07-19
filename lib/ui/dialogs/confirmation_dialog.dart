@@ -71,8 +71,13 @@ class _ConfirmationDialog extends StatelessWidget {
             tag: heroTag,
             child: AlertDialog(
               scrollable: true,
-              icon: Icon(icon),
-              title: StyledText(title, fontSize: 16),
+              icon: Icon(icon, size: 28),
+              title: StyledText(
+                title,
+                fontSize: 19,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.3,
+              ),
               insetPadding: EdgeInsets.zero,
               content: Container(
                 width: MediaQuery.of(context).size.width,
@@ -82,6 +87,8 @@ class _ConfirmationDialog extends StatelessWidget {
                 child: SingleChildScrollView(
                   child: StyledText(
                     info,
+                    fontSize: 13,
+                    height: 1.35,
                     overflow: TextOverflow.clip,
                   ),
                 ),

@@ -276,6 +276,16 @@ class DynamicRecordsDao extends DatabaseAccessor<AppDatabase>
   Future<int> insertFocusProfileBySessionType(FocusProfile profile) async =>
       into(focusProfileTable).insert(profile, mode: InsertMode.insertOrReplace);
 
+  /// Replaces the former infinite default once when the new default is adopted.
+  Future<int> migrateFocusDurationDefault(int durationSecs) async =>
+      (update(focusProfileTable)
+            ..where((profile) => profile.sessionDuration.equals(0)))
+          .write(
+        FocusProfileTableCompanion(
+          sessionDuration: Value(durationSecs),
+        ),
+      );
+
   // ==================================================================================================================
   // ===================================== FOCUS SESSIONS =============================================================
   // ==================================================================================================================

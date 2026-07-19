@@ -144,7 +144,7 @@ class FocusSessionService : Service() {
                     DateTimeUtils.secondsToTimeStr(remainingTime)
                 )
             },
-            onFinished = { getString(R.string.focus_session_success_notification_info) },
+            onFinished = { getString(R.string.focus_session_completed_notification_info) },
             onDispose = { stopSelf() },
         )
     }
@@ -166,8 +166,8 @@ class FocusSessionService : Service() {
 
         mNotificationTimer.forceDisposeTimer(
             getString(
-                if (isTheSessionSuccessful) R.string.focus_session_success_notification_info
-                else R.string.focus_session_giveup_notification_info
+                if (isTheSessionSuccessful) R.string.focus_session_completed_notification_info
+                else R.string.focus_session_stopped_notification_info
             )
         )
     }

@@ -16,7 +16,7 @@ class ContentSectionHeader extends StatelessWidget {
   const ContentSectionHeader({
     super.key,
     required this.title,
-    this.padding = const EdgeInsets.only(top: 18, bottom: 12),
+    this.padding = const EdgeInsets.only(top: 26, bottom: 10),
     this.alignment = Alignment.centerLeft,
   });
 
@@ -26,13 +26,30 @@ class ContentSectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Container(
       padding: padding,
       alignment: alignment,
-      child: StyledText(
-        title,
-        color: Theme.of(context).colorScheme.primary,
-        fontWeight: FontWeight.bold,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 4,
+            height: 16,
+            decoration: BoxDecoration(
+              color: colors.primary,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+          const SizedBox(width: 9),
+          StyledText(
+            title,
+            fontSize: 14,
+            color: colors.onSurfaceVariant,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.1,
+          ),
+        ],
       ),
     );
   }

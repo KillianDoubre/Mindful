@@ -68,8 +68,6 @@
     <string name="focus_session_notification_title">Sesión de Concentración</string>
     <string name="focus_session_notification_info" comment="Time string as placeholder. ex: 'Focus session will end in 33m 15s'" formatted="true">La sesión de concentración terminará en %s</string>
     <string name="focus_session_infinite_notification_info" comment="Time string as placeholder. ex: 'You've been focused for 33m 15s'" formatted="true">Has estado centrado durante %s</string>
-    <string name="focus_session_success_notification_info">¡Felicitaciones! Has completado con éxito tu sesión de concentración. ¡Gran trabajo manteniéndote enfocado! ¡Sigue así de genial!</string>
-    <string name="focus_session_giveup_notification_info">¡Te has rendido! No te preocupes, la próxima vez puedes hacerlo mejor. Cada esfuerzo cuenta - ¡solo sigue adelante!</string>
     <string name="notification_schedule_batch_title">Notificaciones sin leer</string>
     <string name="notification_schedule_batch_summery" comment="Number of notifications as placeholder" formatted="true">Tienes %d notificaciones sin leer mientras estuviste ausente. Se marcarán como leídas después de 24 horas.</string>
 </resources>

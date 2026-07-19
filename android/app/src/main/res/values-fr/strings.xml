@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="focus_session_completed_notification_info">Session de concentration terminée.</string>
+    <string name="focus_session_stopped_notification_info">Session de concentration arrêtée.</string>
+</resources>

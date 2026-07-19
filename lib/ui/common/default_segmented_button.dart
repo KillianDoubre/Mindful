@@ -24,6 +24,7 @@ class DefaultSegmentedButton<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return SegmentedButton<T>(
       showSelectedIcon: false,
       selected: {selected},
@@ -31,16 +32,23 @@ class DefaultSegmentedButton<T> extends StatelessWidget {
       style: const ButtonStyle().copyWith(
         visualDensity: VisualDensity.standard,
         foregroundColor: WidgetStatePropertyAll(
-          Theme.of(context).iconTheme.color,
+          colors.onSurface,
         ),
-        padding: const WidgetStatePropertyAll(EdgeInsets.all(12)),
+        backgroundColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? colors.primary.withValues(alpha: 0.14)
+              : colors.surfaceContainerHigh.withValues(alpha: 0.56),
+        ),
+        padding: const WidgetStatePropertyAll(
+          EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        ),
         side: WidgetStatePropertyAll(
           BorderSide(
-            color: Theme.of(context).colorScheme.secondaryContainer,
+            color: colors.outlineVariant.withValues(alpha: 0.34),
           ),
         ),
         shape: WidgetStatePropertyAll(
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         ),
       ),
       segments: segments
@@ -51,7 +59,7 @@ class DefaultSegmentedButton<T> extends StatelessWidget {
                       selected == e.value && e.filledIcon != null
                           ? e.filledIcon
                           : e.icon,
-                      color: Theme.of(context).iconTheme.color,
+                      color: selected == e.value ? colors.primary : null,
                     )
                   : null,
               label: e.label != null ? Text(e.label!) : null,

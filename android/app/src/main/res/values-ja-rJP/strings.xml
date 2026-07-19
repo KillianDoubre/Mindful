@@ -56,6 +56,4 @@
     <string name="emergency_pause_notification_title">緊急停止</string>
     <string name="emergency_pause_ended_notification_info">緊急停止が終了し、アプリブロッカーが再開されました。集中を妨げるアプリが再びブロックされ、集中できる状態に戻りました。</string>
     <string name="focus_session_notification_title">集中記録</string>
-    <string name="focus_session_success_notification_info">お疲れ様でした！集中記録が完了しました。これからも素晴らしい集中力を続けていきましょう。</string>
-    <string name="focus_session_giveup_notification_info">諦めてしまいましたか？大丈夫、次回はきっと集中できます。どんな努力も無駄にはなりません。諦めずに続けましょう！</string>
 </resources>

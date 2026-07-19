@@ -190,6 +190,13 @@ object NewActivitiesLaunchHelper {
                     )
                 )
 
+                "honor" -> intent.setComponent(
+                    ComponentName(
+                        "com.hihonor.systemmanager",
+                        "com.hihonor.systemmanager.startupmgr.ui.StartupNormalAppListActivity"
+                    )
+                )
+
                 "oppo" -> intent.setComponent(
                     ComponentName(
                         "com.coloros.safecenter",

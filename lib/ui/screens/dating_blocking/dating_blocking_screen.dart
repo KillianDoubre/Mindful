@@ -11,6 +11,7 @@
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:mindful/config/hero_tags.dart';
 import 'package:mindful/core/database/adapters/time_of_day_adapter.dart';
 import 'package:mindful/core/enums/item_position.dart';
@@ -33,11 +34,27 @@ import 'package:mindful/ui/dialogs/time_picker_dialog.dart';
 import 'package:mindful/ui/screens/dating_blocking/dating_timer_chart.dart';
 import 'package:mindful/ui/transitions/default_hero.dart';
 
-const _kDatingApps = <({String name, String package})>[
-  (name: "Tinder", package: "com.tinder"),
-  (name: "Hinge", package: "co.hinge.app"),
-  (name: "Bumble", package: "com.bumble.app"),
-  (name: "Happn", package: "com.ftw_and_co.happn"),
+const _kDatingApps = <({String name, String package, String logoAsset})>[
+  (
+    name: "Tinder",
+    package: "com.tinder",
+    logoAsset: "assets/vectors/dating_tinder.svg",
+  ),
+  (
+    name: "Hinge",
+    package: "co.hinge.app",
+    logoAsset: "assets/vectors/dating_hinge.svg",
+  ),
+  (
+    name: "Bumble",
+    package: "com.bumble.app",
+    logoAsset: "assets/vectors/dating_bumble.svg",
+  ),
+  (
+    name: "Happn",
+    package: "com.ftw_and_co.happn",
+    logoAsset: "assets/vectors/dating_happn.svg",
+  ),
 ];
 
 class DatingBlockingScreen extends ConsumerWidget {
@@ -107,6 +124,7 @@ class DatingBlockingScreen extends ConsumerWidget {
                 return _DatingAppTile(
                   name: app.name,
                   package: app.package,
+                  logoAsset: app.logoAsset,
                   position: getItemPositionInList(index, _kDatingApps.length),
                   enabled: haveAccessibilityPermission,
                   usedTimeSec: screenTimes[app.package] ?? 0,
@@ -125,6 +143,7 @@ class _DatingAppTile extends ConsumerWidget {
   const _DatingAppTile({
     required this.name,
     required this.package,
+    required this.logoAsset,
     required this.position,
     required this.enabled,
     required this.usedTimeSec,
@@ -132,6 +151,7 @@ class _DatingAppTile extends ConsumerWidget {
 
   final String name;
   final String package;
+  final String logoAsset;
   final ItemPosition position;
   final bool enabled;
   final int usedTimeSec;
@@ -158,7 +178,14 @@ class _DatingAppTile extends ConsumerWidget {
         DefaultListTile(
           position: config.isEnabled ? ItemPosition.top : position,
           enabled: enabled,
-          leadingIcon: FluentIcons.heart_20_regular,
+          leading: Opacity(
+            opacity: enabled ? 1 : 0.42,
+            child: SvgPicture.asset(
+              logoAsset,
+              width: 42,
+              height: 42,
+            ),
+          ),
           titleText: name,
           subtitleText: config.isEnabled
               ? context.locale.dating_daily_limit(
@@ -175,6 +202,7 @@ class _DatingAppTile extends ConsumerWidget {
           DatingTimerChart(
             appName: name,
             appPackage: package,
+            logoAsset: logoAsset,
             allowedMinutes: config.allowedMinutes,
             usedTimeSec: usedTimeSec,
             enabled: enabled,

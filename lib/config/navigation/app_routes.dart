@@ -14,7 +14,6 @@ import 'package:mindful/core/extensions/ext_build_context.dart';
 import 'package:mindful/ui/onboarding/onboarding_screen.dart';
 import 'package:mindful/ui/screens/active_session/active_session_screen.dart';
 import 'package:mindful/ui/screens/app_dashboard/app_dashboard_screen.dart';
-import 'package:mindful/ui/screens/change_logs/change_logs_screen.dart';
 import 'package:mindful/ui/screens/focus/focus_screen.dart';
 import 'package:mindful/ui/screens/home/home_screen.dart';
 import 'package:mindful/ui/screens/parental_controls/parental_controls_screen.dart';
@@ -29,7 +28,6 @@ import 'package:mindful/ui/splash_screen.dart';
 class AppRoutes {
   static const String rootSplashPath = '/';
   static const String onboardingPath = '/onboarding';
-  static const String changeLogsPath = '/changeLogs';
   static const String settingsPath = '/settings';
 
   static const String homePath = '/home';
@@ -54,9 +52,6 @@ class AppRoutes {
           isOnboardingDone:
               context.resolveParam<bool>("isOnboardingDone") ?? false,
         ),
-
-    /// Change logs screen
-    changeLogsPath: (context) => const ChangeLogsScreen(),
 
     /// Settings screen
     settingsPath: (context) => SettingsScreen(

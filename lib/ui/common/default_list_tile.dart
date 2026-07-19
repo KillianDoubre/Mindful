@@ -58,12 +58,17 @@ class DefaultListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final foreground = enabled
+        ? accent ?? (isPrimary ? colors.onSecondaryContainer : null)
+        : theme.disabledColor;
+
     return RoundedContainer(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
       margin: margin ?? const EdgeInsets.only(top: 4),
       borderRadius: getBorderRadiusFromPosition(position ?? ItemPosition.none),
-      color:
-          isPrimary ? Theme.of(context).colorScheme.secondaryContainer : color,
+      color: isPrimary ? colors.secondaryContainer : color,
       onPressed: enabled ? onPressed : null,
       child: Row(
         mainAxisSize: MainAxisSize.max,
@@ -71,45 +76,57 @@ class DefaultListTile extends StatelessWidget {
         children: [
           /// Leading widget
           leadingIcon != null
-              ? Icon(
-                  leadingIcon,
-                  color: enabled
-                      ? accent
-                      : isPrimary
-                          ? Theme.of(context).colorScheme.secondaryContainer
-                          : Theme.of(context).hintColor,
+              ? Container(
+                  width: 42,
+                  height: 42,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: (foreground ?? colors.primary).withValues(
+                      alpha: enabled ? 0.11 : 0.06,
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(
+                    leadingIcon,
+                    size: 21,
+                    color: foreground ?? colors.primary,
+                  ),
                 )
               : leading ?? 0.hBox,
 
           /// leading space
           if (leading != null || leadingIcon != null) const SizedBox(width: 16),
           Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  /// Title widget
-                  titleText != null
-                      ? StyledText(
-                          titleText!,
-                          fontSize: 16,
-                          fontWeight: isPrimary ? FontWeight.w500 : null,
-                          color: enabled ? accent : Theme.of(context).hintColor,
-                        )
-                      : title ?? 0.vBox,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                /// Title widget
+                titleText != null
+                    ? StyledText(
+                        titleText!,
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -0.15,
+                        color: foreground,
+                      )
+                    : title ?? 0.vBox,
 
-                  /// Subtitle widget
-                  subtitleText != null
-                      ? StyledText(
+                /// Subtitle widget
+                subtitleText != null
+                    ? Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: StyledText(
                           subtitleText!,
-                          fontSize: 14,
+                          fontSize: 13,
+                          height: 1.28,
                           isSubtitle: true,
-                        )
-                      : subtitle ?? 0.vBox,
-                ],
-              ),
+                          color: enabled ? null : theme.disabledColor,
+                        ),
+                      )
+                    : subtitle ?? 0.vBox,
+              ],
             ),
           ),
 

@@ -54,7 +54,5 @@
     <string name="emergency_pause_notification_title">Хитна пауза</string>
     <string name="emergency_pause_ended_notification_info">Хитна пауза је завршена, а блокатор апликација је поново активиран. Ометања су поново блокирана. Остани фокусиран!</string>
     <string name="focus_session_notification_title">Фокус сесија</string>
-    <string name="focus_session_success_notification_info">Браво! Успешно си завршио/ла своју сесију фокуса. Одличан посао, остани на правом путу! Супер!</string>
-    <string name="focus_session_giveup_notification_info">Главу горе. Не брини, следећи пут ћеш бити бољи. Сваки напор се рачуна – само настави да радиш на себи</string>
     <string name="notification_schedule_batch_title">Непрочитана обавештења</string>
 </resources>

@@ -44,15 +44,18 @@ class GreetingsUsername extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         StyledText(
-          "👋 ${context.locale.welcome_greetings}",
-          fontSize: 8,
-          height: 1,
+          context.locale.welcome_greetings,
+          fontSize: 11,
+          height: 1.2,
+          fontWeight: FontWeight.w500,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
 
         /// User name
         DefaultHero(
           tag: HeroTags.editUsernameTag,
           child: InkWell(
+            borderRadius: BorderRadius.circular(10),
             onLongPress: () => _editUserName(context, ref, username),
             onTap: () => context.showSnackAlert(
               context.locale.username_snack_alert,
@@ -61,8 +64,10 @@ class GreetingsUsername extends ConsumerWidget {
             splashColor: Theme.of(context).colorScheme.surfaceContainerLow,
             child: StyledText(
               username,
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
+              fontSize: 28,
+              height: 1.08,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.7,
             ),
           ),
         ),

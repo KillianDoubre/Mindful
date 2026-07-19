@@ -13,6 +13,7 @@ import 'dart:math';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:mindful/config/hero_tags.dart';
 import 'package:mindful/core/extensions/ext_build_context.dart';
 import 'package:mindful/core/extensions/ext_duration.dart';
@@ -29,6 +30,7 @@ class DatingTimerChart extends ConsumerWidget {
     super.key,
     required this.appName,
     required this.appPackage,
+    required this.logoAsset,
     required this.allowedMinutes,
     required this.usedTimeSec,
     required this.enabled,
@@ -36,6 +38,7 @@ class DatingTimerChart extends ConsumerWidget {
 
   final String appName;
   final String appPackage;
+  final String logoAsset;
   final int allowedMinutes;
   final int usedTimeSec;
   final bool enabled;
@@ -114,7 +117,11 @@ class DatingTimerChart extends ConsumerWidget {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(FluentIcons.heart_20_regular, size: 32),
+                          SvgPicture.asset(
+                            logoAsset,
+                            width: 38,
+                            height: 38,
+                          ),
                           8.vBox,
                           TimeTextShort(
                             timeDuration: Duration(seconds: remainingTimeSec),

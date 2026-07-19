@@ -163,8 +163,16 @@ class _DropdownMenuDialogState<T> extends State<_DropdownMenuDialog<T>> {
             tag: widget.heroTag,
             child: AlertDialog(
               scrollable: true,
-              icon: Icon(widget.iconData ?? FluentIcons.info_20_regular),
-              title: StyledText(widget.label, fontSize: 16),
+              icon: Icon(
+                widget.iconData ?? FluentIcons.info_20_regular,
+                size: 28,
+              ),
+              title: StyledText(
+                widget.label,
+                fontSize: 19,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.3,
+              ),
               insetPadding: EdgeInsets.zero,
               contentPadding: const EdgeInsets.all(12),
               actionsPadding:

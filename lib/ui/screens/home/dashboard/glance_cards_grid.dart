@@ -26,9 +26,9 @@ class GlanceCardsGrid extends StatelessWidget {
         shrinkWrap: true,
         crossAxisCount: 2,
         childAspectRatio: constraints.maxWidth / 220,
-        padding: const EdgeInsets.only(top: 4),
-        mainAxisSpacing: 4,
-        crossAxisSpacing: 4,
+        padding: const EdgeInsets.only(top: 6),
+        mainAxisSpacing: 6,
+        crossAxisSpacing: 6,
         physics: const NeverScrollableScrollPhysics(),
         children: const [
           DataTotalGlance(),

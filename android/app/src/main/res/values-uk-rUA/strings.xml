@@ -68,8 +68,6 @@
     <string name="focus_session_notification_title">Сеанс Зосередження</string>
     <string name="focus_session_notification_info" comment="Time string as placeholder. ex: 'Focus session will end in 33m 15s'" formatted="true">Сеанс зосередження завершиться через %s</string>
     <string name="focus_session_infinite_notification_info" comment="Time string as placeholder. ex: 'You've been focused for 33m 15s'" formatted="true">Ви були зосереджені %s</string>
-    <string name="focus_session_success_notification_info">Вітаємо! Ви успішно завершили сеанс зосередження. Молодець, що не зупиняєтесь на досягнутому! Продовжуйте свою чудову роботу!</string>
-    <string name="focus_session_giveup_notification_info">Ти здався! Не хвилюйтеся, наступного разу у вас вийде краще. Кожне зусилля має значення - просто продовжуйте</string>
     <string name="notification_schedule_batch_title">Непрочитані сповіщення</string>
     <string name="notification_schedule_batch_summery" comment="Number of notifications as placeholder" formatted="true">У вас %d непрочитаних сповіщень поки вас не було. Вони будуть позначені як прочитані через 24 години.</string>
 </resources>

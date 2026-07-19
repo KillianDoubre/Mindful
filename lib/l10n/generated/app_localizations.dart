@@ -612,29 +612,11 @@ abstract class AppLocalizations {
   /// **'Select at least one distracting app.'**
   String get minimum_distracting_apps_snack_alert;
 
-  /// No description provided for @donation_card_title.
-  ///
-  /// In en, this message translates to:
-  /// **'Support us'**
-  String get donation_card_title;
-
-  /// No description provided for @donation_card_info.
-  ///
-  /// In en, this message translates to:
-  /// **'Mindful is free and open-source, developed with months of dedication. If it has helped you, your donation would mean the world to us. Every contribution helps us continue improving and maintaining it for everyone.'**
-  String get donation_card_info;
-
   /// No description provided for @operation_failed_snack_alert.
   ///
   /// In en, this message translates to:
   /// **'Operation failed, something went wrong!'**
   String get operation_failed_snack_alert;
-
-  /// No description provided for @donation_card_button_donate.
-  ///
-  /// In en, this message translates to:
-  /// **'Donate'**
-  String get donation_card_button_donate;
 
   /// No description provided for @app_restart_dialog_title.
   ///
@@ -2019,13 +2001,13 @@ abstract class AppLocalizations {
   /// No description provided for @focus_session_state_successful.
   ///
   /// In en, this message translates to:
-  /// **'Successful'**
+  /// **'Completed'**
   String get focus_session_state_successful;
 
   /// No description provided for @focus_session_state_failed.
   ///
   /// In en, this message translates to:
-  /// **'Failed'**
+  /// **'Stopped'**
   String get focus_session_state_failed;
 
   /// No description provided for @active_session_tab_title.
@@ -2043,7 +2025,7 @@ abstract class AppLocalizations {
   /// No description provided for @active_session_dialog_button_keep_pushing.
   ///
   /// In en, this message translates to:
-  /// **'Keep pushing'**
+  /// **'Continue session'**
   String get active_session_dialog_button_keep_pushing;
 
   /// No description provided for @active_session_finish_dialog_title.
@@ -2055,19 +2037,19 @@ abstract class AppLocalizations {
   /// No description provided for @active_session_finish_dialog_info.
   ///
   /// In en, this message translates to:
-  /// **'Stay strong! You\'re building valuable focus. Are you sure you want to end this focus session? Every extra moment counts toward your goals.'**
+  /// **'End this focus session now?'**
   String get active_session_finish_dialog_info;
 
   /// No description provided for @active_session_giveup_dialog_title.
   ///
   /// In en, this message translates to:
-  /// **'Give up'**
+  /// **'Stop'**
   String get active_session_giveup_dialog_title;
 
   /// No description provided for @active_session_giveup_dialog_info.
   ///
   /// In en, this message translates to:
-  /// **'Hold on! You\'re almost there don\'t give up now! Are you sure you want to end this focus session early? Progress will be lost.'**
+  /// **'Stop this focus session before its planned end?'**
   String get active_session_giveup_dialog_info;
 
   /// No description provided for @active_session_reflection_dialog_title.
@@ -2091,38 +2073,8 @@ abstract class AppLocalizations {
   /// No description provided for @active_session_giveup_snack_alert.
   ///
   /// In en, this message translates to:
-  /// **'You gave up! Don\'t worry, you can do better next time. Every effort counts - just keep going'**
+  /// **'Session stopped.'**
   String get active_session_giveup_snack_alert;
-
-  /// No description provided for @active_session_quote_one.
-  ///
-  /// In en, this message translates to:
-  /// **'Every step counts, stay strong and keep going'**
-  String get active_session_quote_one;
-
-  /// No description provided for @active_session_quote_two.
-  ///
-  /// In en, this message translates to:
-  /// **'Stay focused! you\'re making amazing progress'**
-  String get active_session_quote_two;
-
-  /// No description provided for @active_session_quote_three.
-  ///
-  /// In en, this message translates to:
-  /// **'You\'re crushing it! Keep the momentum going'**
-  String get active_session_quote_three;
-
-  /// No description provided for @active_session_quote_four.
-  ///
-  /// In en, this message translates to:
-  /// **'Just a little more to go, you\'re doing fantastic'**
-  String get active_session_quote_four;
-
-  /// No description provided for @active_session_quote_five.
-  ///
-  /// In en, this message translates to:
-  /// **'Congratulations 🎉 \n You\'ve completed your focus session of {durationString}.\n\nGreat job, keep up the amazing work'**
-  String active_session_quote_five(String durationString);
 
   /// No description provided for @restriction_groups_tab_title.
   ///
@@ -2688,24 +2640,6 @@ abstract class AppLocalizations {
   /// **'About'**
   String get about_tab_title;
 
-  /// No description provided for @changelog_tile_title.
-  ///
-  /// In en, this message translates to:
-  /// **'Changelog'**
-  String get changelog_tile_title;
-
-  /// No description provided for @changelog_tile_subtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Find out what\'s new.'**
-  String get changelog_tile_subtitle;
-
-  /// No description provided for @full_changelog_tile_title.
-  ///
-  /// In en, this message translates to:
-  /// **'Full changelog'**
-  String get full_changelog_tile_title;
-
   /// No description provided for @redirected_to_github_subtitle.
   ///
   /// In en, this message translates to:
@@ -2771,6 +2705,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'More details'**
   String get more_details_button;
+
+  /// No description provided for @group_name_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Social media, entertainment, games, etc.'**
+  String get group_name_hint;
+
+  /// No description provided for @notification_schedule_name_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Morning, noon, work, etc.'**
+  String get notification_schedule_name_hint;
+
+  /// No description provided for @focus_reflection_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Write your goal or accomplishments...'**
+  String get focus_reflection_hint;
+
+  /// No description provided for @tips_and_tricks_heading.
+  ///
+  /// In en, this message translates to:
+  /// **'Tips & Tricks'**
+  String get tips_and_tricks_heading;
+
+  /// No description provided for @productivity_heading.
+  ///
+  /// In en, this message translates to:
+  /// **'Productivity'**
+  String get productivity_heading;
+
+  /// No description provided for @habits_tile_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Habits'**
+  String get habits_tile_title;
+
+  /// No description provided for @habits_tile_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Build better habits and track them.'**
+  String get habits_tile_subtitle;
+
+  /// No description provided for @tasks_tile_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Tasks and todos'**
+  String get tasks_tile_title;
+
+  /// No description provided for @tasks_tile_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan your future with tasks and todos.'**
+  String get tasks_tile_subtitle;
+
+  /// No description provided for @notes_tile_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes and lists'**
+  String get notes_tile_title;
+
+  /// No description provided for @notes_tile_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Capture thoughts, checklists, or ideas.'**
+  String get notes_tile_subtitle;
+
+  /// No description provided for @coming_soon_snack_alert.
+  ///
+  /// In en, this message translates to:
+  /// **'Coming soon...'**
+  String get coming_soon_snack_alert;
 }
 
 class _AppLocalizationsDelegate

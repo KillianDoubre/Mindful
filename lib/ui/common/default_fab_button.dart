@@ -35,10 +35,12 @@ class DefaultFabButton extends StatelessWidget {
         icon: Icon(icon),
         label: Text(label),
         style: const ButtonStyle().copyWith(
-          elevation: WidgetStatePropertyAll(5),
-          padding: const WidgetStatePropertyAll(EdgeInsets.all(16)),
+          elevation: const WidgetStatePropertyAll(0),
+          padding: const WidgetStatePropertyAll(
+            EdgeInsets.symmetric(horizontal: 18, vertical: 15),
+          ),
           shape: WidgetStatePropertyAll(
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           ),
         ),
       ),

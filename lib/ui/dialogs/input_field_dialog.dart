@@ -89,7 +89,7 @@ Future<String?> showGroupNameInputDialog({
         fieldIcon: FluentIcons.tab_desktop_bottom_20_regular,
         title: context.locale.restriction_group_name_tile_title,
         fieldLabel: context.locale.restriction_group_name_tile_title,
-        hintText: "Social Media, Entertainment, Games, etc",
+        hintText: context.locale.group_name_hint,
         helperText: context.locale.restriction_group_name_picker_dialog_info,
         negativeBtnLabel: context.locale.dialog_button_cancel,
         positiveBtnLabel: context.locale.dialog_button_set,
@@ -114,7 +114,7 @@ Future<String?> showNotificationScheduleNameDialog({
         fieldIcon: FluentIcons.alert_snooze_20_regular,
         title: context.locale.new_schedule_fab_button,
         fieldLabel: context.locale.new_schedule_dialog_field_label,
-        hintText: "Morning, Noon, Work, etc",
+        hintText: context.locale.notification_schedule_name_hint,
         helperText: context.locale.new_schedule_dialog_info,
         negativeBtnLabel: context.locale.dialog_button_cancel,
         positiveBtnLabel: context.locale.create_button,
@@ -142,7 +142,7 @@ Future<String?> showFocusReflectionDialog({
         maxLines: 10,
         title: context.locale.active_session_reflection_dialog_title,
         fieldLabel: "",
-        hintText: "Write your goal or accomplishments...",
+        hintText: context.locale.focus_reflection_hint,
         helperText:
             "${context.locale.active_session_reflection_dialog_info}\n\n${context.locale.active_session_reflection_dialog_tip}",
         negativeBtnLabel: context.locale.onboarding_skip_btn_label,
@@ -227,8 +227,13 @@ class _InputFieldDialogState extends State<_InputFieldDialog> {
             tag: widget.heroTag,
             child: AlertDialog(
               scrollable: true,
-              icon: Icon(widget.dialogIcon),
-              title: StyledText(widget.title, fontSize: 16),
+              icon: Icon(widget.dialogIcon, size: 28),
+              title: StyledText(
+                widget.title,
+                fontSize: 19,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.3,
+              ),
               insetPadding: EdgeInsets.zero,
               content: SizedBox(
                 width: MediaQuery.of(context).size.width,

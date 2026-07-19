@@ -26,6 +26,4 @@
     <string name="emergency_pause_notification_title">Notfall-Pause</string>
     <string name="emergency_pause_ended_notification_info">Die Notpause ist vorbei und der App-Blocker ist wieder aktiv. Ablenkungen werden jetzt wieder blockiert, bleib konzentriert!</string>
     <string name="focus_session_notification_title">Fokus-Sitzung</string>
-    <string name="focus_session_success_notification_info">Herzlichen Glückwunsch! Du hast die Fokus-Sitzung erfolgreich abgeschlossen. Toll, dass Du dabei geblieben bist! Weiter so!</string>
-    <string name="focus_session_giveup_notification_info">Du hast aufgegeben! Keine Sorge, nächstes Mal kannst du es besser machen. Jede Anstrengung zählt – mach einfach weiter</string>
 </resources>

@@ -47,24 +47,37 @@ class SliverPrimaryActionContainer extends StatelessWidget {
       child: SliverVisibility(
         visible: isVisible,
         sliver: RoundedContainer(
-          borderRadius: radius ?? BorderRadius.circular(24),
+          borderRadius: radius ?? BorderRadius.circular(26),
           color: Theme.of(context).colorScheme.secondaryContainer,
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(18),
           margin: margin,
           child: SingleChildScrollView(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(icon),
+                Container(
+                  width: 42,
+                  height: 42,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSecondaryContainer
+                        .withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(icon, size: 22),
+                ),
 
-                6.vBox,
+                12.vBox,
 
                 /// title
                 StyledText(
                   title,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.2,
                 ),
 
                 2.vBox,
@@ -72,10 +85,11 @@ class SliverPrimaryActionContainer extends StatelessWidget {
                 ///  info
                 StyledText(
                   information,
-                  fontSize: 12,
+                  fontSize: 13,
+                  height: 1.3,
                 ),
 
-                12.vBox,
+                16.vBox,
 
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.end,

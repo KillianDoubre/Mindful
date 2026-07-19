@@ -329,18 +329,8 @@ class AppLocalizationsTr extends AppLocalizations {
       'En az bir dikkat dağıtıcı uygulama seçin.';
 
   @override
-  String get donation_card_title => 'Bizi destekleyin';
-
-  @override
-  String get donation_card_info =>
-      'Mindful ücretsiz ve açık kaynak kodludur, aylar süren özverili çalışmalarla geliştirilmiştir. Eğer size yardımcı olduysa, bağışınız bizim için dünyalara bedeldir. Her katkı, onu herkes için geliştirmeye ve sürdürmeye devam etmemize yardımcı olur.';
-
-  @override
   String get operation_failed_snack_alert =>
       'Operasyon başarısız oldu, bir şeyler ters gitti!';
-
-  @override
-  String get donation_card_button_donate => 'Bağış';
 
   @override
   String get app_restart_dialog_title => 'Yeniden Başlatma Gerekli';
@@ -1192,26 +1182,6 @@ class AppLocalizationsTr extends AppLocalizations {
       'Vazgeçtin! Endişelenme, bir dahaki sefere daha iyisini yapabilirsin. Her çaba önemli – sadece devam et';
 
   @override
-  String get active_session_quote_one =>
-      'Her adım önemlidir, güçlü kalın ve devam edin';
-
-  @override
-  String get active_session_quote_two =>
-      'Odaklanmaya devam et! İnanılmaz bir ilerleme kaydediyorsun';
-
-  @override
-  String get active_session_quote_three => 'Eziyorsun! Momentumu devam ettir';
-
-  @override
-  String get active_session_quote_four =>
-      'Sadece biraz daha kaldı, harika gidiyorsun';
-
-  @override
-  String active_session_quote_five(String durationString) {
-    return 'Tebrikler 🎉 \n $durationString odaklanma seansınızı tamamladınız.\n\nHarika iş, harika çalışmaya devam edin';
-  }
-
-  @override
   String get restriction_groups_tab_title => 'Kısıtlama grupları';
 
   @override
@@ -1549,15 +1519,6 @@ class AppLocalizationsTr extends AppLocalizations {
   String get about_tab_title => 'Hakkında';
 
   @override
-  String get changelog_tile_title => 'Değişiklik Notları';
-
-  @override
-  String get changelog_tile_subtitle => 'Yenilikleri öğrenin.';
-
-  @override
-  String get full_changelog_tile_title => 'Tam değişiklik notları';
-
-  @override
   String get redirected_to_github_subtitle =>
       'Şuraya yönlendirileceksiniz: GitHub.';
 
@@ -1592,4 +1553,40 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get more_details_button => 'Daha fazla bilgi';
+
+  @override
+  String get group_name_hint => 'Social media, entertainment, games, etc.';
+
+  @override
+  String get notification_schedule_name_hint => 'Morning, noon, work, etc.';
+
+  @override
+  String get focus_reflection_hint => 'Write your goal or accomplishments...';
+
+  @override
+  String get tips_and_tricks_heading => 'Tips & Tricks';
+
+  @override
+  String get productivity_heading => 'Productivity';
+
+  @override
+  String get habits_tile_title => 'Habits';
+
+  @override
+  String get habits_tile_subtitle => 'Build better habits and track them.';
+
+  @override
+  String get tasks_tile_title => 'Tasks and todos';
+
+  @override
+  String get tasks_tile_subtitle => 'Plan your future with tasks and todos.';
+
+  @override
+  String get notes_tile_title => 'Notes and lists';
+
+  @override
+  String get notes_tile_subtitle => 'Capture thoughts, checklists, or ideas.';
+
+  @override
+  String get coming_soon_snack_alert => 'Coming soon...';
 }

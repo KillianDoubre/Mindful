@@ -20,7 +20,7 @@ import 'package:mindful/ui/common/sliver_tabs_bottom_padding.dart';
 Future<void> showDefaultBottomSheet({
   required BuildContext context,
   required Widget sliverBody,
-  EdgeInsets padding = const EdgeInsets.symmetric(horizontal: 12),
+  EdgeInsets padding = const EdgeInsets.symmetric(horizontal: 16),
   Widget? header,
   String? headerTitle,
   double initialSize = 0.5,

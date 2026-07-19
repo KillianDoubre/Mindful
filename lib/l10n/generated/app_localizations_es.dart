@@ -329,18 +329,8 @@ class AppLocalizationsEs extends AppLocalizations {
       'Selecciona al menos una aplicación que te distraiga.';
 
   @override
-  String get donation_card_title => 'Ayúdanos';
-
-  @override
-  String get donation_card_info =>
-      'Mindful es gratuito y de código abierto, desarrollado con meses de dedicación. Si te ha sido útil, tu donación significaría muchísimo para nosotros. Cada contribución nos ayuda a seguir mejorando y manteniéndolo para todos.';
-
-  @override
   String get operation_failed_snack_alert =>
       'Operación fallida, ¡algo salió mal!';
-
-  @override
-  String get donation_card_button_donate => 'Donar';
 
   @override
   String get app_restart_dialog_title => 'Es necesario reiniciar';
@@ -1196,27 +1186,6 @@ class AppLocalizationsEs extends AppLocalizations {
       '¡Te rendiste! No te preocupes, la próxima vez lo harás mejor. Cada esfuerzo cuenta - ¡solo sigue adelante!';
 
   @override
-  String get active_session_quote_one =>
-      'Cada paso cuenta, mantente fuerte y sigue adelante';
-
-  @override
-  String get active_session_quote_two =>
-      '¡Mantente concentrado! Estás haciendo un progreso increíble';
-
-  @override
-  String get active_session_quote_three =>
-      '¡Lo estás bordando! Mantén el ritmo';
-
-  @override
-  String get active_session_quote_four =>
-      'Ya queda solo un poco más, lo estás haciendo genial';
-
-  @override
-  String active_session_quote_five(String durationString) {
-    return '¡Felicitaciones! 🎉 \nHas completado tu sesión de concentración de $durationString.';
-  }
-
-  @override
   String get restriction_groups_tab_title => 'Grupos restringidos';
 
   @override
@@ -1558,15 +1527,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get about_tab_title => 'Acerca de';
 
   @override
-  String get changelog_tile_title => 'Historial de cambios';
-
-  @override
-  String get changelog_tile_subtitle => 'Descubre las últimas novedades.';
-
-  @override
-  String get full_changelog_tile_title => 'Registro de cambios completo';
-
-  @override
   String get redirected_to_github_subtitle => 'Serás redirigido a GitHub.';
 
   @override
@@ -1600,4 +1560,40 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get more_details_button => 'Más información';
+
+  @override
+  String get group_name_hint => 'Social media, entertainment, games, etc.';
+
+  @override
+  String get notification_schedule_name_hint => 'Morning, noon, work, etc.';
+
+  @override
+  String get focus_reflection_hint => 'Write your goal or accomplishments...';
+
+  @override
+  String get tips_and_tricks_heading => 'Tips & Tricks';
+
+  @override
+  String get productivity_heading => 'Productivity';
+
+  @override
+  String get habits_tile_title => 'Habits';
+
+  @override
+  String get habits_tile_subtitle => 'Build better habits and track them.';
+
+  @override
+  String get tasks_tile_title => 'Tasks and todos';
+
+  @override
+  String get tasks_tile_subtitle => 'Plan your future with tasks and todos.';
+
+  @override
+  String get notes_tile_title => 'Notes and lists';
+
+  @override
+  String get notes_tile_subtitle => 'Capture thoughts, checklists, or ideas.';
+
+  @override
+  String get coming_soon_snack_alert => 'Coming soon...';
 }

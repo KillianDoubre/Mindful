@@ -15,6 +15,7 @@ import 'package:mindful/core/enums/usage_type.dart';
 import 'package:mindful/core/extensions/ext_int.dart';
 import 'package:mindful/config/app_constants.dart';
 import 'package:mindful/models/usage_model.dart';
+import 'package:mindful/ui/common/rounded_container.dart';
 import 'package:mindful/ui/common/styled_text.dart';
 
 class DefaultBarChart extends StatelessWidget {
@@ -67,10 +68,15 @@ class DefaultBarChart extends StatelessWidget {
 
     return Semantics(
       excludeSemantics: true,
-      child: Container(
+      child: RoundedContainer(
         height: height,
         width: width,
-        padding: padding,
+        padding: EdgeInsets.fromLTRB(
+          padding.left + 10,
+          padding.top,
+          padding.right + 10,
+          padding.bottom,
+        ),
         child: BarChart(
           BarChartData(
             barGroups: List.generate(
