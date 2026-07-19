@@ -18,6 +18,7 @@ import android.util.Log
 import com.mindful.android.enums.DndWakeLock
 import com.mindful.android.models.Wellbeing
 import com.mindful.android.utils.AppUtils
+import com.mindful.android.utils.DateTimeUtils
 import com.mindful.android.utils.JsonUtils
 import org.json.JSONArray
 import org.json.JSONObject
@@ -31,6 +32,7 @@ object SharedPrefsHelper {
     private const val UNIQUE_PREFS_BOX = "UniquePrefs"
     private const val PREF_KEY_NOTIFICATION_PERMISSION_COUNT = "notificationPermissionCount"
     private const val PREF_KEY_SHORTS_SCREEN_TIME = "shortsScreenTime"
+    private const val PREF_KEY_DATING_SCREEN_TIMES = "datingScreenTimes"
     private const val PREF_KEY_DND_WAKE_LOCK = "dndWakeLock"
     private const val PREF_KEY_EXCLUDED_APPS = "excludedApps"
 
@@ -187,6 +189,43 @@ object SharedPrefsHelper {
 
         // fetch it
         return mUniquePrefs!!.getLong(PREF_KEY_SHORTS_SCREEN_TIME, 0L)
+    }
+
+    /**
+     * Gets or sets the per-app dating screen times as a JSON string.
+     *
+     * The JSON shape is `{ "day": Int, "times": { "<package>": Long(ms) } }`,
+     * where `day` is the day-of-year used to reset the counters daily.
+     *
+     * @param context  The application context.
+     * @param jsonTimes When non-null, persists this JSON and returns it.
+     */
+    fun getSetDatingScreenTimes(context: Context, jsonTimes: String?): String {
+        checkAndInitializeUniquePrefs(context)
+
+        jsonTimes?.let {
+            mUniquePrefs!!.edit().putString(PREF_KEY_DATING_SCREEN_TIMES, it).apply()
+            return it
+        }
+
+        return mUniquePrefs!!.getString(PREF_KEY_DATING_SCREEN_TIMES, "{}")!!
+    }
+
+    /** Returns the current Dating period's per-app usage in milliseconds. */
+    fun getDatingScreenTimesMs(context: Context): Map<String, Long> {
+        return runCatching {
+            val json = JSONObject(getSetDatingScreenTimes(context, null))
+            val resetTime = getSetWellBeingSettings(context, null).datingResetTimeMinutes
+            val currentPeriod = DateTimeUtils.dailyPeriodKey(resetTime)
+            if (json.optInt("day", -1) != currentPeriod) return emptyMap()
+
+            val times = json.optJSONObject("times") ?: return emptyMap()
+            buildMap {
+                times.keys().forEach { packageName ->
+                    put(packageName, times.optLong(packageName, 0L).coerceAtLeast(0L))
+                }
+            }
+        }.getOrDefault(emptyMap())
     }
 
 

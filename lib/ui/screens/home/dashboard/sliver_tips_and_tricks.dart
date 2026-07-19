@@ -83,7 +83,6 @@ class _SliverTipsAndTricksState extends State<SliverTipsAndTricks> {
       ctx.locale.notification_blocking_tip: (_) =>
           goToTab(DefaultHomeTab.notifications),
       ctx.locale.usage_history_tip: (_) => goToTab(DefaultHomeTab.statistics),
-      ctx.locale.bedtime_reminder_tip: (_) => goToTab(DefaultHomeTab.bedtime),
       ctx.locale.custom_blocking_tip: (_) => goToTab(DefaultHomeTab.statistics),
       ctx.locale.notification_batching_tip: (_) =>
           goToTab(DefaultHomeTab.notifications),
@@ -91,7 +90,6 @@ class _SliverTipsAndTricksState extends State<SliverTipsAndTricks> {
           goToTab(DefaultHomeTab.notifications),
       ctx.locale.data_usage_tip: (_) => goToTab(DefaultHomeTab.statistics),
       ctx.locale.block_internet_tip: (_) => goToTab(DefaultHomeTab.statistics),
-      ctx.locale.emergency_passes_tip: (_) => goToTab(DefaultHomeTab.bedtime),
 
       /// Settings screen
       ctx.locale.backup_usage_db_tip: (_) => goToSettings(tab: 1),

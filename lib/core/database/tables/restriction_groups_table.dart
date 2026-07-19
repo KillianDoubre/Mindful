@@ -12,6 +12,7 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart';
 import 'package:mindful/core/database/adapters/time_of_day_adapter.dart';
+import 'package:mindful/core/database/converters/active_period_list_converter.dart';
 import 'package:mindful/core/database/converters/string_list_converter.dart';
 
 @DataClassName("RestrictionGroup")
@@ -38,8 +39,18 @@ class RestrictionGroupsTable extends Table {
       .withDefault(const Constant(0))();
 
   /// Total duration of active period from start to end in MINUTES
+  ///
+  /// Deprecated in favor of [activePeriods]. Kept for backward compatibility.
   IntColumn get periodDurationInMins =>
       integer().withDefault(const Constant(0))();
+
+  /// List of active periods for the group. Apps in the group are allowed only
+  /// when the current time falls inside one of these periods on an enabled day.
+  ///
+  /// Supersedes the single [activePeriodStart]/[activePeriodEnd] window.
+  TextColumn get activePeriods => text()
+      .map(const ActivePeriodListConverter())
+      .withDefault(Constant(jsonEncode([])))();
 
   /// List of app's packages which are associated with the group.
   TextColumn get distractingApps => text()

@@ -49,10 +49,7 @@ class BrowserManager(
         val host = Utils.parseHostNameFromUrl(url) ?: return
 
         when {
-            wellbeing.blockedWebsites.contains(host)
-                    || wellbeing.nsfwWebsites.contains(host)
-                    || nsfwDomains[host] ?: false
-                -> {
+            isHostBlocked(host, wellbeing) -> {
                 Log.d(TAG, "blockDistraction: Blocked website $host opened in $packageName")
                 blockedContentGoBack.invoke()
             }
@@ -63,6 +60,31 @@ class BrowserManager(
             // Activate safe search if NSFW is blocked
             wellbeing.blockNsfwSites -> applySafeSearch(packageName, url, host)
         }
+    }
+
+    /**
+     * Returns true if [host] or any of its parent domains is blocked.
+     *
+     * Matching walks up the domain (e.g. `www.de.site.com` → `de.site.com` →
+     * `site.com`) so subdomains like `www.`, `m2.`, `de.` of a blocked domain
+     * are caught too, instead of only exact host matches.
+     */
+    private fun isHostBlocked(host: String, wellbeing: Wellbeing): Boolean {
+        val labels = host.split(".")
+
+        // Check the host and every parent domain down to the registrable domain
+        // (stop before the bare TLD, i.e. require at least 2 labels).
+        for (i in 0 until labels.size - 1) {
+            val candidate = labels.subList(i, labels.size).joinToString(".")
+            if (wellbeing.blockedWebsites.contains(candidate)
+                || wellbeing.nsfwWebsites.contains(candidate)
+                || nsfwDomains[candidate] == true
+            ) {
+                return true
+            }
+        }
+
+        return false
     }
 
     /**

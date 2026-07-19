@@ -11,6 +11,8 @@
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
+import 'package:mindful/core/database/adapters/time_of_day_adapter.dart';
+import 'package:mindful/core/database/converters/dating_app_block_list_converter.dart';
 import 'package:mindful/core/database/converters/enum_list_converter.dart';
 import 'package:mindful/core/database/converters/string_list_converter.dart';
 import 'package:mindful/core/enums/platform_features.dart';
@@ -46,4 +48,15 @@ class WellbeingTable extends Table {
   TextColumn get nsfwWebsites => text()
       .map(const StringListConverter())
       .withDefault(Constant(jsonEncode([])))();
+
+  /// Per-app dating blocking configs (enabled + allowed minutes) for apps like
+  /// Tinder, Hinge, Bumble, Happn. Empty means dating blocking is unused.
+  TextColumn get datingBlocks => text()
+      .map(const DatingAppBlockListConverter())
+      .withDefault(Constant(jsonEncode([])))();
+
+  /// Time at which dating counters start a new daily period.
+  IntColumn get datingResetTime => integer()
+      .map(const TimeOfDayAdapterConverter())
+      .withDefault(const Constant(0))();
 }

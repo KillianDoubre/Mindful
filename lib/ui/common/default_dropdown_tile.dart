@@ -53,8 +53,16 @@ class DefaultDropdownTile<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final heroTag = "DefaultDropdown.$titleText";
-    final selected =
-        items.isNotEmpty ? items.firstWhere((e) => e.value == value) : null;
+
+    /// Null-safe lookup: a stored value with no matching item (e.g. a tab that
+    /// was removed) resolves to null instead of throwing.
+    DefaultDropdownItem<T>? selected;
+    for (final item in items) {
+      if (item.value == value) {
+        selected = item;
+        break;
+      }
+    }
 
     return DefaultHero(
       tag: heroTag,

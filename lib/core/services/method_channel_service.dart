@@ -89,6 +89,17 @@ class MethodChannelService {
     return time ~/ 1000;
   }
 
+  /// Gets today's dating-page screen time in seconds for each app package.
+  Future<Map<String, int>> getDatingScreenTimesSec() async {
+    final timesMs = await _methodChannel.invokeMapMethod<String, int>(
+          'getDatingScreenTimesMs',
+        ) ??
+        {};
+    return timesMs.map(
+      (packageName, timeMs) => MapEntry(packageName, timeMs ~/ 1000),
+    );
+  }
+
   /// Gets all the stored native crash logs and clears them afterward.
   Future<List<CrashLogsTableCompanion>> getNativeCrashLogs() async {
     List<CrashLogsTableCompanion> crashLogs = [];
@@ -227,6 +238,9 @@ class MethodChannelService {
                 wellBeingSettings.blockedFeatures.map((e) => e.name).toList(),
             "blockedWebsites": wellBeingSettings.blockedWebsites,
             "nsfwWebsites": wellBeingSettings.nsfwWebsites,
+            "datingBlocks":
+                wellBeingSettings.datingBlocks.map((e) => e.toMap()).toList(),
+            "datingResetTime": wellBeingSettings.datingResetTime.toMinutes,
           },
         ),
       );

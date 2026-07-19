@@ -11,6 +11,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mindful/core/database/adapters/time_of_day_adapter.dart';
 import 'package:mindful/core/database/app_database.dart';
+import 'package:mindful/models/active_period.dart';
 import 'package:mindful/core/database/daos/dynamic_records_dao.dart';
 import 'package:mindful/core/services/drift_db_service.dart';
 import 'package:mindful/core/services/method_channel_service.dart';
@@ -53,6 +54,7 @@ class RestrictionGroupsNotifier
     required TimeOfDayAdapter activePeriodStart,
     required TimeOfDayAdapter activePeriodEnd,
     required int periodDurationInMins,
+    required List<ActivePeriod> activePeriods,
     required List<String> distractingApps,
   }) async {
     final newGroup = await _dao.insertRestrictionGroup(
@@ -61,6 +63,7 @@ class RestrictionGroupsNotifier
       activePeriodStart: activePeriodStart,
       activePeriodEnd: activePeriodEnd,
       periodDurationInMins: periodDurationInMins,
+      activePeriods: activePeriods,
       distractingApps: distractingApps,
     );
 
@@ -99,7 +102,9 @@ class RestrictionGroupsNotifier
     final filteredGroups = state.values
         .where(
           (e) =>
-              (e.timerSec > 0 || e.periodDurationInMins > 0) &&
+              (e.timerSec > 0 ||
+                  e.periodDurationInMins > 0 ||
+                  e.activePeriods.isNotEmpty) &&
               e.distractingApps
                   .where((e) => _installedApps.contains(e))
                   .isNotEmpty,

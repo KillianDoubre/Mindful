@@ -84,6 +84,24 @@ object DateTimeUtils {
     }
 
     /**
+     * Returns the date key of the daily period containing the current time.
+     * A period starts at [resetTimeMinutes] and ends at the same time next day.
+     */
+    fun dailyPeriodKey(resetTimeMinutes: Int): Int {
+        val resetTime = resetTimeMinutes.coerceIn(0, 24 * 60 - 1)
+        val calendar = Calendar.getInstance()
+        val nowMinutes = calendar.get(Calendar.HOUR_OF_DAY) * 60 +
+                calendar.get(Calendar.MINUTE)
+
+        if (nowMinutes < resetTime) {
+            calendar.add(Calendar.DAY_OF_YEAR, -1)
+        }
+
+        return calendar.get(Calendar.YEAR) * 1000 +
+                calendar.get(Calendar.DAY_OF_YEAR)
+    }
+
+    /**
      * Calculated the difference between time now and future tod minutes.
      *
      * @param futureTod The total minutes from Time Of Day dart object.

@@ -143,6 +143,10 @@ class FgMethodCallHandler(
                 result.success(SharedPrefsHelper.getSetShortsScreenTimeMs(context, null))
             }
 
+            "getDatingScreenTimesMs" -> {
+                result.success(SharedPrefsHelper.getDatingScreenTimesMs(context))
+            }
+
             "getNativeCrashLogs" -> {
                 result.success(SharedPrefsHelper.getCrashLogsArrayJsonString(context))
             }

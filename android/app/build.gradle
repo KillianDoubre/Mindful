@@ -28,6 +28,11 @@ android {
     compileSdkVersion flutter.compileSdkVersion
     ndkVersion '27.0.12077973'
 
+    lint {
+        baseline = file("lint-baseline.xml")
+        disable 'PropertyEscape'
+    }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17

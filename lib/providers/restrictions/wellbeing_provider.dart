@@ -9,9 +9,11 @@
  */
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mindful/core/database/adapters/time_of_day_adapter.dart';
 import 'package:mindful/core/database/app_database.dart';
 import 'package:mindful/core/database/daos/unique_records_dao.dart';
 import 'package:mindful/core/enums/platform_features.dart';
+import 'package:mindful/models/dating_app_block.dart';
 import 'package:mindful/core/services/drift_db_service.dart';
 import 'package:mindful/core/services/method_channel_service.dart';
 import 'package:mindful/core/utils/default_models_utils.dart';
@@ -75,4 +77,36 @@ class WellBeingNotifier extends StateNotifier<Wellbeing> {
   /// Sets the allowed time limit for short content consumption.
   void setAllowedShortContentTime(int timeSec) =>
       state = state.copyWith(allowedShortsTimeSec: timeSec > 0 ? timeSec : -1);
+
+  /// Changes the daily reset boundary shared by all dating-app counters.
+  void setDatingResetTime(TimeOfDayAdapter time) =>
+      state = state.copyWith(datingResetTime: time);
+
+  /// Updates the dating blocking config for [appPackage], creating an entry if
+  /// none exists. Only the provided fields change.
+  void setDatingAppBlock(
+    String appPackage, {
+    bool? isEnabled,
+    int? allowedMinutes,
+  }) {
+    final blocks = [...state.datingBlocks];
+    final index = blocks.indexWhere((e) => e.appPackage == appPackage);
+
+    if (index >= 0) {
+      blocks[index] = blocks[index].copyWith(
+        isEnabled: isEnabled,
+        allowedMinutes: allowedMinutes,
+      );
+    } else {
+      blocks.add(
+        DatingAppBlock(
+          appPackage: appPackage,
+          allowedMinutes: allowedMinutes ?? 30,
+          isEnabled: isEnabled ?? true,
+        ),
+      );
+    }
+
+    state = state.copyWith(datingBlocks: blocks);
+  }
 }

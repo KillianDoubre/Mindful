@@ -11,6 +11,7 @@
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mindful/config/app_constants.dart';
 import 'package:mindful/config/app_themes.dart';
 import 'package:mindful/core/enums/app_theme_mode.dart';
 import 'package:mindful/core/enums/default_home_tab.dart';
@@ -18,11 +19,13 @@ import 'package:mindful/core/enums/item_position.dart';
 import 'package:mindful/core/extensions/ext_build_context.dart';
 import 'package:mindful/core/extensions/ext_num.dart';
 import 'package:mindful/core/extensions/ext_widget.dart';
+import 'package:mindful/config/hero_tags.dart';
 import 'package:mindful/config/locales.dart';
 import 'package:mindful/core/services/method_channel_service.dart';
 import 'package:mindful/l10n/generated/app_localizations.dart';
 import 'package:mindful/providers/system/mindful_settings_provider.dart';
 import 'package:mindful/ui/common/default_list_tile.dart';
+import 'package:mindful/ui/dialogs/input_field_dialog.dart';
 import 'package:mindful/ui/common/rounded_container.dart';
 import 'package:mindful/ui/common/content_section_header.dart';
 import 'package:mindful/ui/common/default_dropdown_tile.dart';
@@ -41,6 +44,26 @@ class TabGeneral extends ConsumerWidget {
         context.locale.whitelist_app_unsupported_snack_alert,
       );
     }
+  }
+
+  /// Opens the username input dialog and persists the entered name.
+  ///
+  /// Falls back to [AppConstants.defaultUsername] when the field is left empty.
+  void _editUsername(
+    BuildContext context,
+    WidgetRef ref,
+    String currentName,
+  ) async {
+    final newName = await showUsernameInputDialog(
+      context: context,
+      heroTag: HeroTags.editUsernameTag,
+      initialText: currentName,
+    );
+
+    if (newName == null) return;
+    ref.read(mindfulSettingsProvider.notifier).changeUsername(
+          newName.isEmpty ? AppConstants.defaultUsername : newName,
+        );
   }
 
   @override
@@ -125,9 +148,19 @@ class TabGeneral extends ConsumerWidget {
         12.vSliverBox,
         ContentSectionHeader(title: context.locale.defaults_heading).sliver,
 
+        /// Username
+        DefaultListTile(
+          position: ItemPosition.top,
+          titleText: context.locale.username_dialog_title,
+          subtitleText: mindfulSettings.username,
+          trailing: const Icon(FluentIcons.chevron_right_20_regular),
+          onPressed: () =>
+              _editUsername(context, ref, mindfulSettings.username),
+        ).sliver,
+
         /// App Language
         DefaultDropdownTile<String>(
-          position: ItemPosition.top,
+          position: ItemPosition.mid,
           titleText: context.locale.app_language_tile_title,
           dialogIcon: FluentIcons.color_20_filled,
           value: mindfulSettings.localeCode,
@@ -161,10 +194,7 @@ class TabGeneral extends ConsumerWidget {
               label: context.locale.notifications_tab_title,
               value: DefaultHomeTab.notifications,
             ),
-            DefaultDropdownItem(
-              label: context.locale.bedtime_tab_title,
-              value: DefaultHomeTab.bedtime,
-            ),
+            // NOTE: Bedtime option removed along with the hidden Bedtime tab.
           ],
         ).sliver,
 

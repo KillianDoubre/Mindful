@@ -47,6 +47,7 @@ import java.util.concurrent.Executors
 class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceChangeListener {
     companion object {
         private const val TAG = "Mindful.MindfulAccessibilityService"
+        private const val INSTAGRAM_INBOX_URI = "instagram://direct-inbox"
 
         const val ACTION_PERFORM_HOME_PRESS = "com.mindful.android.action.performHomePress"
         const val ACTION_MIDNIGHT_ACCESSIBILITY_RESET =
@@ -75,6 +76,7 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
 
     // Managers
     private lateinit var shortsPlatformManager: ShortsPlatformManager
+    private lateinit var datingPlatformManager: DatingPlatformManager
     private lateinit var browserManager: BrowserManager
     private lateinit var deviceFeaturesManager: DeviceFeaturesManager
     private lateinit var trackingManager: TrackingManager
@@ -83,6 +85,8 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
 
     override fun onCreate() {
         super.onCreate()
+        wellbeing = SharedPrefsHelper.getSetWellBeingSettings(this, null)
+
         trackingManager = TrackingManager(context = this)
         deviceFeaturesManager = DeviceFeaturesManager(
             context = this,
@@ -90,7 +94,18 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
         )
         shortsPlatformManager = ShortsPlatformManager(
             context = this,
-            blockedContentGoBack = this::goBackWithToast
+            blockedContentGoBack = this::goBackWithToast,
+            blockedInstagramOpenInbox = this::openInstagramInbox,
+        )
+        datingPlatformManager = DatingPlatformManager(
+            context = this,
+            blockedContentGoBack = this::goBackWithToast,
+            getForegroundRoot = { packageName ->
+                rootInActiveWindow?.takeIf {
+                    it.packageName?.toString() == packageName
+                }
+            },
+            initialResetTimeMinutes = wellbeing.datingResetTimeMinutes,
         )
         browserManager = BrowserManager(
             context = this,
@@ -100,7 +115,6 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
 
         // Register shared prefs listener and load data
         SharedPrefsHelper.registerUnregisterListenerToListenablePrefs(this, true, this)
-        wellbeing = SharedPrefsHelper.getSetWellBeingSettings(this, null)
 
         // Register listener for install and uninstall events
         deviceAppsChangedReceiver.register(this)
@@ -148,6 +162,15 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
                 node?.let {
                     // Broadcast event
                     trackingManager.onNewEvent("${it.packageName}")
+
+                    // Dating timers also receive events from other packages so
+                    // active counters stop immediately when the user leaves.
+                    datingPlatformManager.onAccessibilityEvent(
+                        packageName = eventPackageName,
+                        node = it,
+                        eventTimeMs = event.eventTime,
+                        wellbeing = wellbeing.copy(),
+                    )
 
                     // Only process if any of the content is blocked
                     if (shouldBlockContent()) {
@@ -208,7 +231,8 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
         return wellbeing.blockedFeatures.isNotEmpty() ||
                 wellbeing.blockedWebsites.isNotEmpty() ||
                 wellbeing.nsfwWebsites.isNotEmpty() ||
-                wellbeing.blockNsfwSites
+                wellbeing.blockNsfwSites ||
+                wellbeing.datingBlocks.any { it.isEnabled }
     }
 
 
@@ -227,6 +251,24 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
                     getString(R.string.toast_blocked_content),
                     Toast.LENGTH_LONG
                 ).show()
+            }
+        }
+    }
+
+    /** Opens Instagram's messaging page when its Shorts budget is exhausted. */
+    private fun openInstagramInbox() {
+        throttler.submit {
+            ThreadUtils.runOnMainThread {
+                runCatching {
+                    startActivity(
+                        Intent(Intent.ACTION_VIEW, Uri.parse(INSTAGRAM_INBOX_URI))
+                            .setPackage(INSTAGRAM_PACKAGE)
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    )
+                }.onFailure {
+                    Log.e(TAG, "openInstagramInbox: Unable to open Instagram inbox", it)
+                    performGlobalAction(GLOBAL_ACTION_BACK)
+                }
             }
         }
     }
@@ -291,6 +333,8 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
             }
 
 
+            datingPlatformManager.updateConfig(wellbeing)
+
             // Load nsfw website domains if needed
             if (wellbeing.blockNsfwSites) BrowserManager.initializeNsfwDomains()
             else BrowserManager.clearNsfwDomains()
@@ -324,6 +368,7 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
     override fun onDestroy() {
         try {
             executorService.shutdownNow()
+            datingPlatformManager.shutdown()
             trackingManager.startManualTracking()
 
             // Unregister prefs listener and receiver

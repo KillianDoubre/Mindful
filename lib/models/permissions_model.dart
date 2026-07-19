@@ -66,16 +66,22 @@ class PermissionsModel {
     bool? haveNotificationAccessPermission,
   }) {
     return PermissionsModel(
-      haveNotificationPermission: haveNotificationPermission ?? this.haveNotificationPermission,
-      haveUsageAccessPermission: haveUsageAccessPermission ?? this.haveUsageAccessPermission,
+      haveNotificationPermission:
+          haveNotificationPermission ?? this.haveNotificationPermission,
+      haveUsageAccessPermission:
+          haveUsageAccessPermission ?? this.haveUsageAccessPermission,
       haveDndPermission: haveDndPermission ?? this.haveDndPermission,
-      haveDisplayOverlayPermission: haveDisplayOverlayPermission ?? this.haveDisplayOverlayPermission,
+      haveDisplayOverlayPermission:
+          haveDisplayOverlayPermission ?? this.haveDisplayOverlayPermission,
       haveVpnPermission: haveVpnPermission ?? this.haveVpnPermission,
-      haveAccessibilityPermission: haveAccessibilityPermission ?? this.haveAccessibilityPermission,
+      haveAccessibilityPermission:
+          haveAccessibilityPermission ?? this.haveAccessibilityPermission,
       haveAlarmsPermission: haveAlarmsPermission ?? this.haveAlarmsPermission,
-      haveIgnoreOptimizationPermission: haveIgnoreOptimizationPermission ?? this.haveIgnoreOptimizationPermission,
+      haveIgnoreOptimizationPermission: haveIgnoreOptimizationPermission ??
+          this.haveIgnoreOptimizationPermission,
       haveAdminPermission: haveAdminPermission ?? this.haveAdminPermission,
-      haveNotificationAccessPermission: haveNotificationAccessPermission ?? this.haveNotificationAccessPermission,
+      haveNotificationAccessPermission: haveNotificationAccessPermission ??
+          this.haveNotificationAccessPermission,
     );
   }
 }

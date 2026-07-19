@@ -212,6 +212,34 @@
             }
         }
     },
+    "@----------------------------- DATING BLOCKING SCREEN-----------------------------": {},
+    "dating_blocking_tab_title": "Blocage des applications de rencontre",
+    "dating_blocking_dashboard_subtitle": "Limitez votre temps quotidien sur les applications de rencontre",
+    "dating_blocking_tab_info": "Lorsque votre temps quotidien sur une application de rencontre est écoulé, ses pages de découverte, profils en vedette, likes reçus, carte et modification du profil sont bloquées jusqu'à la prochaine réinitialisation quotidienne.",
+    "dating_apps_heading": "Applications de rencontre",
+    "dating_daily_limit": "{timeShortString} par jour",
+    "@dating_daily_limit": {
+        "placeholders": {
+            "timeShortString": {
+                "type": "String",
+                "example": "30m"
+            }
+        }
+    },
+    "dating_time_left_from": "Temps restant sur {timeShortString}",
+    "@dating_time_left_from": {
+        "placeholders": {
+            "timeShortString": {
+                "type": "String",
+                "example": "30m"
+            }
+        }
+    },
+    "dating_timer_picker_dialog_info": "Choisissez la limite quotidienne de cette application à la minute près. Les pages suivies seront bloquées lorsque le temps sera écoulé.",
+    "dating_reset_heading": "Réinitialisation quotidienne",
+    "dating_reset_time_tile_title": "Heure de réinitialisation",
+    "dating_reset_time_tile_subtitle": "Tous les compteurs Dating redémarrent à cette heure chaque jour.",
+    "dating_reset_time_picker_info": "Choisissez l'heure de réinitialisation quotidienne de tous les compteurs Dating",
     "@----------------------------- WEBSITES BLOCKING SCREEN-----------------------------": {},
     "adult_content_heading": "Contenu pour adultes",
     "block_nsfw_title": "Bloquer le NSFW",
@@ -266,6 +294,16 @@
     "restriction_group_timer_tile_title": "Minuteur pour le groupe",
     "restriction_group_timer_picker_dialog_info": "Définissez une limite de temps quotidienne pour ce groupe. Une fois votre limite atteinte, toutes les applications de ce groupe seront suspendues jusqu'à minuit.",
     "restriction_group_active_period_tile_title": "Période d'activité du groupe",
+    "restriction_group_period_count": "{count, plural, =1 {1 période active} other {{count} périodes actives}}",
+    "@restriction_group_period_count": {
+        "placeholders": {
+            "count": {
+                "type": "int",
+                "example": "2"
+            }
+        }
+    },
+    "active_period_add_button": "Ajouter une période",
     "remove_restriction_group_dialog_title": "Supprimer groupe",
     "remove_restriction_group_dialog_info": "Êtes-vous sûr ? Vous voulez supprimer '{groupName}' des groupes de restrictions.",
     "@remove_restriction_group_dialog_info": {

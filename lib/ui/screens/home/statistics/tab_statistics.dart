@@ -114,7 +114,6 @@ class _TabStatisticsState extends ConsumerState<TabStatistics> {
             ],
           ).sliver,
 
-
           /// Most used apps list
           SliverAnimatedSwitcher(
             duration: AppConstants.defaultAnimDuration,

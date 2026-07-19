@@ -18,6 +18,7 @@ import org.jetbrains.annotations.Contract
 class ShortsPlatformManager(
     private val context: Context,
     private val blockedContentGoBack: () -> Unit,
+    private val blockedInstagramOpenInbox: () -> Unit,
 ) {
 
     private var lastTimeShortsEvent = 0L
@@ -60,7 +61,11 @@ class ShortsPlatformManager(
 
         if (isFeatureOpen) {
             maxAllowedDuration[resolvedPackage]?.let {
-                updateShortsScreenTime(wellbeing.allowedShortsTimeMs, it)
+                updateShortsScreenTime(
+                    allowedShortContentTimeMs = wellbeing.allowedShortsTimeMs,
+                    maxAllowedDuration = it,
+                    blockedPackageName = resolvedPackage,
+                )
             }
         }
     }
@@ -112,10 +117,15 @@ class ShortsPlatformManager(
     private fun updateShortsScreenTime(
         allowedShortContentTimeMs: Long,
         maxAllowedDuration: Long = 30 * 1000L,
+        blockedPackageName: String? = null,
     ) {
         // Check if limit is exhausted
         if (allowedShortContentTimeMs < 0 || shortContentScreenTime > (allowedShortContentTimeMs + SAVING_INTERVAL_MS)) {
-            blockedContentGoBack.invoke()
+            if (blockedPackageName == INSTAGRAM_PACKAGE) {
+                blockedInstagramOpenInbox.invoke()
+            } else {
+                blockedContentGoBack.invoke()
+            }
             return
         }
 

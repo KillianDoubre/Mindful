@@ -3883,6 +3883,15 @@ class $RestrictionGroupsTableTable extends RestrictionGroupsTable
       requiredDuringInsert: false,
       defaultValue: const Constant(0));
   @override
+  late final GeneratedColumnWithTypeConverter<List<ActivePeriod>, String>
+      activePeriods = GeneratedColumn<String>(
+              'active_periods', aliasedName, false,
+              type: DriftSqlType.string,
+              requiredDuringInsert: false,
+              defaultValue: Constant(jsonEncode([])))
+          .withConverter<List<ActivePeriod>>(
+              $RestrictionGroupsTableTable.$converteractivePeriods);
+  @override
   late final GeneratedColumnWithTypeConverter<List<String>, String>
       distractingApps = GeneratedColumn<String>(
               'distracting_apps', aliasedName, false,
@@ -3899,6 +3908,7 @@ class $RestrictionGroupsTableTable extends RestrictionGroupsTable
         activePeriodStart,
         activePeriodEnd,
         periodDurationInMins,
+        activePeriods,
         distractingApps
       ];
   @override
@@ -3952,6 +3962,9 @@ class $RestrictionGroupsTableTable extends RestrictionGroupsTable
               DriftSqlType.int, data['${effectivePrefix}active_period_end'])!),
       periodDurationInMins: attachedDatabase.typeMapping.read(
           DriftSqlType.int, data['${effectivePrefix}period_duration_in_mins'])!,
+      activePeriods: $RestrictionGroupsTableTable.$converteractivePeriods
+          .fromSql(attachedDatabase.typeMapping.read(
+              DriftSqlType.string, data['${effectivePrefix}active_periods'])!),
       distractingApps: $RestrictionGroupsTableTable.$converterdistractingApps
           .fromSql(attachedDatabase.typeMapping.read(DriftSqlType.string,
               data['${effectivePrefix}distracting_apps'])!),
@@ -3967,6 +3980,8 @@ class $RestrictionGroupsTableTable extends RestrictionGroupsTable
       $converteractivePeriodStart = const TimeOfDayAdapterConverter();
   static JsonTypeConverter2<TimeOfDayAdapter, int, dynamic>
       $converteractivePeriodEnd = const TimeOfDayAdapterConverter();
+  static JsonTypeConverter2<List<ActivePeriod>, String, List<dynamic>>
+      $converteractivePeriods = const ActivePeriodListConverter();
   static TypeConverter<List<String>, String> $converterdistractingApps =
       const StringListConverter();
 }
@@ -3991,7 +4006,15 @@ class RestrictionGroup extends DataClass
   final TimeOfDayAdapter activePeriodEnd;
 
   /// Total duration of active period from start to end in MINUTES
+  ///
+  /// Deprecated in favor of [activePeriods]. Kept for backward compatibility.
   final int periodDurationInMins;
+
+  /// List of active periods for the group. Apps in the group are allowed only
+  /// when the current time falls inside one of these periods on an enabled day.
+  ///
+  /// Supersedes the single [activePeriodStart]/[activePeriodEnd] window.
+  final List<ActivePeriod> activePeriods;
 
   /// List of app's packages which are associated with the group.
   final List<String> distractingApps;
@@ -4002,6 +4025,7 @@ class RestrictionGroup extends DataClass
       required this.activePeriodStart,
       required this.activePeriodEnd,
       required this.periodDurationInMins,
+      required this.activePeriods,
       required this.distractingApps});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -4021,6 +4045,11 @@ class RestrictionGroup extends DataClass
     }
     map['period_duration_in_mins'] = Variable<int>(periodDurationInMins);
     {
+      map['active_periods'] = Variable<String>($RestrictionGroupsTableTable
+          .$converteractivePeriods
+          .toSql(activePeriods));
+    }
+    {
       map['distracting_apps'] = Variable<String>($RestrictionGroupsTableTable
           .$converterdistractingApps
           .toSql(distractingApps));
@@ -4036,6 +4065,7 @@ class RestrictionGroup extends DataClass
       activePeriodStart: Value(activePeriodStart),
       activePeriodEnd: Value(activePeriodEnd),
       periodDurationInMins: Value(periodDurationInMins),
+      activePeriods: Value(activePeriods),
       distractingApps: Value(distractingApps),
     );
   }
@@ -4054,6 +4084,8 @@ class RestrictionGroup extends DataClass
           .fromJson(serializer.fromJson<dynamic>(json['activePeriodEnd'])),
       periodDurationInMins:
           serializer.fromJson<int>(json['periodDurationInMins']),
+      activePeriods: $RestrictionGroupsTableTable.$converteractivePeriods
+          .fromJson(serializer.fromJson<List<dynamic>>(json['activePeriods'])),
       distractingApps:
           serializer.fromJson<List<String>>(json['distractingApps']),
     );
@@ -4072,6 +4104,9 @@ class RestrictionGroup extends DataClass
           .$converteractivePeriodEnd
           .toJson(activePeriodEnd)),
       'periodDurationInMins': serializer.toJson<int>(periodDurationInMins),
+      'activePeriods': serializer.toJson<List<dynamic>>(
+          $RestrictionGroupsTableTable.$converteractivePeriods
+              .toJson(activePeriods)),
       'distractingApps': serializer.toJson<List<String>>(distractingApps),
     };
   }
@@ -4083,6 +4118,7 @@ class RestrictionGroup extends DataClass
           TimeOfDayAdapter? activePeriodStart,
           TimeOfDayAdapter? activePeriodEnd,
           int? periodDurationInMins,
+          List<ActivePeriod>? activePeriods,
           List<String>? distractingApps}) =>
       RestrictionGroup(
         id: id ?? this.id,
@@ -4091,6 +4127,7 @@ class RestrictionGroup extends DataClass
         activePeriodStart: activePeriodStart ?? this.activePeriodStart,
         activePeriodEnd: activePeriodEnd ?? this.activePeriodEnd,
         periodDurationInMins: periodDurationInMins ?? this.periodDurationInMins,
+        activePeriods: activePeriods ?? this.activePeriods,
         distractingApps: distractingApps ?? this.distractingApps,
       );
   RestrictionGroup copyWithCompanion(RestrictionGroupsTableCompanion data) {
@@ -4107,6 +4144,9 @@ class RestrictionGroup extends DataClass
       periodDurationInMins: data.periodDurationInMins.present
           ? data.periodDurationInMins.value
           : this.periodDurationInMins,
+      activePeriods: data.activePeriods.present
+          ? data.activePeriods.value
+          : this.activePeriods,
       distractingApps: data.distractingApps.present
           ? data.distractingApps.value
           : this.distractingApps,
@@ -4122,6 +4162,7 @@ class RestrictionGroup extends DataClass
           ..write('activePeriodStart: $activePeriodStart, ')
           ..write('activePeriodEnd: $activePeriodEnd, ')
           ..write('periodDurationInMins: $periodDurationInMins, ')
+          ..write('activePeriods: $activePeriods, ')
           ..write('distractingApps: $distractingApps')
           ..write(')'))
         .toString();
@@ -4129,7 +4170,7 @@ class RestrictionGroup extends DataClass
 
   @override
   int get hashCode => Object.hash(id, groupName, timerSec, activePeriodStart,
-      activePeriodEnd, periodDurationInMins, distractingApps);
+      activePeriodEnd, periodDurationInMins, activePeriods, distractingApps);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -4140,6 +4181,7 @@ class RestrictionGroup extends DataClass
           other.activePeriodStart == this.activePeriodStart &&
           other.activePeriodEnd == this.activePeriodEnd &&
           other.periodDurationInMins == this.periodDurationInMins &&
+          other.activePeriods == this.activePeriods &&
           other.distractingApps == this.distractingApps);
 }
 
@@ -4151,6 +4193,7 @@ class RestrictionGroupsTableCompanion
   final Value<TimeOfDayAdapter> activePeriodStart;
   final Value<TimeOfDayAdapter> activePeriodEnd;
   final Value<int> periodDurationInMins;
+  final Value<List<ActivePeriod>> activePeriods;
   final Value<List<String>> distractingApps;
   const RestrictionGroupsTableCompanion({
     this.id = const Value.absent(),
@@ -4159,6 +4202,7 @@ class RestrictionGroupsTableCompanion
     this.activePeriodStart = const Value.absent(),
     this.activePeriodEnd = const Value.absent(),
     this.periodDurationInMins = const Value.absent(),
+    this.activePeriods = const Value.absent(),
     this.distractingApps = const Value.absent(),
   });
   RestrictionGroupsTableCompanion.insert({
@@ -4168,6 +4212,7 @@ class RestrictionGroupsTableCompanion
     this.activePeriodStart = const Value.absent(),
     this.activePeriodEnd = const Value.absent(),
     this.periodDurationInMins = const Value.absent(),
+    this.activePeriods = const Value.absent(),
     this.distractingApps = const Value.absent(),
   });
   static Insertable<RestrictionGroup> custom({
@@ -4177,6 +4222,7 @@ class RestrictionGroupsTableCompanion
     Expression<int>? activePeriodStart,
     Expression<int>? activePeriodEnd,
     Expression<int>? periodDurationInMins,
+    Expression<String>? activePeriods,
     Expression<String>? distractingApps,
   }) {
     return RawValuesInsertable({
@@ -4187,6 +4233,7 @@ class RestrictionGroupsTableCompanion
       if (activePeriodEnd != null) 'active_period_end': activePeriodEnd,
       if (periodDurationInMins != null)
         'period_duration_in_mins': periodDurationInMins,
+      if (activePeriods != null) 'active_periods': activePeriods,
       if (distractingApps != null) 'distracting_apps': distractingApps,
     });
   }
@@ -4198,6 +4245,7 @@ class RestrictionGroupsTableCompanion
       Value<TimeOfDayAdapter>? activePeriodStart,
       Value<TimeOfDayAdapter>? activePeriodEnd,
       Value<int>? periodDurationInMins,
+      Value<List<ActivePeriod>>? activePeriods,
       Value<List<String>>? distractingApps}) {
     return RestrictionGroupsTableCompanion(
       id: id ?? this.id,
@@ -4206,6 +4254,7 @@ class RestrictionGroupsTableCompanion
       activePeriodStart: activePeriodStart ?? this.activePeriodStart,
       activePeriodEnd: activePeriodEnd ?? this.activePeriodEnd,
       periodDurationInMins: periodDurationInMins ?? this.periodDurationInMins,
+      activePeriods: activePeriods ?? this.activePeriods,
       distractingApps: distractingApps ?? this.distractingApps,
     );
   }
@@ -4236,6 +4285,11 @@ class RestrictionGroupsTableCompanion
       map['period_duration_in_mins'] =
           Variable<int>(periodDurationInMins.value);
     }
+    if (activePeriods.present) {
+      map['active_periods'] = Variable<String>($RestrictionGroupsTableTable
+          .$converteractivePeriods
+          .toSql(activePeriods.value));
+    }
     if (distractingApps.present) {
       map['distracting_apps'] = Variable<String>($RestrictionGroupsTableTable
           .$converterdistractingApps
@@ -4253,6 +4307,7 @@ class RestrictionGroupsTableCompanion
           ..write('activePeriodStart: $activePeriodStart, ')
           ..write('activePeriodEnd: $activePeriodEnd, ')
           ..write('periodDurationInMins: $periodDurationInMins, ')
+          ..write('activePeriods: $activePeriods, ')
           ..write('distractingApps: $distractingApps')
           ..write(')'))
         .toString();
@@ -4318,13 +4373,33 @@ class $WellbeingTableTable extends WellbeingTable
           .withConverter<List<String>>(
               $WellbeingTableTable.$converternsfwWebsites);
   @override
+  late final GeneratedColumnWithTypeConverter<List<DatingAppBlock>, String>
+      datingBlocks = GeneratedColumn<String>(
+              'dating_blocks', aliasedName, false,
+              type: DriftSqlType.string,
+              requiredDuringInsert: false,
+              defaultValue: Constant(jsonEncode([])))
+          .withConverter<List<DatingAppBlock>>(
+              $WellbeingTableTable.$converterdatingBlocks);
+  @override
+  late final GeneratedColumnWithTypeConverter<TimeOfDayAdapter, int>
+      datingResetTime = GeneratedColumn<int>(
+              'dating_reset_time', aliasedName, false,
+              type: DriftSqlType.int,
+              requiredDuringInsert: false,
+              defaultValue: const Constant(0))
+          .withConverter<TimeOfDayAdapter>(
+              $WellbeingTableTable.$converterdatingResetTime);
+  @override
   List<GeneratedColumn> get $columns => [
         id,
         allowedShortsTimeSec,
         blockedFeatures,
         blockNsfwSites,
         blockedWebsites,
-        nsfwWebsites
+        nsfwWebsites,
+        datingBlocks,
+        datingResetTime
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -4375,6 +4450,12 @@ class $WellbeingTableTable extends WellbeingTable
       nsfwWebsites: $WellbeingTableTable.$converternsfwWebsites.fromSql(
           attachedDatabase.typeMapping.read(
               DriftSqlType.string, data['${effectivePrefix}nsfw_websites'])!),
+      datingBlocks: $WellbeingTableTable.$converterdatingBlocks.fromSql(
+          attachedDatabase.typeMapping.read(
+              DriftSqlType.string, data['${effectivePrefix}dating_blocks'])!),
+      datingResetTime: $WellbeingTableTable.$converterdatingResetTime.fromSql(
+          attachedDatabase.typeMapping.read(
+              DriftSqlType.int, data['${effectivePrefix}dating_reset_time'])!),
     );
   }
 
@@ -4390,6 +4471,10 @@ class $WellbeingTableTable extends WellbeingTable
       const StringListConverter();
   static TypeConverter<List<String>, String> $converternsfwWebsites =
       const StringListConverter();
+  static JsonTypeConverter2<List<DatingAppBlock>, String, List<dynamic>>
+      $converterdatingBlocks = const DatingAppBlockListConverter();
+  static JsonTypeConverter2<TimeOfDayAdapter, int, dynamic>
+      $converterdatingResetTime = const TimeOfDayAdapterConverter();
 }
 
 class Wellbeing extends DataClass implements Insertable<Wellbeing> {
@@ -4411,13 +4496,22 @@ class Wellbeing extends DataClass implements Insertable<Wellbeing> {
 
   /// List of website hosts which are nsfw.
   final List<String> nsfwWebsites;
+
+  /// Per-app dating blocking configs (enabled + allowed minutes) for apps like
+  /// Tinder, Hinge, Bumble, Happn. Empty means dating blocking is unused.
+  final List<DatingAppBlock> datingBlocks;
+
+  /// Time at which dating counters start a new daily period.
+  final TimeOfDayAdapter datingResetTime;
   const Wellbeing(
       {required this.id,
       required this.allowedShortsTimeSec,
       required this.blockedFeatures,
       required this.blockNsfwSites,
       required this.blockedWebsites,
-      required this.nsfwWebsites});
+      required this.nsfwWebsites,
+      required this.datingBlocks,
+      required this.datingResetTime});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -4438,6 +4532,15 @@ class Wellbeing extends DataClass implements Insertable<Wellbeing> {
       map['nsfw_websites'] = Variable<String>(
           $WellbeingTableTable.$converternsfwWebsites.toSql(nsfwWebsites));
     }
+    {
+      map['dating_blocks'] = Variable<String>(
+          $WellbeingTableTable.$converterdatingBlocks.toSql(datingBlocks));
+    }
+    {
+      map['dating_reset_time'] = Variable<int>($WellbeingTableTable
+          .$converterdatingResetTime
+          .toSql(datingResetTime));
+    }
     return map;
   }
 
@@ -4449,6 +4552,8 @@ class Wellbeing extends DataClass implements Insertable<Wellbeing> {
       blockNsfwSites: Value(blockNsfwSites),
       blockedWebsites: Value(blockedWebsites),
       nsfwWebsites: Value(nsfwWebsites),
+      datingBlocks: Value(datingBlocks),
+      datingResetTime: Value(datingResetTime),
     );
   }
 
@@ -4465,6 +4570,10 @@ class Wellbeing extends DataClass implements Insertable<Wellbeing> {
       blockedWebsites:
           serializer.fromJson<List<String>>(json['blockedWebsites']),
       nsfwWebsites: serializer.fromJson<List<String>>(json['nsfwWebsites']),
+      datingBlocks: $WellbeingTableTable.$converterdatingBlocks
+          .fromJson(serializer.fromJson<List<dynamic>>(json['datingBlocks'])),
+      datingResetTime: $WellbeingTableTable.$converterdatingResetTime
+          .fromJson(serializer.fromJson<dynamic>(json['datingResetTime'])),
     );
   }
   @override
@@ -4478,6 +4587,11 @@ class Wellbeing extends DataClass implements Insertable<Wellbeing> {
       'blockNsfwSites': serializer.toJson<bool>(blockNsfwSites),
       'blockedWebsites': serializer.toJson<List<String>>(blockedWebsites),
       'nsfwWebsites': serializer.toJson<List<String>>(nsfwWebsites),
+      'datingBlocks': serializer.toJson<List<dynamic>>(
+          $WellbeingTableTable.$converterdatingBlocks.toJson(datingBlocks)),
+      'datingResetTime': serializer.toJson<dynamic>($WellbeingTableTable
+          .$converterdatingResetTime
+          .toJson(datingResetTime)),
     };
   }
 
@@ -4487,7 +4601,9 @@ class Wellbeing extends DataClass implements Insertable<Wellbeing> {
           List<PlatformFeatures>? blockedFeatures,
           bool? blockNsfwSites,
           List<String>? blockedWebsites,
-          List<String>? nsfwWebsites}) =>
+          List<String>? nsfwWebsites,
+          List<DatingAppBlock>? datingBlocks,
+          TimeOfDayAdapter? datingResetTime}) =>
       Wellbeing(
         id: id ?? this.id,
         allowedShortsTimeSec: allowedShortsTimeSec ?? this.allowedShortsTimeSec,
@@ -4495,6 +4611,8 @@ class Wellbeing extends DataClass implements Insertable<Wellbeing> {
         blockNsfwSites: blockNsfwSites ?? this.blockNsfwSites,
         blockedWebsites: blockedWebsites ?? this.blockedWebsites,
         nsfwWebsites: nsfwWebsites ?? this.nsfwWebsites,
+        datingBlocks: datingBlocks ?? this.datingBlocks,
+        datingResetTime: datingResetTime ?? this.datingResetTime,
       );
   Wellbeing copyWithCompanion(WellbeingTableCompanion data) {
     return Wellbeing(
@@ -4514,6 +4632,12 @@ class Wellbeing extends DataClass implements Insertable<Wellbeing> {
       nsfwWebsites: data.nsfwWebsites.present
           ? data.nsfwWebsites.value
           : this.nsfwWebsites,
+      datingBlocks: data.datingBlocks.present
+          ? data.datingBlocks.value
+          : this.datingBlocks,
+      datingResetTime: data.datingResetTime.present
+          ? data.datingResetTime.value
+          : this.datingResetTime,
     );
   }
 
@@ -4525,14 +4649,23 @@ class Wellbeing extends DataClass implements Insertable<Wellbeing> {
           ..write('blockedFeatures: $blockedFeatures, ')
           ..write('blockNsfwSites: $blockNsfwSites, ')
           ..write('blockedWebsites: $blockedWebsites, ')
-          ..write('nsfwWebsites: $nsfwWebsites')
+          ..write('nsfwWebsites: $nsfwWebsites, ')
+          ..write('datingBlocks: $datingBlocks, ')
+          ..write('datingResetTime: $datingResetTime')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, allowedShortsTimeSec, blockedFeatures,
-      blockNsfwSites, blockedWebsites, nsfwWebsites);
+  int get hashCode => Object.hash(
+      id,
+      allowedShortsTimeSec,
+      blockedFeatures,
+      blockNsfwSites,
+      blockedWebsites,
+      nsfwWebsites,
+      datingBlocks,
+      datingResetTime);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -4542,7 +4675,9 @@ class Wellbeing extends DataClass implements Insertable<Wellbeing> {
           other.blockedFeatures == this.blockedFeatures &&
           other.blockNsfwSites == this.blockNsfwSites &&
           other.blockedWebsites == this.blockedWebsites &&
-          other.nsfwWebsites == this.nsfwWebsites);
+          other.nsfwWebsites == this.nsfwWebsites &&
+          other.datingBlocks == this.datingBlocks &&
+          other.datingResetTime == this.datingResetTime);
 }
 
 class WellbeingTableCompanion extends UpdateCompanion<Wellbeing> {
@@ -4552,6 +4687,8 @@ class WellbeingTableCompanion extends UpdateCompanion<Wellbeing> {
   final Value<bool> blockNsfwSites;
   final Value<List<String>> blockedWebsites;
   final Value<List<String>> nsfwWebsites;
+  final Value<List<DatingAppBlock>> datingBlocks;
+  final Value<TimeOfDayAdapter> datingResetTime;
   const WellbeingTableCompanion({
     this.id = const Value.absent(),
     this.allowedShortsTimeSec = const Value.absent(),
@@ -4559,6 +4696,8 @@ class WellbeingTableCompanion extends UpdateCompanion<Wellbeing> {
     this.blockNsfwSites = const Value.absent(),
     this.blockedWebsites = const Value.absent(),
     this.nsfwWebsites = const Value.absent(),
+    this.datingBlocks = const Value.absent(),
+    this.datingResetTime = const Value.absent(),
   });
   WellbeingTableCompanion.insert({
     this.id = const Value.absent(),
@@ -4567,6 +4706,8 @@ class WellbeingTableCompanion extends UpdateCompanion<Wellbeing> {
     this.blockNsfwSites = const Value.absent(),
     this.blockedWebsites = const Value.absent(),
     this.nsfwWebsites = const Value.absent(),
+    this.datingBlocks = const Value.absent(),
+    this.datingResetTime = const Value.absent(),
   });
   static Insertable<Wellbeing> custom({
     Expression<int>? id,
@@ -4575,6 +4716,8 @@ class WellbeingTableCompanion extends UpdateCompanion<Wellbeing> {
     Expression<bool>? blockNsfwSites,
     Expression<String>? blockedWebsites,
     Expression<String>? nsfwWebsites,
+    Expression<String>? datingBlocks,
+    Expression<int>? datingResetTime,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -4584,6 +4727,8 @@ class WellbeingTableCompanion extends UpdateCompanion<Wellbeing> {
       if (blockNsfwSites != null) 'block_nsfw_sites': blockNsfwSites,
       if (blockedWebsites != null) 'blocked_websites': blockedWebsites,
       if (nsfwWebsites != null) 'nsfw_websites': nsfwWebsites,
+      if (datingBlocks != null) 'dating_blocks': datingBlocks,
+      if (datingResetTime != null) 'dating_reset_time': datingResetTime,
     });
   }
 
@@ -4593,7 +4738,9 @@ class WellbeingTableCompanion extends UpdateCompanion<Wellbeing> {
       Value<List<PlatformFeatures>>? blockedFeatures,
       Value<bool>? blockNsfwSites,
       Value<List<String>>? blockedWebsites,
-      Value<List<String>>? nsfwWebsites}) {
+      Value<List<String>>? nsfwWebsites,
+      Value<List<DatingAppBlock>>? datingBlocks,
+      Value<TimeOfDayAdapter>? datingResetTime}) {
     return WellbeingTableCompanion(
       id: id ?? this.id,
       allowedShortsTimeSec: allowedShortsTimeSec ?? this.allowedShortsTimeSec,
@@ -4601,6 +4748,8 @@ class WellbeingTableCompanion extends UpdateCompanion<Wellbeing> {
       blockNsfwSites: blockNsfwSites ?? this.blockNsfwSites,
       blockedWebsites: blockedWebsites ?? this.blockedWebsites,
       nsfwWebsites: nsfwWebsites ?? this.nsfwWebsites,
+      datingBlocks: datingBlocks ?? this.datingBlocks,
+      datingResetTime: datingResetTime ?? this.datingResetTime,
     );
   }
 
@@ -4632,6 +4781,16 @@ class WellbeingTableCompanion extends UpdateCompanion<Wellbeing> {
           .$converternsfwWebsites
           .toSql(nsfwWebsites.value));
     }
+    if (datingBlocks.present) {
+      map['dating_blocks'] = Variable<String>($WellbeingTableTable
+          .$converterdatingBlocks
+          .toSql(datingBlocks.value));
+    }
+    if (datingResetTime.present) {
+      map['dating_reset_time'] = Variable<int>($WellbeingTableTable
+          .$converterdatingResetTime
+          .toSql(datingResetTime.value));
+    }
     return map;
   }
 
@@ -4643,7 +4802,9 @@ class WellbeingTableCompanion extends UpdateCompanion<Wellbeing> {
           ..write('blockedFeatures: $blockedFeatures, ')
           ..write('blockNsfwSites: $blockNsfwSites, ')
           ..write('blockedWebsites: $blockedWebsites, ')
-          ..write('nsfwWebsites: $nsfwWebsites')
+          ..write('nsfwWebsites: $nsfwWebsites, ')
+          ..write('datingBlocks: $datingBlocks, ')
+          ..write('datingResetTime: $datingResetTime')
           ..write(')'))
         .toString();
   }
@@ -7853,6 +8014,7 @@ typedef $$RestrictionGroupsTableTableCreateCompanionBuilder
   Value<TimeOfDayAdapter> activePeriodStart,
   Value<TimeOfDayAdapter> activePeriodEnd,
   Value<int> periodDurationInMins,
+  Value<List<ActivePeriod>> activePeriods,
   Value<List<String>> distractingApps,
 });
 typedef $$RestrictionGroupsTableTableUpdateCompanionBuilder
@@ -7863,6 +8025,7 @@ typedef $$RestrictionGroupsTableTableUpdateCompanionBuilder
   Value<TimeOfDayAdapter> activePeriodStart,
   Value<TimeOfDayAdapter> activePeriodEnd,
   Value<int> periodDurationInMins,
+  Value<List<ActivePeriod>> activePeriods,
   Value<List<String>> distractingApps,
 });
 
@@ -7897,6 +8060,11 @@ class $$RestrictionGroupsTableTableFilterComposer
   ColumnFilters<int> get periodDurationInMins => $composableBuilder(
       column: $table.periodDurationInMins,
       builder: (column) => ColumnFilters(column));
+
+  ColumnWithTypeConverterFilters<List<ActivePeriod>, List<ActivePeriod>, String>
+      get activePeriods => $composableBuilder(
+          column: $table.activePeriods,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
 
   ColumnWithTypeConverterFilters<List<String>, List<String>, String>
       get distractingApps => $composableBuilder(
@@ -7934,6 +8102,10 @@ class $$RestrictionGroupsTableTableOrderingComposer
       column: $table.periodDurationInMins,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get activePeriods => $composableBuilder(
+      column: $table.activePeriods,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get distractingApps => $composableBuilder(
       column: $table.distractingApps,
       builder: (column) => ColumnOrderings(column));
@@ -7967,6 +8139,10 @@ class $$RestrictionGroupsTableTableAnnotationComposer
 
   GeneratedColumn<int> get periodDurationInMins => $composableBuilder(
       column: $table.periodDurationInMins, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<List<ActivePeriod>, String>
+      get activePeriods => $composableBuilder(
+          column: $table.activePeriods, builder: (column) => column);
 
   GeneratedColumnWithTypeConverter<List<String>, String> get distractingApps =>
       $composableBuilder(
@@ -8010,6 +8186,7 @@ class $$RestrictionGroupsTableTableTableManager extends RootTableManager<
             Value<TimeOfDayAdapter> activePeriodStart = const Value.absent(),
             Value<TimeOfDayAdapter> activePeriodEnd = const Value.absent(),
             Value<int> periodDurationInMins = const Value.absent(),
+            Value<List<ActivePeriod>> activePeriods = const Value.absent(),
             Value<List<String>> distractingApps = const Value.absent(),
           }) =>
               RestrictionGroupsTableCompanion(
@@ -8019,6 +8196,7 @@ class $$RestrictionGroupsTableTableTableManager extends RootTableManager<
             activePeriodStart: activePeriodStart,
             activePeriodEnd: activePeriodEnd,
             periodDurationInMins: periodDurationInMins,
+            activePeriods: activePeriods,
             distractingApps: distractingApps,
           ),
           createCompanionCallback: ({
@@ -8028,6 +8206,7 @@ class $$RestrictionGroupsTableTableTableManager extends RootTableManager<
             Value<TimeOfDayAdapter> activePeriodStart = const Value.absent(),
             Value<TimeOfDayAdapter> activePeriodEnd = const Value.absent(),
             Value<int> periodDurationInMins = const Value.absent(),
+            Value<List<ActivePeriod>> activePeriods = const Value.absent(),
             Value<List<String>> distractingApps = const Value.absent(),
           }) =>
               RestrictionGroupsTableCompanion.insert(
@@ -8037,6 +8216,7 @@ class $$RestrictionGroupsTableTableTableManager extends RootTableManager<
             activePeriodStart: activePeriodStart,
             activePeriodEnd: activePeriodEnd,
             periodDurationInMins: periodDurationInMins,
+            activePeriods: activePeriods,
             distractingApps: distractingApps,
           ),
           withReferenceMapper: (p0) => p0
@@ -8071,6 +8251,8 @@ typedef $$WellbeingTableTableCreateCompanionBuilder = WellbeingTableCompanion
   Value<bool> blockNsfwSites,
   Value<List<String>> blockedWebsites,
   Value<List<String>> nsfwWebsites,
+  Value<List<DatingAppBlock>> datingBlocks,
+  Value<TimeOfDayAdapter> datingResetTime,
 });
 typedef $$WellbeingTableTableUpdateCompanionBuilder = WellbeingTableCompanion
     Function({
@@ -8080,6 +8262,8 @@ typedef $$WellbeingTableTableUpdateCompanionBuilder = WellbeingTableCompanion
   Value<bool> blockNsfwSites,
   Value<List<String>> blockedWebsites,
   Value<List<String>> nsfwWebsites,
+  Value<List<DatingAppBlock>> datingBlocks,
+  Value<TimeOfDayAdapter> datingResetTime,
 });
 
 class $$WellbeingTableTableFilterComposer
@@ -8117,6 +8301,17 @@ class $$WellbeingTableTableFilterComposer
       get nsfwWebsites => $composableBuilder(
           column: $table.nsfwWebsites,
           builder: (column) => ColumnWithTypeConverterFilters(column));
+
+  ColumnWithTypeConverterFilters<List<DatingAppBlock>, List<DatingAppBlock>,
+          String>
+      get datingBlocks => $composableBuilder(
+          column: $table.datingBlocks,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
+
+  ColumnWithTypeConverterFilters<TimeOfDayAdapter, TimeOfDayAdapter, int>
+      get datingResetTime => $composableBuilder(
+          column: $table.datingResetTime,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
 }
 
 class $$WellbeingTableTableOrderingComposer
@@ -8150,6 +8345,14 @@ class $$WellbeingTableTableOrderingComposer
   ColumnOrderings<String> get nsfwWebsites => $composableBuilder(
       column: $table.nsfwWebsites,
       builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get datingBlocks => $composableBuilder(
+      column: $table.datingBlocks,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get datingResetTime => $composableBuilder(
+      column: $table.datingResetTime,
+      builder: (column) => ColumnOrderings(column));
 }
 
 class $$WellbeingTableTableAnnotationComposer
@@ -8181,6 +8384,14 @@ class $$WellbeingTableTableAnnotationComposer
   GeneratedColumnWithTypeConverter<List<String>, String> get nsfwWebsites =>
       $composableBuilder(
           column: $table.nsfwWebsites, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<List<DatingAppBlock>, String>
+      get datingBlocks => $composableBuilder(
+          column: $table.datingBlocks, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<TimeOfDayAdapter, int> get datingResetTime =>
+      $composableBuilder(
+          column: $table.datingResetTime, builder: (column) => column);
 }
 
 class $$WellbeingTableTableTableManager extends RootTableManager<
@@ -8214,6 +8425,8 @@ class $$WellbeingTableTableTableManager extends RootTableManager<
             Value<bool> blockNsfwSites = const Value.absent(),
             Value<List<String>> blockedWebsites = const Value.absent(),
             Value<List<String>> nsfwWebsites = const Value.absent(),
+            Value<List<DatingAppBlock>> datingBlocks = const Value.absent(),
+            Value<TimeOfDayAdapter> datingResetTime = const Value.absent(),
           }) =>
               WellbeingTableCompanion(
             id: id,
@@ -8222,6 +8435,8 @@ class $$WellbeingTableTableTableManager extends RootTableManager<
             blockNsfwSites: blockNsfwSites,
             blockedWebsites: blockedWebsites,
             nsfwWebsites: nsfwWebsites,
+            datingBlocks: datingBlocks,
+            datingResetTime: datingResetTime,
           ),
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
@@ -8231,6 +8446,8 @@ class $$WellbeingTableTableTableManager extends RootTableManager<
             Value<bool> blockNsfwSites = const Value.absent(),
             Value<List<String>> blockedWebsites = const Value.absent(),
             Value<List<String>> nsfwWebsites = const Value.absent(),
+            Value<List<DatingAppBlock>> datingBlocks = const Value.absent(),
+            Value<TimeOfDayAdapter> datingResetTime = const Value.absent(),
           }) =>
               WellbeingTableCompanion.insert(
             id: id,
@@ -8239,6 +8456,8 @@ class $$WellbeingTableTableTableManager extends RootTableManager<
             blockNsfwSites: blockNsfwSites,
             blockedWebsites: blockedWebsites,
             nsfwWebsites: nsfwWebsites,
+            datingBlocks: datingBlocks,
+            datingResetTime: datingResetTime,
           ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

@@ -29,7 +29,6 @@ import 'package:mindful/ui/controllers/tab_controller_provider.dart';
 import 'package:mindful/ui/screens/home/dashboard/glance_cards/focus_daily_glance.dart';
 import 'package:mindful/ui/screens/home/dashboard/glance_cards/screen_time_glance.dart';
 import 'package:mindful/ui/screens/home/dashboard/glance_cards_grid.dart';
-import 'package:mindful/ui/screens/home/dashboard/sliver_tips_and_tricks.dart';
 import 'package:mindful/ui/transitions/default_effects.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import 'package:sliver_tools/sliver_tools.dart';
@@ -110,9 +109,6 @@ class TabDashboard extends ConsumerWidget {
             ),
           ),
 
-          /// Tips and tricks
-          const SliverTipsAndTricks(),
-
           const SliverTabsBottomPadding(),
         ],
       ),
@@ -156,6 +152,17 @@ class TabDashboard extends ConsumerWidget {
           trailing: const Icon(FluentIcons.chevron_right_20_regular),
           onPressed: () =>
               Navigator.of(context).pushNamed(AppRoutes.shortsBlockingPath),
+        ),
+
+        /// Dating restrictions
+        DefaultListTile(
+          position: ItemPosition.mid,
+          leadingIcon: FluentIcons.heart_20_regular,
+          titleText: context.locale.dating_blocking_tab_title,
+          subtitleText: context.locale.dating_blocking_dashboard_subtitle,
+          trailing: const Icon(FluentIcons.chevron_right_20_regular),
+          onPressed: () =>
+              Navigator.of(context).pushNamed(AppRoutes.datingBlockingPath),
         ),
 
         /// Website restrictions

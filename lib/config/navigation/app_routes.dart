@@ -20,6 +20,7 @@ import 'package:mindful/ui/screens/home/home_screen.dart';
 import 'package:mindful/ui/screens/parental_controls/parental_controls_screen.dart';
 import 'package:mindful/ui/screens/restriction_groups/restriction_groups_screen.dart';
 import 'package:mindful/ui/screens/settings/settings_screen.dart';
+import 'package:mindful/ui/screens/dating_blocking/dating_blocking_screen.dart';
 import 'package:mindful/ui/screens/shorts_blocking/shorts_blocking_screen.dart';
 import 'package:mindful/ui/screens/notifications/notifications_screen.dart';
 import 'package:mindful/ui/screens/websites_blocking/websites_blocking_screen.dart';
@@ -38,6 +39,7 @@ class AppRoutes {
   static const String parentalControlsPath = '/parentalControls';
   static const String restrictionGroupsPath = '/restrictionGroups';
   static const String shortsBlockingPath = '/shortsBlocking';
+  static const String datingBlockingPath = '/datingBlocking';
   static const String websitesBlockingPath = '/websitesBlocking';
 
   static const String appDashboardPath = '/appDashboard';
@@ -75,6 +77,9 @@ class AppRoutes {
     /// Shorts blocking screen
     shortsBlockingPath: (context) => const ShortsBlockingScreen(),
 
+    /// Dating blocking screen
+    datingBlockingPath: (context) => const DatingBlockingScreen(),
+
     /// Websites blocking screen
     websitesBlockingPath: (context) => const WebsitesBlockingScreen(),
 
@@ -94,8 +99,8 @@ class AppRoutes {
     /// App dashboard screen
     appDashboardPath: (context) => AppDashboardScreen(
           packageName: context.resolveParam<String>("package") ?? "",
-          initialUsageType:
-              UsageType.values[(context.resolveParam<int>("usageType") ?? 0) % 2],
+          initialUsageType: UsageType
+              .values[(context.resolveParam<int>("usageType") ?? 0) % 2],
           selectedDay: context.resolveParam<DateTime>("day"),
         ),
   };

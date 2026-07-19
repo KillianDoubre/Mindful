@@ -63,6 +63,28 @@ Future<int?> showShortsTimerPicker({
       ),
     );
 
+/// Opens the minute-precision duration picker for a dating app's daily limit.
+Future<int?> showDatingTimerPicker({
+  required BuildContext context,
+  required Object heroTag,
+  required String appName,
+  required int initialTime,
+}) async =>
+    await Navigator.of(context).push<int>(
+      HeroPageRoute(
+        builder: (context) => _DurationPickerDialog(
+          title: appName,
+          info: context.locale.dating_timer_picker_dialog_info,
+          icon: const Icon(FluentIcons.heart_20_filled),
+          heroTag: heroTag,
+          initialTimeInSec: initialTime,
+          positiveButtonLabel: context.locale.dialog_button_set,
+          showActionButton: false,
+          minuteInterval: 1,
+        ),
+      ),
+    );
+
 /// Animates the hero widget to a alert dialog containing duration picker with the provided configurations
 ///
 /// Returns time in seconds and take initial time in seconds

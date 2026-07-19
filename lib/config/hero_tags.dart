@@ -33,6 +33,13 @@ class HeroTags {
   /// Tag used to identify the short content timer picker.
   static const shortContentTimerPickerTag = "shortsBlocking.shortsTimerPicker";
 
+  /// Generates a tag for a dating app's daily timer picker.
+  static String datingAppTimerPickerTag(String package) =>
+      "datingBlocking.timerPicker.$package";
+
+  /// Tag used to identify the Dating daily reset time picker.
+  static const datingResetTimePickerTag = "datingBlocking.resetTimePicker";
+
   /// Tag used to identify the block NSFW sites tile in wellbeing tab.
   static const blockNsfwTileTag = "websitesBlocking.blockNsfwTile";
 

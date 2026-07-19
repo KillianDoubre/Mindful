@@ -821,6 +821,48 @@ class AppLocalizationsEs extends AppLocalizations {
       'Establece un límite de tiempo diario para el contenido corto. Una vez alcanzado tu límite, el contenido corto se pausará hasta la medianoche.';
 
   @override
+  String get dating_blocking_tab_title => 'Dating blocking';
+
+  @override
+  String get dating_blocking_dashboard_subtitle =>
+      'Cap your daily time on dating apps';
+
+  @override
+  String get dating_blocking_tab_info =>
+      'Once your daily time on a dating app runs out, its discovery, standout, likes-you, map, and edit-profile pages are blocked until the next daily reset.';
+
+  @override
+  String get dating_apps_heading => 'Dating apps';
+
+  @override
+  String dating_daily_limit(String timeShortString) {
+    return '$timeShortString per day';
+  }
+
+  @override
+  String dating_time_left_from(String timeShortString) {
+    return 'Left from $timeShortString';
+  }
+
+  @override
+  String get dating_timer_picker_dialog_info =>
+      'Choose this app\'s daily limit to the nearest minute. Tracked pages will be blocked when the timer runs out.';
+
+  @override
+  String get dating_reset_heading => 'Daily reset';
+
+  @override
+  String get dating_reset_time_tile_title => 'Reset time';
+
+  @override
+  String get dating_reset_time_tile_subtitle =>
+      'All dating counters restart at this time every day.';
+
+  @override
+  String get dating_reset_time_picker_info =>
+      'Choose the daily reset time for all dating counters';
+
+  @override
   String get instagram_features_tile_title => 'Instagram';
 
   @override
@@ -1204,6 +1246,20 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get restriction_group_active_period_tile_title =>
       'Período activo del grupo';
+
+  @override
+  String restriction_group_period_count(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count active periods',
+      one: '1 active period',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get active_period_add_button => 'Add period';
 
   @override
   String get remove_restriction_group_dialog_title => 'Eliminar grupo';

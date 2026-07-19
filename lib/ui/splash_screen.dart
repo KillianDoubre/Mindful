@@ -167,13 +167,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                     onPressed: _authenticate,
                   )
                 : 0.vBox,
-
-            /// Make
-            const StyledText(
-              "Made with ♥️ in 🇮🇳",
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-            ),
           ].animate(
             effects: DefaultEffects.transitionIn,
             delay: 100.ms,

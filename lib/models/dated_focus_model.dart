@@ -25,5 +25,6 @@ class DatedFocusModel {
   }
 
   @override
-  String toString() => 'DatedFocusModel(selectedDaysFocusedTime: $selectedDaysFocusedTime, selectedDaysSessions: $selectedDaysSessions)';
+  String toString() =>
+      'DatedFocusModel(selectedDaysFocusedTime: $selectedDaysFocusedTime, selectedDaysSessions: $selectedDaysSessions)';
 }

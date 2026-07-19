@@ -13,6 +13,7 @@ import 'package:flutter/material.dart' as m;
 import 'package:flutter_animate/flutter_animate.dart';
 
 import 'package:mindful/core/database/app_database.dart';
+import 'package:mindful/models/active_period.dart';
 import 'package:mindful/core/database/tables/app_restriction_table.dart';
 import 'package:mindful/core/database/tables/app_usage_table.dart';
 import 'package:mindful/core/database/tables/crash_logs_table.dart';
@@ -200,6 +201,7 @@ class DynamicRecordsDao extends DatabaseAccessor<AppDatabase>
     required TimeOfDayAdapter activePeriodStart,
     required TimeOfDayAdapter activePeriodEnd,
     required int periodDurationInMins,
+    required List<ActivePeriod> activePeriods,
   }) async =>
       into(restrictionGroupsTable).insertReturning(
         RestrictionGroupsTableCompanion.insert(
@@ -209,6 +211,7 @@ class DynamicRecordsDao extends DatabaseAccessor<AppDatabase>
           activePeriodStart: Value(activePeriodStart),
           activePeriodEnd: Value(activePeriodEnd),
           periodDurationInMins: Value(periodDurationInMins),
+          activePeriods: Value(activePeriods),
         ),
         mode: InsertMode.insertOrReplace,
       );

@@ -155,25 +155,38 @@ class RestrictionManager(
         }
 
 
-        /// Check group's active period
-        restrictionGroups[restriction.associatedGroupId]?.let {
-            if (it.activePeriodStart != it.activePeriodEnd) {
+        /// Check group's active periods (multiple time windows with weekdays)
+        restrictionGroups[restriction.associatedGroupId]?.let { group ->
+            /// Only consider periods with an actual duration (start != end)
+            val validPeriods = group.activePeriods.filter { it.startMins != it.endMins }
+
+            /// Enforce only if the group has at least one valid active period
+            if (validPeriods.isNotEmpty()) {
                 val state = RestrictionState(
                     type = RestrictionType.GROUP_ACTIVE_PERIOD,
-                    groupName = it.groupName,
+                    groupName = group.groupName,
                 )
-                /// Outside active period
-                if (DateTimeUtils.isTimeOutsideTODs(it.activePeriodStart, it.activePeriodEnd)) {
+
+                val todayIndex = DateTimeUtils.zeroIndexedDayOfWeek()
+
+                /// A period we are currently inside, enabled for today
+                val currentPeriod = validPeriods.firstOrNull { period ->
+                    period.days.getOrElse(todayIndex) { false } &&
+                            !DateTimeUtils.isTimeOutsideTODs(period.startMins, period.endMins)
+                }
+
+                /// Inside an active period → allowed, schedule block for its end
+                if (currentPeriod != null) {
+                    val willOverInMs = DateTimeUtils.todDifferenceFromNow(currentPeriod.endMins)
+                    futureState.add(state.copy(timeLeftMillis = willOverInMs))
+                }
+                /// Outside every active period → blocked
+                else {
                     Log.d(
                         TAG,
-                        "evaluateActivePeriodLimit: ${it.groupName} group's active period is over"
+                        "evaluateActivePeriodLimit: ${group.groupName} group is outside all active periods"
                     )
                     return state
-                }
-                /// Launched between active period calculate expiration time
-                else {
-                    val willOverInMs = DateTimeUtils.todDifferenceFromNow(it.activePeriodEnd)
-                    futureState.add(state.copy(timeLeftMillis = willOverInMs))
                 }
             }
         }

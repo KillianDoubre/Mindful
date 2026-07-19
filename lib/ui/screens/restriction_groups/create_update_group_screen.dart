@@ -25,8 +25,8 @@ import 'package:mindful/config/hero_tags.dart';
 import 'package:mindful/providers/restrictions/apps_restrictions_provider.dart';
 import 'package:mindful/providers/usage/todays_apps_usage_provider.dart';
 import 'package:mindful/providers/restrictions/restriction_groups_provider.dart';
-import 'package:mindful/ui/common/active_period_tile_content.dart';
 import 'package:mindful/ui/common/default_expandable_list_tile.dart';
+import 'package:mindful/ui/screens/restriction_groups/active_periods_content.dart';
 import 'package:mindful/ui/common/default_fab_button.dart';
 import 'package:mindful/ui/common/default_list_tile.dart';
 import 'package:mindful/ui/common/scaffold_shell.dart';
@@ -64,6 +64,7 @@ class _CreateUpdateRestrictionGroupState
     activePeriodStart: TimeOfDayAdapter.zero(),
     activePeriodEnd: TimeOfDayAdapter.zero(),
     periodDurationInMins: 0,
+    activePeriods: [],
     distractingApps: [],
   );
 
@@ -179,7 +180,7 @@ class _CreateUpdateRestrictionGroupState
                     ),
                   ).sliver,
 
-                  /// Group active period
+                  /// Group active periods
                   DefaultExpandableListTile(
                     position: ItemPosition.mid,
                     leadingIcon: FluentIcons.drink_coffee_20_regular,
@@ -187,31 +188,18 @@ class _CreateUpdateRestrictionGroupState
                     accent: widget.canUpdateActivePeriod
                         ? null
                         : Theme.of(context).colorScheme.error,
-                    subtitleText: _group.periodDurationInMins > 0
-                        ? context.locale.app_active_period_tile_subtitle(
-                            _group.activePeriodStart.format(context),
-                            _group.activePeriodEnd.format(context),
+                    subtitleText: _group.activePeriods.isNotEmpty
+                        ? context.locale.restriction_group_period_count(
+                            _group.activePeriods.length,
                           )
                         : context.locale.app_limit_status_not_set,
-                    content: ActivePeriodTileContent(
-                      totalDuration: _group.periodDurationInMins.minutes,
-                      startTime: _group.activePeriodStart,
-                      endTime: _group.activePeriodEnd,
-                      isModifiable: () {
-                        if (!widget.canUpdateActivePeriod) {
-                          context.showSnackAlert(
-                              context.locale.invincible_mode_snack_alert);
-                        }
-
-                        return widget.canUpdateActivePeriod;
-                      },
-                      onTimeChanged: (start, end) {
-                        _group = _group.copyWith(
-                          activePeriodStart: start,
-                          activePeriodEnd: end,
-                          periodDurationInMins: end.difference(start).inMinutes,
-                        );
-
+                    content: ActivePeriodsContent(
+                      periods: _group.activePeriods,
+                      canModify: widget.canUpdateActivePeriod,
+                      onLockedTap: () => context.showSnackAlert(
+                          context.locale.invincible_mode_snack_alert),
+                      onChanged: (periods) {
+                        _group = _group.copyWith(activePeriods: periods);
                         setState(() {});
                       },
                     ),
@@ -314,6 +302,7 @@ class _CreateUpdateRestrictionGroupState
               activePeriodStart: _group.activePeriodStart,
               activePeriodEnd: _group.activePeriodEnd,
               periodDurationInMins: _group.periodDurationInMins,
+              activePeriods: List.of(_group.activePeriods),
               distractingApps: List.of(_group.distractingApps),
             );
 
@@ -365,7 +354,9 @@ class _CreateUpdateRestrictionGroupState
       return false;
     }
 
-    if (_group.timerSec <= 0 && _group.periodDurationInMins <= 0) {
+    if (_group.timerSec <= 0 &&
+        _group.periodDurationInMins <= 0 &&
+        _group.activePeriods.isEmpty) {
       context.showSnackAlert(
           context.locale.restriction_group_invalid_limits_snack_alert);
       return false;

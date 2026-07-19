@@ -21,6 +21,8 @@ class TimePeriodStartEndCards extends StatelessWidget {
     this.bgColor,
     this.isModifiable,
     this.enabled = true,
+    this.startHeroTag = HeroTags.scheduleStartTimePickerTag,
+    this.endHeroTag = HeroTags.scheduleEndTimePickerTag,
     required this.startTime,
     required this.endTime,
     required this.onStartTimeChanged,
@@ -30,6 +32,12 @@ class TimePeriodStartEndCards extends StatelessWidget {
   final Color? bgColor;
   final bool Function()? isModifiable;
   final bool enabled;
+
+  /// Hero tags for the start/end time cards. Must be unique per instance when
+  /// several [TimePeriodStartEndCards] are shown on the same screen.
+  final Object startHeroTag;
+  final Object endHeroTag;
+
   final TimeOfDayAdapter startTime;
   final TimeOfDayAdapter endTime;
   final Function(TimeOfDayAdapter timeTod) onStartTimeChanged;
@@ -46,7 +54,7 @@ class TimePeriodStartEndCards extends StatelessWidget {
             enabled: enabled,
             isModifiable: isModifiable,
             label: context.locale.schedule_start_label,
-            heroTag: HeroTags.scheduleStartTimePickerTag,
+            heroTag: startHeroTag,
             initialTime: startTime,
             bgColor: bgColor,
             onChange: onStartTimeChanged,
@@ -61,7 +69,7 @@ class TimePeriodStartEndCards extends StatelessWidget {
             enabled: enabled,
             isModifiable: isModifiable,
             label: context.locale.schedule_end_label,
-            heroTag: HeroTags.scheduleEndTimePickerTag,
+            heroTag: endHeroTag,
             initialTime: endTime,
             bgColor: bgColor,
             onChange: onEndTimeChanged,

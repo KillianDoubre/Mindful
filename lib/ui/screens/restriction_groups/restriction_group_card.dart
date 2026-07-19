@@ -122,12 +122,17 @@ class RestrictionGroupCard extends ConsumerWidget {
 
                         /// Active period
                         StyledText(
-                          group.periodDurationInMins > 0
-                              ? context.locale.app_active_period_tile_subtitle(
-                                  group.activePeriodStart.format(context),
-                                  group.activePeriodEnd.format(context),
+                          group.activePeriods.isNotEmpty
+                              ? context.locale.restriction_group_period_count(
+                                  group.activePeriods.length,
                                 )
-                              : context.locale.app_limit_status_not_set,
+                              : group.periodDurationInMins > 0
+                                  ? context.locale
+                                      .app_active_period_tile_subtitle(
+                                      group.activePeriodStart.format(context),
+                                      group.activePeriodEnd.format(context),
+                                    )
+                                  : context.locale.app_limit_status_not_set,
                           color: Theme.of(context).hintColor,
                         ),
                       ],
@@ -215,7 +220,7 @@ class RestrictionGroupCard extends ConsumerWidget {
     final canModifyActivePeriod = !(controls.isInvincibleModeOn &&
         controls.includeGroupsActivePeriod &&
         !isBetweenWindow &&
-        group.periodDurationInMins > 0);
+        (group.activePeriods.isNotEmpty || group.periodDurationInMins > 0));
 
     /// Return if cannot delete
     if (!canModifyTimer || !canModifyActivePeriod) {
@@ -262,7 +267,7 @@ class RestrictionGroupCard extends ConsumerWidget {
     final canModifyActivePeriod = !(controls.isInvincibleModeOn &&
         controls.includeGroupsActivePeriod &&
         !isBetweenWindow &&
-        group.periodDurationInMins > 0);
+        (group.activePeriods.isNotEmpty || group.periodDurationInMins > 0));
 
     /// Go to screen
     Navigator.of(context).push(

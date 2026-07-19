@@ -1119,7 +1119,7 @@ abstract class AppLocalizations {
   /// No description provided for @batch_recap_option_summery_only.
   ///
   /// In en, this message translates to:
-  /// **'Summery only'**
+  /// **'Summary only'**
   String get batch_recap_option_summery_only;
 
   /// No description provided for @batch_recap_option_all_notifications.
@@ -1439,6 +1439,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Set a daily time limit for short content. Once your limit is reached, the short content will be paused until midnight.'**
   String get short_content_timer_picker_dialog_info;
+
+  /// No description provided for @dating_blocking_tab_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Dating blocking'**
+  String get dating_blocking_tab_title;
+
+  /// No description provided for @dating_blocking_dashboard_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Cap your daily time on dating apps'**
+  String get dating_blocking_dashboard_subtitle;
+
+  /// No description provided for @dating_blocking_tab_info.
+  ///
+  /// In en, this message translates to:
+  /// **'Once your daily time on a dating app runs out, its discovery, standout, likes-you, map, and edit-profile pages are blocked until the next daily reset.'**
+  String get dating_blocking_tab_info;
+
+  /// No description provided for @dating_apps_heading.
+  ///
+  /// In en, this message translates to:
+  /// **'Dating apps'**
+  String get dating_apps_heading;
+
+  /// No description provided for @dating_daily_limit.
+  ///
+  /// In en, this message translates to:
+  /// **'{timeShortString} per day'**
+  String dating_daily_limit(String timeShortString);
+
+  /// No description provided for @dating_time_left_from.
+  ///
+  /// In en, this message translates to:
+  /// **'Left from {timeShortString}'**
+  String dating_time_left_from(String timeShortString);
+
+  /// No description provided for @dating_timer_picker_dialog_info.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose this app\'s daily limit to the nearest minute. Tracked pages will be blocked when the timer runs out.'**
+  String get dating_timer_picker_dialog_info;
+
+  /// No description provided for @dating_reset_heading.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily reset'**
+  String get dating_reset_heading;
+
+  /// No description provided for @dating_reset_time_tile_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset time'**
+  String get dating_reset_time_tile_title;
+
+  /// No description provided for @dating_reset_time_tile_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'All dating counters restart at this time every day.'**
+  String get dating_reset_time_tile_subtitle;
+
+  /// No description provided for @dating_reset_time_picker_info.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the daily reset time for all dating counters'**
+  String get dating_reset_time_picker_info;
 
   /// No description provided for @instagram_features_tile_title.
   ///
@@ -2111,6 +2177,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Group active period'**
   String get restriction_group_active_period_tile_title;
+
+  /// No description provided for @restriction_group_period_count.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1 {1 active period} other {{count} active periods}}'**
+  String restriction_group_period_count(int count);
+
+  /// No description provided for @active_period_add_button.
+  ///
+  /// In en, this message translates to:
+  /// **'Add period'**
+  String get active_period_add_button;
 
   /// No description provided for @remove_restriction_group_dialog_title.
   ///

@@ -25,5 +25,6 @@ class MonthlyFocusModel {
   }
 
   @override
-  String toString() => 'MonthlyFocusModel(monthlyFocus: $monthlyFocus, totalProductiveDays: $totalProductiveDays, totalProductiveTime: $totalProductiveTime)';
+  String toString() =>
+      'MonthlyFocusModel(monthlyFocus: $monthlyFocus, totalProductiveDays: $totalProductiveDays, totalProductiveTime: $totalProductiveTime)';
 }

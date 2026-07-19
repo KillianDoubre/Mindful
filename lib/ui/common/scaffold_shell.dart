@@ -236,7 +236,7 @@ class _ScaffoldShellState extends State<ScaffoldShell>
     return ValueListenableBuilder<bool>(
       valueListenable: _isBottomNavVisible,
       builder: (context, isVisible, child) => AnimatedContainer(
-        height: isVisible ? (80 + MediaQuery.of(context).padding.bottom) : 0,
+        height: isVisible ? (60 + MediaQuery.of(context).padding.bottom) : 0,
         duration: 300.ms,
         curve: isVisible ? Curves.easeOut : Curves.easeOut.flipped,
         alignment: Alignment.bottomCenter,
@@ -244,7 +244,9 @@ class _ScaffoldShellState extends State<ScaffoldShell>
       ),
       child: NavigationBar(
         selectedIndex: _selectedTabIndex,
+        height: 60,
         animationDuration: AppConstants.defaultAnimDuration,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
         backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
         onDestinationSelected: (index) => _tabController.animateTo(
           index,

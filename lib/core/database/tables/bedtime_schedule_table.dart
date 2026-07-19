@@ -60,6 +60,4 @@ class BedtimeScheduleTable extends Table {
   TextColumn get distractingApps => text()
       .map(const StringListConverter())
       .withDefault(Constant(jsonEncode([])))();
-
-  
 }

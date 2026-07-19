@@ -13,7 +13,9 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:mindful/core/database/adapters/time_of_day_adapter.dart';
+import 'package:mindful/core/database/converters/active_period_list_converter.dart';
 import 'package:mindful/core/database/converters/bool_list_converter.dart';
+import 'package:mindful/core/database/converters/dating_app_block_list_converter.dart';
 import 'package:mindful/core/database/converters/enum_list_converter.dart';
 import 'package:mindful/core/database/converters/notification_schedule_list_converter.dart';
 import 'package:mindful/core/database/converters/string_list_converter.dart';
@@ -43,6 +45,8 @@ import 'package:mindful/core/enums/session_state.dart';
 import 'package:mindful/config/app_constants.dart';
 import 'package:mindful/core/enums/platform_features.dart';
 import 'package:mindful/core/utils/default_models_utils.dart';
+import 'package:mindful/models/active_period.dart';
+import 'package:mindful/models/dating_app_block.dart';
 import 'package:mindful/models/notification_schedule.dart';
 import 'migrations/migrations.dart';
 
@@ -82,7 +86,7 @@ class AppDatabase extends _$AppDatabase {
   //
   // STEP 6 => Add migration steps to migration strategy by create new file in migrations folder. See previous migrations for help
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 12;
 
   // Always use [runSafe()] for upgrades - why?
   // If a user imports a backup from a newer schema when they are on an older
@@ -106,6 +110,9 @@ class AppDatabase extends _$AppDatabase {
               from6To7: from6To7,
               from7To8: from7To8,
               from8To9: from8To9,
+              from9To10: from9To10,
+              from10To11: from10To11,
+              from11To12: from11To12,
             ),
           );
         },

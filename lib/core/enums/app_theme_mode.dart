@@ -8,7 +8,7 @@
  *
  */
 
-/// Theme of the app equivalent to [ThemeMode] 
+/// Theme of the app equivalent to [ThemeMode]
 enum AppThemeMode {
   system,
   light,

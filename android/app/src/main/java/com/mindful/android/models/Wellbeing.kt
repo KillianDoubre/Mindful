@@ -33,6 +33,14 @@ data class Wellbeing(
      * Set of NSFW website hosts.
      */
     val nsfwWebsites: Set<String> = emptySet(),
+
+    /**
+     * Per-app dating blocking configs (Tinder, Hinge, Bumble, Happn).
+     */
+    val datingBlocks: List<DatingAppBlock> = emptyList(),
+
+    /** Daily Dating counter reset time, in minutes from midnight. */
+    val datingResetTimeMinutes: Int = 0,
 ) {
     companion object {
         private const val DEFAULT_SHORTS_TIME_SEC = 30 * 60
@@ -58,6 +66,13 @@ data class Wellbeing(
                 nsfwWebsites = JsonUtils.parseStringSet(
                     jsonObject.optJSONArray("nsfwWebsites")?.toString()
                 ),
+                datingBlocks = jsonObject.optJSONArray("datingBlocks")?.let { arr ->
+                    (0 until arr.length()).mapNotNull { i ->
+                        arr.optJSONObject(i)?.let(DatingAppBlock::fromJson)
+                    }
+                } ?: emptyList(),
+                datingResetTimeMinutes = jsonObject.optInt("datingResetTime", 0)
+                    .coerceIn(0, 24 * 60 - 1),
             )
         }
     }

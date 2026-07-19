@@ -32,5 +32,4 @@ class FocusModeTable extends Table {
   /// The [DateTime] when the streak was updated last time
   DateTimeColumn get lastTimeStreakUpdated =>
       dateTime().withDefault(Constant(DateTime(0)))();
-
 }

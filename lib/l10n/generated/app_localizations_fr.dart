@@ -624,7 +624,7 @@ class AppLocalizationsFr extends AppLocalizations {
       'Choose what to push when a schedule triggers — all notifications or just a summary.';
 
   @override
-  String get batch_recap_option_summery_only => 'Summery only';
+  String get batch_recap_option_summery_only => 'Summary only';
 
   @override
   String get batch_recap_option_all_notifications => 'All notifications';
@@ -818,6 +818,49 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get short_content_timer_picker_dialog_info =>
       'Set a daily time limit for short content. Once your limit is reached, the short content will be paused until midnight.';
+
+  @override
+  String get dating_blocking_tab_title =>
+      'Blocage des applications de rencontre';
+
+  @override
+  String get dating_blocking_dashboard_subtitle =>
+      'Limitez votre temps quotidien sur les applications de rencontre';
+
+  @override
+  String get dating_blocking_tab_info =>
+      'Lorsque votre temps quotidien sur une application de rencontre est écoulé, ses pages de découverte, profils en vedette, likes reçus, carte et modification du profil sont bloquées jusqu\'à la prochaine réinitialisation quotidienne.';
+
+  @override
+  String get dating_apps_heading => 'Applications de rencontre';
+
+  @override
+  String dating_daily_limit(String timeShortString) {
+    return '$timeShortString par jour';
+  }
+
+  @override
+  String dating_time_left_from(String timeShortString) {
+    return 'Temps restant sur $timeShortString';
+  }
+
+  @override
+  String get dating_timer_picker_dialog_info =>
+      'Choisissez la limite quotidienne de cette application à la minute près. Les pages suivies seront bloquées lorsque le temps sera écoulé.';
+
+  @override
+  String get dating_reset_heading => 'Réinitialisation quotidienne';
+
+  @override
+  String get dating_reset_time_tile_title => 'Heure de réinitialisation';
+
+  @override
+  String get dating_reset_time_tile_subtitle =>
+      'Tous les compteurs Dating redémarrent à cette heure chaque jour.';
+
+  @override
+  String get dating_reset_time_picker_info =>
+      'Choisissez l\'heure de réinitialisation quotidienne de tous les compteurs Dating';
 
   @override
   String get instagram_features_tile_title => 'Instagram';
@@ -1199,6 +1242,20 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get restriction_group_active_period_tile_title =>
       'Période d\'activité du groupe';
+
+  @override
+  String restriction_group_period_count(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count périodes actives',
+      one: '1 période active',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get active_period_add_button => 'Ajouter une période';
 
   @override
   String get remove_restriction_group_dialog_title => 'Supprimer groupe';
