@@ -33,6 +33,7 @@ object SharedPrefsHelper {
     private const val PREF_KEY_NOTIFICATION_PERMISSION_COUNT = "notificationPermissionCount"
     private const val PREF_KEY_SHORTS_SCREEN_TIME = "shortsScreenTime"
     private const val PREF_KEY_DATING_SCREEN_TIMES = "datingScreenTimes"
+    private const val PREF_KEY_OPENING_INTENT_HISTORY = "openingIntentHistory"
     private const val PREF_KEY_DND_WAKE_LOCK = "dndWakeLock"
     private const val PREF_KEY_EXCLUDED_APPS = "excludedApps"
 
@@ -226,6 +227,48 @@ object SharedPrefsHelper {
                 }
             }
         }.getOrDefault(emptyMap())
+    }
+
+    /** Stores one conscious-opening decision and keeps the latest 500 entries. */
+    fun insertOpeningIntent(
+        context: Context,
+        groupId: Int,
+        groupName: String,
+        packageName: String,
+        reason: String,
+        outcome: String,
+    ) = synchronized(this) {
+        checkAndInitializeUniquePrefs(context)
+
+        val existing = runCatching {
+            JSONArray(mUniquePrefs!!.getString(PREF_KEY_OPENING_INTENT_HISTORY, "[]"))
+        }.getOrDefault(JSONArray())
+        val trimmed = JSONArray()
+        val firstIndex = (existing.length() - 499).coerceAtLeast(0)
+        for (index in firstIndex until existing.length()) {
+            trimmed.put(existing.get(index))
+        }
+
+        trimmed.put(
+            JSONObject()
+                .put("timestamp", System.currentTimeMillis())
+                .put("groupId", groupId)
+                .put("groupName", groupName)
+                .put("packageName", packageName)
+                .put("reason", reason)
+                .put("outcome", outcome)
+                .put("continued", outcome == "continued")
+        )
+
+        mUniquePrefs!!.edit()
+            .putString(PREF_KEY_OPENING_INTENT_HISTORY, trimmed.toString())
+            .apply()
+    }
+
+    /** Returns the conscious-opening history as a JSON array. */
+    fun getOpeningIntentHistoryJson(context: Context): String {
+        checkAndInitializeUniquePrefs(context)
+        return mUniquePrefs!!.getString(PREF_KEY_OPENING_INTENT_HISTORY, "[]") ?: "[]"
     }
 
 

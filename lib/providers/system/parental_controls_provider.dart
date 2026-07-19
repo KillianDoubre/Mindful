@@ -22,17 +22,32 @@ final parentalControlsProvider =
 );
 
 class ParentalControlsNotifier extends StateNotifier<ParentalControls> {
-  /// Returns `TRUE` if the time now is between the uninstall window otherwise `FALSE`.
-  bool get isBetweenUninstallWindow => DateTime.now().isBetweenTod(
-        state.uninstallWindowTime,
-        TimeOfDayAdapter.fromMinutes(state.uninstallWindowTime.toMinutes + 10),
-      );
+  /// Shared daily "modification window" during which the user is allowed to
+  /// weaken protections (uninstall Mindful and edit invincible-mode / restriction
+  /// settings). Uninstall and invincible mode now share the same start and end.
+  ///
+  /// To avoid a database schema migration, the two existing [TimeOfDay] columns
+  /// are reused: `uninstallWindowTime` = window START, `invincibleWindowTime` =
+  /// window END.
+  TimeOfDayAdapter get windowStartTime => state.uninstallWindowTime;
+  TimeOfDayAdapter get windowEndTime => state.invincibleWindowTime;
 
-  /// Returns `TRUE` if the time now is between the invincible window otherwise `FALSE`.
-  bool get isBetweenInvincibleWindow => DateTime.now().isBetweenTod(
-        state.invincibleWindowTime,
-        TimeOfDayAdapter.fromMinutes(state.invincibleWindowTime.toMinutes + 10),
-      );
+  /// Returns `TRUE` when the current time is inside the shared window.
+  ///
+  /// When start == end the window is treated as unset and always open, so the
+  /// user can never lock themselves out (e.g. on the zero/zero default).
+  bool get isBetweenWindow =>
+      state.uninstallWindowTime.toMinutes == state.invincibleWindowTime.toMinutes
+          ? true
+          : DateTime.now().isBetweenTod(
+              state.uninstallWindowTime,
+              state.invincibleWindowTime,
+            );
+
+  /// Kept for the existing call sites that gate uninstalling / editing
+  /// restrictions — both now resolve to the shared [isBetweenWindow].
+  bool get isBetweenUninstallWindow => isBetweenWindow;
+  bool get isBetweenInvincibleWindow => isBetweenWindow;
 
   ParentalControlsNotifier() : super(defaultParentalControlsModel) {
     init();
@@ -56,12 +71,12 @@ class ParentalControlsNotifier extends StateNotifier<ParentalControls> {
   void switchProtectedAccess() =>
       state = state.copyWith(protectedAccess: !state.protectedAccess);
 
-  /// Changes the time of day when uninstall widow starts for 5 minutes.
-  void changeUninstallWindowTime(TimeOfDayAdapter time) =>
+  /// Changes the shared modification window START time.
+  void changeWindowStartTime(TimeOfDayAdapter time) =>
       state = state.copyWith(uninstallWindowTime: time);
 
-  /// Changes the time of day when invincible widow starts for 5 minutes.
-  void changeInvincibleWindowTime(TimeOfDayAdapter time) =>
+  /// Changes the shared modification window END time.
+  void changeWindowEndTime(TimeOfDayAdapter time) =>
       state = state.copyWith(invincibleWindowTime: time);
 
   void switchInvincibleMode() =>

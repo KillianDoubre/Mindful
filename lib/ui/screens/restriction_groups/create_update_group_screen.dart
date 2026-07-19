@@ -33,6 +33,7 @@ import 'package:mindful/ui/common/scaffold_shell.dart';
 import 'package:mindful/ui/common/sliver_distracting_apps_list.dart';
 import 'package:mindful/ui/common/sliver_tabs_bottom_padding.dart';
 import 'package:mindful/ui/common/usage_glance_card.dart';
+import 'package:mindful/ui/common/opening_intent_history_card.dart';
 import 'package:mindful/ui/dialogs/confirmation_dialog.dart';
 import 'package:mindful/ui/dialogs/input_field_dialog.dart';
 import 'package:mindful/ui/dialogs/timer_picker_dialog.dart';
@@ -65,6 +66,7 @@ class _CreateUpdateRestrictionGroupState
     activePeriodEnd: TimeOfDayAdapter.zero(),
     periodDurationInMins: 0,
     activePeriods: [],
+    isIntentPromptEnabled: false,
     distractingApps: [],
   );
 
@@ -209,7 +211,7 @@ class _CreateUpdateRestrictionGroupState
                   DefaultHero(
                     tag: HeroTags.restrictionGroupTimerTileTag(_group.id),
                     child: DefaultListTile(
-                      position: ItemPosition.bottom,
+                      position: ItemPosition.mid,
                       leadingIcon: FluentIcons.timer_20_regular,
                       titleText:
                           context.locale.restriction_group_timer_tile_title,
@@ -242,6 +244,31 @@ class _CreateUpdateRestrictionGroupState
                       },
                     ),
                   ).sliver,
+
+                  /// Conscious opening prompt
+                  DefaultListTile(
+                    position: ItemPosition.bottom,
+                    leadingIcon: FluentIcons.brain_circuit_20_regular,
+                    titleText: "Pause consciente à l’ouverture",
+                    subtitleText: _group.isIntentPromptEnabled
+                        ? "Une intention sera demandée avant chaque ouverture"
+                        : "Demander pourquoi vous ouvrez une application",
+                    switchValue: _group.isIntentPromptEnabled,
+                    onPressed: () {
+                      _group = _group.copyWith(
+                        isIntentPromptEnabled: !_group.isIntentPromptEnabled,
+                      );
+                      setState(() {});
+                    },
+                  ).sliver,
+
+                  if (widget.group != null) ...[
+                    24.vSliverBox,
+                    OpeningIntentHistoryCard(
+                      groupId: _group.id,
+                      expanded: true,
+                    ).sliver,
+                  ],
 
                   /// Distracting apps
                   36.vSliverBox,
@@ -304,6 +331,7 @@ class _CreateUpdateRestrictionGroupState
               periodDurationInMins: _group.periodDurationInMins,
               activePeriods: List.of(_group.activePeriods),
               distractingApps: List.of(_group.distractingApps),
+              isIntentPromptEnabled: _group.isIntentPromptEnabled,
             );
 
     await _updateAssociatedApps(
@@ -356,7 +384,8 @@ class _CreateUpdateRestrictionGroupState
 
     if (_group.timerSec <= 0 &&
         _group.periodDurationInMins <= 0 &&
-        _group.activePeriods.isEmpty) {
+        _group.activePeriods.isEmpty &&
+        !_group.isIntentPromptEnabled) {
       context.showSnackAlert(
           context.locale.restriction_group_invalid_limits_snack_alert);
       return false;

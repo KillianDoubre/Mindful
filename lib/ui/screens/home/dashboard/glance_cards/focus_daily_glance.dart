@@ -34,6 +34,7 @@ class FocusDailyGlance extends ConsumerWidget {
 
     return UsageGlanceCard(
       isPrimary: true,
+      compact: true,
       position: ItemPosition.topRight,
       icon: FluentIcons.target_20_filled,
       title: context.locale.focus_today_label,

@@ -75,7 +75,7 @@ class _SliverTipsAndTricksState extends State<SliverTipsAndTricks> {
             arguments: tab != null ? {"tab": tab} : null);
 
     void goToTab(DefaultHomeTab tab) =>
-        TabControllerProvider.maybeOf(ctx)?.animateToTab(tab.index);
+        TabControllerProvider.maybeOf(ctx)?.animateToTab(tab.navigationIndex);
 
     return {
       /// Home screen

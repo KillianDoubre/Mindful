@@ -18,6 +18,7 @@ import 'package:mindful/core/database/app_database.dart';
 import 'package:mindful/models/usage_model.dart';
 import 'package:mindful/models/app_info.dart';
 import 'package:mindful/models/device_info_model.dart';
+import 'package:mindful/models/opening_intent_record.dart';
 
 /// This class handles the Flutter method channel and is responsible for invoking native Android Java code.
 ///
@@ -98,6 +99,27 @@ class MethodChannelService {
     return timesMs.map(
       (packageName, timeMs) => MapEntry(packageName, timeMs ~/ 1000),
     );
+  }
+
+  /// Returns locally stored conscious-opening decisions, newest first.
+  Future<List<OpeningIntentRecord>> getOpeningIntentHistory() async {
+    try {
+      final jsonString = await _methodChannel
+              .invokeMethod<String>('getOpeningIntentHistory') ??
+          '[]';
+      final items = jsonDecode(jsonString) as List<dynamic>;
+      return items
+          .whereType<Map>()
+          .map((item) => OpeningIntentRecord.fromMap(
+                Map<String, dynamic>.from(item),
+              ))
+          .toList()
+          .reversed
+          .toList(growable: false);
+    } catch (e) {
+      debugPrint("MethodChannelService.getOpeningIntentHistory() Error: $e");
+      return const [];
+    }
   }
 
   /// Gets all the stored native crash logs and clears them afterward.

@@ -147,6 +147,10 @@ class FgMethodCallHandler(
                 result.success(SharedPrefsHelper.getDatingScreenTimesMs(context))
             }
 
+            "getOpeningIntentHistory" -> {
+                result.success(SharedPrefsHelper.getOpeningIntentHistoryJson(context))
+            }
+
             "getNativeCrashLogs" -> {
                 result.success(SharedPrefsHelper.getCrashLogsArrayJsonString(context))
             }

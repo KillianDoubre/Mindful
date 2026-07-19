@@ -25,11 +25,13 @@ class UsageGlanceCard extends StatelessWidget {
     this.onTap,
     this.badge,
     this.isPrimary = false,
+    this.compact = false,
     this.position = ItemPosition.mid,
   });
 
   final IconData? icon;
   final bool isPrimary;
+  final bool compact;
   final String title;
   final String info;
   final VoidCallback? onTap;
@@ -45,7 +47,7 @@ class UsageGlanceCard extends StatelessWidget {
     return RoundedContainer(
       circularRadius: 10,
       borderRadius: getBorderRadiusFromPosition(position),
-      padding: const EdgeInsets.all(17),
+      padding: EdgeInsets.all(compact ? 12 : 17),
       color: isPrimary ? colors.secondaryContainer : null,
       onPressed: onTap,
       child: Stack(
@@ -57,24 +59,24 @@ class UsageGlanceCard extends StatelessWidget {
             children: [
               if (!mini)
                 Container(
-                  width: 38,
-                  height: 38,
+                  width: compact ? 30 : 38,
+                  height: compact ? 30 : 38,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color:
                         (foreground ?? colors.primary).withValues(alpha: 0.11),
-                    borderRadius: BorderRadius.circular(13),
+                    borderRadius: BorderRadius.circular(compact ? 10 : 13),
                   ),
                   child: Icon(
                     icon,
-                    size: 20,
+                    size: compact ? 17 : 20,
                     color: foreground ?? colors.primary,
                   ),
                 ),
-              mini ? 0.vBox : 16.vBox,
+              mini ? 0.vBox : (compact ? 8.vBox : 16.vBox),
               StyledText(
                 title,
-                fontSize: 12.5,
+                fontSize: compact ? 11.5 : 12.5,
                 fontWeight: FontWeight.w500,
                 color: foreground,
               ),
@@ -82,7 +84,7 @@ class UsageGlanceCard extends StatelessWidget {
                 child: FittedBox(
                   child: StyledText(
                     info.isEmpty ? " " : info,
-                    fontSize: 26,
+                    fontSize: compact ? 21 : 26,
                     maxLines: 1,
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.6,

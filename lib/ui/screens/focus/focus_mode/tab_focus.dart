@@ -19,6 +19,8 @@ import 'package:mindful/core/extensions/ext_build_context.dart';
 import 'package:mindful/core/extensions/ext_num.dart';
 import 'package:mindful/core/extensions/ext_widget.dart';
 import 'package:mindful/providers/focus/focus_mode_provider.dart';
+import 'package:mindful/core/services/systems_repository.dart';
+import 'package:mindful/providers/systems/systems_provider.dart';
 import 'package:mindful/ui/common/default_list_tile.dart';
 import 'package:mindful/ui/common/rounded_container.dart';
 import 'package:mindful/ui/common/sliver_active_session_alert.dart';
@@ -116,6 +118,14 @@ class TabFocus extends StatelessWidget {
     }
 
     await ref.read(focusModeProvider.notifier).startNewSession();
+    final session = ref.read(focusModeProvider).activeSession.valueOrNull;
+    final selectedSystemId = await ref.read(selectedFocusSystemProvider.future);
+    if (session != null) {
+      await SystemsRepository.instance.linkFocusSession(
+        session.id,
+        selectedSystemId,
+      );
+    }
 
     await Future.delayed(300.ms);
     if (context.mounted) {

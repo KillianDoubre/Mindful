@@ -2,6 +2,7 @@ package com.mindful.android.services.accessibility
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Rect
 import android.os.Handler
 import android.os.Looper
 import android.provider.Browser
@@ -46,7 +47,10 @@ class BrowserManager(
         url = url.replace("google.com/amp/s/amp.", "")
 
         // Block websites
-        val host = Utils.parseHostNameFromUrl(url) ?: return
+        val host = Utils.parseHostNameFromUrl(url)
+            ?.lowercase()
+            ?.trimEnd('.')
+            ?: return
 
         when {
             isHostBlocked(host, wellbeing) -> {
@@ -192,6 +196,8 @@ class BrowserManager(
         private val urlBarNodeIds = setOf(
             ":id/url_bar",  // Chrome
             ":id/mozac_browser_toolbar_url_view",  // Firefox
+            ":id/mozac_browser_toolbar_edit_url_view",  // Firefox while editing
+            ":id/mozac_browser_toolbar_origin_view",  // Firefox origin fallback
             ":id/url",
             ":id/search",
             ":id/omnibarTextInput", // Duck duck go
@@ -232,17 +238,82 @@ class BrowserManager(
                 for (id in urlBarNodeIds) {
                     val urlBarNodes = node.findAccessibilityNodeInfosByViewId(packageName + id)
                     if (urlBarNodes.isNotEmpty()) {
-                        val txtSequence = urlBarNodes.first().text
-                        if (!txtSequence.isNullOrBlank()) {
-                            return txtSequence.toString()
+                        val urlBarNode = urlBarNodes.first()
+                        val value = urlBarNode.text ?: urlBarNode.contentDescription
+                        if (!value.isNullOrBlank()) {
+                            return value.toString()
                         }
                     }
                 }
+
+                // Firefox's newer Compose toolbar may expose no Android view ID.
+                // In that case, look only near the top or bottom screen edge where
+                // the address bar can live, rather than scanning the web page.
+                findUrlInToolbarSemantics(node)?.let { return it }
 
             } catch (ignored: Exception) {
             }
 
             return ""
+        }
+
+        private fun findUrlInToolbarSemantics(root: AccessibilityNodeInfo): String? {
+            val rootBounds = Rect().also(root::getBoundsInScreen)
+            if (rootBounds.isEmpty) return null
+
+            val edgeBand = (rootBounds.height() * 0.2f).toInt()
+            var bestValue: String? = null
+            var bestScore = Int.MAX_VALUE
+
+            fun visit(current: AccessibilityNodeInfo, depth: Int) {
+                if (depth > 32) return
+
+                val bounds = Rect().also(current::getBoundsInScreen)
+                val nearTop = bounds.top <= rootBounds.top + edgeBand
+                val nearBottom = bounds.bottom >= rootBounds.bottom - edgeBand
+
+                if (!bounds.isEmpty && (nearTop || nearBottom)) {
+                    val value = sequenceOf(current.text, current.contentDescription)
+                        .filterNotNull()
+                        .map(CharSequence::toString)
+                        .map(String::trim)
+                        .firstOrNull(::looksLikeUrl)
+
+                    if (value != null) {
+                        val edgeDistance = minOf(
+                            kotlin.math.abs(bounds.top - rootBounds.top),
+                            kotlin.math.abs(rootBounds.bottom - bounds.bottom),
+                        )
+                        val interactiveBonus = if (current.isClickable || current.isFocusable) {
+                            rootBounds.height()
+                        } else {
+                            0
+                        }
+                        val score = edgeDistance - interactiveBonus
+
+                        if (score < bestScore) {
+                            bestScore = score
+                            bestValue = value
+                        }
+                    }
+                }
+
+                for (index in 0 until current.childCount) {
+                    current.getChild(index)?.let { visit(it, depth + 1) }
+                }
+            }
+
+            visit(root, 0)
+            return bestValue
+        }
+
+        private fun looksLikeUrl(value: String): Boolean {
+            if (value.length > 2048 || value.any(Char::isWhitespace) || !value.contains('.')) {
+                return false
+            }
+
+            val host = Utils.parseHostNameFromUrl(value)?.trimEnd('.') ?: return false
+            return host.contains('.') && host.none(Char::isWhitespace)
         }
     }
 }

@@ -2700,7 +2700,6 @@ class MindfulSettings extends DataClass implements Insertable<MindfulSettings> {
   final bool isOnboardingDone;
 
   /// The currently installed version of Mindful.
-  /// Mainly used to show changelogs screen.
   final String appVersion;
   const MindfulSettings(
       {required this.id,
@@ -3891,6 +3890,16 @@ class $RestrictionGroupsTableTable extends RestrictionGroupsTable
               defaultValue: Constant(jsonEncode([])))
           .withConverter<List<ActivePeriod>>(
               $RestrictionGroupsTableTable.$converteractivePeriods);
+  static const VerificationMeta _isIntentPromptEnabledMeta =
+      const VerificationMeta('isIntentPromptEnabled');
+  @override
+  late final GeneratedColumn<bool> isIntentPromptEnabled =
+      GeneratedColumn<bool>('is_intent_prompt_enabled', aliasedName, false,
+          type: DriftSqlType.bool,
+          requiredDuringInsert: false,
+          defaultConstraints: GeneratedColumn.constraintIsAlways(
+              'CHECK ("is_intent_prompt_enabled" IN (0, 1))'),
+          defaultValue: const Constant(false));
   @override
   late final GeneratedColumnWithTypeConverter<List<String>, String>
       distractingApps = GeneratedColumn<String>(
@@ -3909,6 +3918,7 @@ class $RestrictionGroupsTableTable extends RestrictionGroupsTable
         activePeriodEnd,
         periodDurationInMins,
         activePeriods,
+        isIntentPromptEnabled,
         distractingApps
       ];
   @override
@@ -3938,6 +3948,12 @@ class $RestrictionGroupsTableTable extends RestrictionGroupsTable
           periodDurationInMins.isAcceptableOrUnknown(
               data['period_duration_in_mins']!, _periodDurationInMinsMeta));
     }
+    if (data.containsKey('is_intent_prompt_enabled')) {
+      context.handle(
+          _isIntentPromptEnabledMeta,
+          isIntentPromptEnabled.isAcceptableOrUnknown(
+              data['is_intent_prompt_enabled']!, _isIntentPromptEnabledMeta));
+    }
     return context;
   }
 
@@ -3965,6 +3981,9 @@ class $RestrictionGroupsTableTable extends RestrictionGroupsTable
       activePeriods: $RestrictionGroupsTableTable.$converteractivePeriods
           .fromSql(attachedDatabase.typeMapping.read(
               DriftSqlType.string, data['${effectivePrefix}active_periods'])!),
+      isIntentPromptEnabled: attachedDatabase.typeMapping.read(
+          DriftSqlType.bool,
+          data['${effectivePrefix}is_intent_prompt_enabled'])!,
       distractingApps: $RestrictionGroupsTableTable.$converterdistractingApps
           .fromSql(attachedDatabase.typeMapping.read(DriftSqlType.string,
               data['${effectivePrefix}distracting_apps'])!),
@@ -4016,6 +4035,9 @@ class RestrictionGroup extends DataClass
   /// Supersedes the single [activePeriodStart]/[activePeriodEnd] window.
   final List<ActivePeriod> activePeriods;
 
+  /// Ask the user to name their intention before opening an app in this group.
+  final bool isIntentPromptEnabled;
+
   /// List of app's packages which are associated with the group.
   final List<String> distractingApps;
   const RestrictionGroup(
@@ -4026,6 +4048,7 @@ class RestrictionGroup extends DataClass
       required this.activePeriodEnd,
       required this.periodDurationInMins,
       required this.activePeriods,
+      required this.isIntentPromptEnabled,
       required this.distractingApps});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -4049,6 +4072,7 @@ class RestrictionGroup extends DataClass
           .$converteractivePeriods
           .toSql(activePeriods));
     }
+    map['is_intent_prompt_enabled'] = Variable<bool>(isIntentPromptEnabled);
     {
       map['distracting_apps'] = Variable<String>($RestrictionGroupsTableTable
           .$converterdistractingApps
@@ -4066,6 +4090,7 @@ class RestrictionGroup extends DataClass
       activePeriodEnd: Value(activePeriodEnd),
       periodDurationInMins: Value(periodDurationInMins),
       activePeriods: Value(activePeriods),
+      isIntentPromptEnabled: Value(isIntentPromptEnabled),
       distractingApps: Value(distractingApps),
     );
   }
@@ -4086,6 +4111,8 @@ class RestrictionGroup extends DataClass
           serializer.fromJson<int>(json['periodDurationInMins']),
       activePeriods: $RestrictionGroupsTableTable.$converteractivePeriods
           .fromJson(serializer.fromJson<List<dynamic>>(json['activePeriods'])),
+      isIntentPromptEnabled:
+          serializer.fromJson<bool>(json['isIntentPromptEnabled']),
       distractingApps:
           serializer.fromJson<List<String>>(json['distractingApps']),
     );
@@ -4107,6 +4134,7 @@ class RestrictionGroup extends DataClass
       'activePeriods': serializer.toJson<List<dynamic>>(
           $RestrictionGroupsTableTable.$converteractivePeriods
               .toJson(activePeriods)),
+      'isIntentPromptEnabled': serializer.toJson<bool>(isIntentPromptEnabled),
       'distractingApps': serializer.toJson<List<String>>(distractingApps),
     };
   }
@@ -4119,6 +4147,7 @@ class RestrictionGroup extends DataClass
           TimeOfDayAdapter? activePeriodEnd,
           int? periodDurationInMins,
           List<ActivePeriod>? activePeriods,
+          bool? isIntentPromptEnabled,
           List<String>? distractingApps}) =>
       RestrictionGroup(
         id: id ?? this.id,
@@ -4128,6 +4157,8 @@ class RestrictionGroup extends DataClass
         activePeriodEnd: activePeriodEnd ?? this.activePeriodEnd,
         periodDurationInMins: periodDurationInMins ?? this.periodDurationInMins,
         activePeriods: activePeriods ?? this.activePeriods,
+        isIntentPromptEnabled:
+            isIntentPromptEnabled ?? this.isIntentPromptEnabled,
         distractingApps: distractingApps ?? this.distractingApps,
       );
   RestrictionGroup copyWithCompanion(RestrictionGroupsTableCompanion data) {
@@ -4147,6 +4178,9 @@ class RestrictionGroup extends DataClass
       activePeriods: data.activePeriods.present
           ? data.activePeriods.value
           : this.activePeriods,
+      isIntentPromptEnabled: data.isIntentPromptEnabled.present
+          ? data.isIntentPromptEnabled.value
+          : this.isIntentPromptEnabled,
       distractingApps: data.distractingApps.present
           ? data.distractingApps.value
           : this.distractingApps,
@@ -4163,14 +4197,23 @@ class RestrictionGroup extends DataClass
           ..write('activePeriodEnd: $activePeriodEnd, ')
           ..write('periodDurationInMins: $periodDurationInMins, ')
           ..write('activePeriods: $activePeriods, ')
+          ..write('isIntentPromptEnabled: $isIntentPromptEnabled, ')
           ..write('distractingApps: $distractingApps')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, groupName, timerSec, activePeriodStart,
-      activePeriodEnd, periodDurationInMins, activePeriods, distractingApps);
+  int get hashCode => Object.hash(
+      id,
+      groupName,
+      timerSec,
+      activePeriodStart,
+      activePeriodEnd,
+      periodDurationInMins,
+      activePeriods,
+      isIntentPromptEnabled,
+      distractingApps);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -4182,6 +4225,7 @@ class RestrictionGroup extends DataClass
           other.activePeriodEnd == this.activePeriodEnd &&
           other.periodDurationInMins == this.periodDurationInMins &&
           other.activePeriods == this.activePeriods &&
+          other.isIntentPromptEnabled == this.isIntentPromptEnabled &&
           other.distractingApps == this.distractingApps);
 }
 
@@ -4194,6 +4238,7 @@ class RestrictionGroupsTableCompanion
   final Value<TimeOfDayAdapter> activePeriodEnd;
   final Value<int> periodDurationInMins;
   final Value<List<ActivePeriod>> activePeriods;
+  final Value<bool> isIntentPromptEnabled;
   final Value<List<String>> distractingApps;
   const RestrictionGroupsTableCompanion({
     this.id = const Value.absent(),
@@ -4203,6 +4248,7 @@ class RestrictionGroupsTableCompanion
     this.activePeriodEnd = const Value.absent(),
     this.periodDurationInMins = const Value.absent(),
     this.activePeriods = const Value.absent(),
+    this.isIntentPromptEnabled = const Value.absent(),
     this.distractingApps = const Value.absent(),
   });
   RestrictionGroupsTableCompanion.insert({
@@ -4213,6 +4259,7 @@ class RestrictionGroupsTableCompanion
     this.activePeriodEnd = const Value.absent(),
     this.periodDurationInMins = const Value.absent(),
     this.activePeriods = const Value.absent(),
+    this.isIntentPromptEnabled = const Value.absent(),
     this.distractingApps = const Value.absent(),
   });
   static Insertable<RestrictionGroup> custom({
@@ -4223,6 +4270,7 @@ class RestrictionGroupsTableCompanion
     Expression<int>? activePeriodEnd,
     Expression<int>? periodDurationInMins,
     Expression<String>? activePeriods,
+    Expression<bool>? isIntentPromptEnabled,
     Expression<String>? distractingApps,
   }) {
     return RawValuesInsertable({
@@ -4234,6 +4282,8 @@ class RestrictionGroupsTableCompanion
       if (periodDurationInMins != null)
         'period_duration_in_mins': periodDurationInMins,
       if (activePeriods != null) 'active_periods': activePeriods,
+      if (isIntentPromptEnabled != null)
+        'is_intent_prompt_enabled': isIntentPromptEnabled,
       if (distractingApps != null) 'distracting_apps': distractingApps,
     });
   }
@@ -4246,6 +4296,7 @@ class RestrictionGroupsTableCompanion
       Value<TimeOfDayAdapter>? activePeriodEnd,
       Value<int>? periodDurationInMins,
       Value<List<ActivePeriod>>? activePeriods,
+      Value<bool>? isIntentPromptEnabled,
       Value<List<String>>? distractingApps}) {
     return RestrictionGroupsTableCompanion(
       id: id ?? this.id,
@@ -4255,6 +4306,8 @@ class RestrictionGroupsTableCompanion
       activePeriodEnd: activePeriodEnd ?? this.activePeriodEnd,
       periodDurationInMins: periodDurationInMins ?? this.periodDurationInMins,
       activePeriods: activePeriods ?? this.activePeriods,
+      isIntentPromptEnabled:
+          isIntentPromptEnabled ?? this.isIntentPromptEnabled,
       distractingApps: distractingApps ?? this.distractingApps,
     );
   }
@@ -4290,6 +4343,10 @@ class RestrictionGroupsTableCompanion
           .$converteractivePeriods
           .toSql(activePeriods.value));
     }
+    if (isIntentPromptEnabled.present) {
+      map['is_intent_prompt_enabled'] =
+          Variable<bool>(isIntentPromptEnabled.value);
+    }
     if (distractingApps.present) {
       map['distracting_apps'] = Variable<String>($RestrictionGroupsTableTable
           .$converterdistractingApps
@@ -4308,6 +4365,7 @@ class RestrictionGroupsTableCompanion
           ..write('activePeriodEnd: $activePeriodEnd, ')
           ..write('periodDurationInMins: $periodDurationInMins, ')
           ..write('activePeriods: $activePeriods, ')
+          ..write('isIntentPromptEnabled: $isIntentPromptEnabled, ')
           ..write('distractingApps: $distractingApps')
           ..write(')'))
         .toString();
@@ -8015,6 +8073,7 @@ typedef $$RestrictionGroupsTableTableCreateCompanionBuilder
   Value<TimeOfDayAdapter> activePeriodEnd,
   Value<int> periodDurationInMins,
   Value<List<ActivePeriod>> activePeriods,
+  Value<bool> isIntentPromptEnabled,
   Value<List<String>> distractingApps,
 });
 typedef $$RestrictionGroupsTableTableUpdateCompanionBuilder
@@ -8026,6 +8085,7 @@ typedef $$RestrictionGroupsTableTableUpdateCompanionBuilder
   Value<TimeOfDayAdapter> activePeriodEnd,
   Value<int> periodDurationInMins,
   Value<List<ActivePeriod>> activePeriods,
+  Value<bool> isIntentPromptEnabled,
   Value<List<String>> distractingApps,
 });
 
@@ -8065,6 +8125,10 @@ class $$RestrictionGroupsTableTableFilterComposer
       get activePeriods => $composableBuilder(
           column: $table.activePeriods,
           builder: (column) => ColumnWithTypeConverterFilters(column));
+
+  ColumnFilters<bool> get isIntentPromptEnabled => $composableBuilder(
+      column: $table.isIntentPromptEnabled,
+      builder: (column) => ColumnFilters(column));
 
   ColumnWithTypeConverterFilters<List<String>, List<String>, String>
       get distractingApps => $composableBuilder(
@@ -8106,6 +8170,10 @@ class $$RestrictionGroupsTableTableOrderingComposer
       column: $table.activePeriods,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<bool> get isIntentPromptEnabled => $composableBuilder(
+      column: $table.isIntentPromptEnabled,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get distractingApps => $composableBuilder(
       column: $table.distractingApps,
       builder: (column) => ColumnOrderings(column));
@@ -8143,6 +8211,9 @@ class $$RestrictionGroupsTableTableAnnotationComposer
   GeneratedColumnWithTypeConverter<List<ActivePeriod>, String>
       get activePeriods => $composableBuilder(
           column: $table.activePeriods, builder: (column) => column);
+
+  GeneratedColumn<bool> get isIntentPromptEnabled => $composableBuilder(
+      column: $table.isIntentPromptEnabled, builder: (column) => column);
 
   GeneratedColumnWithTypeConverter<List<String>, String> get distractingApps =>
       $composableBuilder(
@@ -8187,6 +8258,7 @@ class $$RestrictionGroupsTableTableTableManager extends RootTableManager<
             Value<TimeOfDayAdapter> activePeriodEnd = const Value.absent(),
             Value<int> periodDurationInMins = const Value.absent(),
             Value<List<ActivePeriod>> activePeriods = const Value.absent(),
+            Value<bool> isIntentPromptEnabled = const Value.absent(),
             Value<List<String>> distractingApps = const Value.absent(),
           }) =>
               RestrictionGroupsTableCompanion(
@@ -8197,6 +8269,7 @@ class $$RestrictionGroupsTableTableTableManager extends RootTableManager<
             activePeriodEnd: activePeriodEnd,
             periodDurationInMins: periodDurationInMins,
             activePeriods: activePeriods,
+            isIntentPromptEnabled: isIntentPromptEnabled,
             distractingApps: distractingApps,
           ),
           createCompanionCallback: ({
@@ -8207,6 +8280,7 @@ class $$RestrictionGroupsTableTableTableManager extends RootTableManager<
             Value<TimeOfDayAdapter> activePeriodEnd = const Value.absent(),
             Value<int> periodDurationInMins = const Value.absent(),
             Value<List<ActivePeriod>> activePeriods = const Value.absent(),
+            Value<bool> isIntentPromptEnabled = const Value.absent(),
             Value<List<String>> distractingApps = const Value.absent(),
           }) =>
               RestrictionGroupsTableCompanion.insert(
@@ -8217,6 +8291,7 @@ class $$RestrictionGroupsTableTableTableManager extends RootTableManager<
             activePeriodEnd: activePeriodEnd,
             periodDurationInMins: periodDurationInMins,
             activePeriods: activePeriods,
+            isIntentPromptEnabled: isIntentPromptEnabled,
             distractingApps: distractingApps,
           ),
           withReferenceMapper: (p0) => p0

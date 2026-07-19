@@ -15,6 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mindful/config/navigation/app_routes.dart';
 import 'package:mindful/core/extensions/ext_build_context.dart';
 import 'package:mindful/config/hero_tags.dart';
+import 'package:mindful/core/enums/default_home_tab.dart';
 import 'package:mindful/providers/system/mindful_settings_provider.dart';
 import 'package:mindful/ui/common/scaffold_shell.dart';
 import 'package:mindful/ui/screens/home/dashboard/focus_now_fab.dart';
@@ -23,6 +24,7 @@ import 'package:mindful/ui/screens/home/dashboard/tab_dashboard.dart';
 import 'package:mindful/ui/screens/home/notifications/new_notification_schedule_fab.dart';
 import 'package:mindful/ui/screens/home/statistics/tab_statistics.dart';
 import 'package:mindful/ui/screens/home/notifications/tab_notifications.dart';
+import 'package:mindful/ui/screens/systems/systems_tab.dart';
 import 'package:mindful/ui/transitions/default_hero.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -46,7 +48,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return PopScope(
       onPopInvokedWithResult: (didPop, _) => SystemNavigator.pop(),
       child: ScaffoldShell(
-        initialTab: widget.initialTabIndex ?? homeTab.index,
+        initialTab: widget.initialTabIndex ?? homeTab.navigationIndex,
         canGoBack: false,
         items: [
           NavbarItem(
@@ -57,6 +59,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             titleBuilder: (_) => const GreetingsUsername(),
             fab: const FocusNowFab(),
             actions: const [_SettingsButton()],
+          ),
+          NavbarItem(
+            titleText: 'Systèmes',
+            icon: FluentIcons.branch_20_regular,
+            filledIcon: FluentIcons.branch_20_regular,
+            svgAsset: 'assets/vectors/systems.svg',
+            sliverBody: const SystemsTab(),
+            fab: const SystemsAddFab(),
           ),
           NavbarItem(
             titleText: context.locale.statistics_tab_title,

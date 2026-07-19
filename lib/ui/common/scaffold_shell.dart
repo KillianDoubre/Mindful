@@ -11,6 +11,7 @@
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:mindful/config/app_constants.dart';
 import 'package:mindful/config/navigation/app_routes.dart';
 import 'package:mindful/core/extensions/ext_build_context.dart';
@@ -31,6 +32,7 @@ class NavbarItem {
   final Widget sliverBody;
   final Widget? appBarBg;
   final List<Widget>? actions;
+  final String? svgAsset;
 
   const NavbarItem({
     required this.icon,
@@ -41,6 +43,7 @@ class NavbarItem {
     this.fab,
     this.appBarBg,
     this.actions,
+    this.svgAsset,
   }) : assert(titleText != null || titleBuilder != null,
             "Title and TitleBuilder both can't be null, Specify at least one of them");
 }
@@ -321,12 +324,25 @@ class _ScaffoldShellState extends State<ScaffoldShell>
                   scale: isSelected ? 1 : 0.92,
                   duration: 240.ms,
                   curve: Curves.easeOutCubic,
-                  child: Icon(
-                    isSelected ? item.filledIcon : item.icon,
-                    size: 22,
-                    color:
-                        isSelected ? colors.primary : colors.onSurfaceVariant,
-                  ),
+                  child: item.svgAsset == null
+                      ? Icon(
+                          isSelected ? item.filledIcon : item.icon,
+                          size: 22,
+                          color: isSelected
+                              ? colors.primary
+                              : colors.onSurfaceVariant,
+                        )
+                      : SvgPicture.asset(
+                          item.svgAsset!,
+                          width: 22,
+                          height: 22,
+                          colorFilter: ColorFilter.mode(
+                            isSelected
+                                ? colors.primary
+                                : colors.onSurfaceVariant,
+                            BlendMode.srcIn,
+                          ),
+                        ),
                 ),
               ),
             ),

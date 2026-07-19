@@ -12,14 +12,19 @@
 package com.mindful.android.services.accessibility
 
 import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.GestureDescription
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener
 import android.content.pm.PackageManager
+import android.graphics.Path
+import android.graphics.Rect
 import android.net.Uri
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED
 import android.view.accessibility.AccessibilityEvent.TYPE_VIEW_SCROLLED
+import android.view.accessibility.AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
 import android.view.accessibility.AccessibilityEvent.TYPE_WINDOWS_CHANGED
 import android.view.accessibility.AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
 import android.view.accessibility.AccessibilityNodeInfo
@@ -48,6 +53,59 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
     companion object {
         private const val TAG = "Mindful.MindfulAccessibilityService"
         private const val INSTAGRAM_INBOX_URI = "instagram://direct-inbox"
+        private val DATING_REDIRECT_RETRY_DELAYS_MS = longArrayOf(90L, 180L, 320L, 500L)
+
+        /**
+         * Native destinations exposed by the currently supported dating apps.
+         * Resource ids are preferred because they keep the user in the running
+         * app; labels cover Compose/accessibility-only navigation bars and the
+         * deep link is only used when the tab is not present in the node tree.
+         */
+        private val DATING_MESSAGE_DESTINATIONS = mapOf(
+            "com.tinder" to DatingMessageDestination(
+                viewIds = listOf("com.tinder:id/action_matches"),
+                labels = listOf(
+                    "Conversations",
+                    "Messages",
+                    "Matchs",
+                    "Matches",
+                    "Vos matchs",
+                ),
+                fallbackUri = "tinder://matches",
+            ),
+            "co.hinge.app" to DatingMessageDestination(
+                viewIds = listOf(
+                    "co.hinge.app:id/matches",
+                    "matches",
+                ),
+                labels = listOf("Matchs", "Matches", "Messages", "Vos matchs"),
+                fallbackUri = "hinge://matches",
+            ),
+            "com.bumble.app" to DatingMessageDestination(
+                viewIds = listOf("com.bumble.app:id/chat"),
+                labels = listOf(
+                    "Discussions",
+                    "Chats",
+                    "Messages",
+                    "Connexions",
+                    "Connections",
+                ),
+                // Bumble's accepted deep link remains on its launcher instead
+                // of opening Chats. Target the fifth native tab directly.
+                fallbackUri = null,
+                navigationContainerViewId = "com.bumble.app:id/mainApp_navigationTabBar",
+                navigationTabIndex = 4,
+                navigationTabCount = 5,
+            ),
+            "com.ftw_and_co.happn" to DatingMessageDestination(
+                viewIds = listOf(
+                    "tab_bar_item_chat_list",
+                    "com.ftw_and_co.happn:id/chat_dest",
+                ),
+                labels = listOf("Messages", "Conversations"),
+                fallbackUri = "https://happn.com/conversations",
+            ),
+        )
 
         const val ACTION_PERFORM_HOME_PRESS = "com.mindful.android.action.performHomePress"
         const val ACTION_MIDNIGHT_ACCESSIBILITY_RESET =
@@ -59,6 +117,8 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
         private val desiredEvents = setOf(
             TYPE_WINDOWS_CHANGED,
             TYPE_WINDOW_STATE_CHANGED,
+            TYPE_WINDOW_CONTENT_CHANGED,
+            TYPE_VIEW_TEXT_CHANGED,
             TYPE_VIEW_SCROLLED
         )
 
@@ -99,7 +159,7 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
         )
         datingPlatformManager = DatingPlatformManager(
             context = this,
-            blockedContentGoBack = this::goBackWithToast,
+            blockedContentOpenMessages = this::openDatingMessages,
             getForegroundRoot = { packageName ->
                 rootInActiveWindow?.takeIf {
                     it.packageName?.toString() == packageName
@@ -153,16 +213,24 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
             // If not desired event or executor is shutdown, then just return
             if (!desiredEvents.contains(event.eventType) || executorService.isShutdown) return
 
+            // App-launch tracking must not wait for the accessibility tree to be ready.
+            // On complex apps, rootInActiveWindow can remain null while their first
+            // frames load, which used to leave a short permissive window.
+            val eventPackageName = event.packageName?.toString().orEmpty()
+            val isMindfulActivity = eventPackageName == packageName &&
+                    event.className?.toString() == "com.mindful.android.MainActivity"
+            val isRealActivityChange = event.eventType == TYPE_WINDOW_STATE_CHANGED &&
+                    (eventPackageName != packageName || isMindfulActivity)
+            if (eventPackageName.isNotBlank() && isRealActivityChange) {
+                trackingManager.onNewEvent(eventPackageName)
+            }
+
             executorService.submit {
                 // Determine package and event source node
-                val eventPackageName = event.packageName.toString()
                 val node = if (eventPackageName == REDDIT_PACKAGE) event.source
                 else rootInActiveWindow ?: event.source
 
                 node?.let {
-                    // Broadcast event
-                    trackingManager.onNewEvent("${it.packageName}")
-
                     // Dating timers also receive events from other packages so
                     // active counters stop immediately when the user leaves.
                     datingPlatformManager.onAccessibilityEvent(
@@ -228,7 +296,12 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
      * `false` otherwise.
      */
     private fun shouldBlockContent(): Boolean {
-        return wellbeing.blockedFeatures.isNotEmpty() ||
+        // Tamper protection: when device admin is granted, the system settings
+        // package is added to devicePlatformPackages. It must be able to trigger
+        // processing on its own, otherwise the admin/accessibility settings page
+        // is only blocked as a side effect of some other active content block.
+        return devicePlatformPackages.isNotEmpty() ||
+                wellbeing.blockedFeatures.isNotEmpty() ||
                 wellbeing.blockedWebsites.isNotEmpty() ||
                 wellbeing.nsfwWebsites.isNotEmpty() ||
                 wellbeing.blockNsfwSites ||
@@ -271,6 +344,189 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
                 }
             }
         }
+    }
+
+    /**
+     * Redirects an exhausted dating discovery page to the app's own messages
+     * tab instead of issuing a global Back/Home action.
+     */
+    private fun openDatingMessages(
+        packageName: String,
+        sourceNode: AccessibilityNodeInfo?,
+    ) {
+        tryOpenDatingMessages(packageName, sourceNode, attempt = 0)
+    }
+
+    private fun tryOpenDatingMessages(
+        packageName: String,
+        sourceNode: AccessibilityNodeInfo?,
+        attempt: Int,
+    ) {
+        ThreadUtils.runOnMainThread {
+            runCatching {
+                val destination = DATING_MESSAGE_DESTINATIONS[packageName]
+                    ?: return@runOnMainThread
+                val currentRoot = rootInActiveWindow?.takeIf {
+                    it.packageName?.toString() == packageName
+                } ?: sourceNode
+
+                val clickedInApp = currentRoot?.let {
+                    clickDatingMessageDestination(it, destination)
+                } == true
+
+                if (!clickedInApp && attempt < DATING_REDIRECT_RETRY_DELAYS_MS.size) {
+                    ThreadUtils.runOnMainThread(DATING_REDIRECT_RETRY_DELAYS_MS[attempt]) {
+                        tryOpenDatingMessages(packageName, sourceNode = null, attempt = attempt + 1)
+                    }
+                    return@runCatching
+                }
+
+                if (!clickedInApp && destination.fallbackUri != null) {
+                    startActivity(
+                        Intent(Intent.ACTION_VIEW, Uri.parse(destination.fallbackUri))
+                            .setPackage(packageName)
+                            .addFlags(
+                                Intent.FLAG_ACTIVITY_NEW_TASK or
+                                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                                        Intent.FLAG_ACTIVITY_SINGLE_TOP
+                            )
+                    )
+                }
+
+                if (!clickedInApp && destination.fallbackUri == null) {
+                    Log.w(TAG, "openDatingMessages: Messages tab unavailable for $packageName")
+                    return@runCatching
+                }
+
+                Toast.makeText(
+                    this@MindfulAccessibilityService,
+                    getString(R.string.toast_dating_redirect_messages),
+                    Toast.LENGTH_LONG,
+                ).show()
+                Log.d(TAG, "openDatingMessages: Redirected $packageName to messages")
+            }.onFailure {
+                // Do not fall back to Back/Home: that would close the dating
+                // app, which is precisely what this feature must avoid.
+                Log.e(TAG, "openDatingMessages: Unable to open messages for $packageName", it)
+            }
+        }
+    }
+
+    private fun clickDatingMessageDestination(
+        root: AccessibilityNodeInfo,
+        destination: DatingMessageDestination,
+    ): Boolean {
+        destination.viewIds.forEach { viewId ->
+            findNodesByViewId(root, viewId).forEach { node ->
+                if (clickNodeOrClickableParent(node)) return true
+            }
+        }
+
+        return findNodeWithExactLabel(root, destination.labels)?.let { node ->
+            // Bumble's Compose navigation reports ACTION_CLICK as handled but
+            // sometimes does not change tabs. A real tap at the accessibility
+            // node's centre reliably activates Chats and also works for the
+            // other supported navigation bars.
+            tapNodeCenter(node) || clickNodeOrClickableParent(node)
+        } == true || tapNavigationDestination(root, destination)
+    }
+
+    private fun findNodeWithExactLabel(
+        node: AccessibilityNodeInfo,
+        labels: List<String>,
+    ): AccessibilityNodeInfo? {
+        val nodeLabels = listOfNotNull(node.text, node.contentDescription)
+            .map { it.toString().trim() }
+        if (nodeLabels.any { value -> labels.any { it.equals(value, ignoreCase = true) } }) {
+            return node
+        }
+
+        for (index in 0 until node.childCount) {
+            node.getChild(index)?.let { child ->
+                findNodeWithExactLabel(child, labels)?.let { return it }
+            }
+        }
+        return null
+    }
+
+    private fun findNodesByViewId(
+        root: AccessibilityNodeInfo,
+        targetId: String,
+    ): List<AccessibilityNodeInfo> {
+        val platformMatches = runCatching {
+            root.findAccessibilityNodeInfosByViewId(targetId)
+        }.getOrDefault(emptyList())
+        if (platformMatches.isNotEmpty()) return platformMatches
+
+        val matches = mutableListOf<AccessibilityNodeInfo>()
+        collectNodesByViewId(root, targetId, matches)
+        return matches
+    }
+
+    private fun collectNodesByViewId(
+        node: AccessibilityNodeInfo,
+        targetId: String,
+        matches: MutableList<AccessibilityNodeInfo>,
+    ) {
+        val nodeId = node.viewIdResourceName
+        if (nodeId == targetId ||
+            nodeId?.substringAfterLast(":id/") == targetId.substringAfterLast(":id/")
+        ) {
+            matches.add(node)
+        }
+        for (index in 0 until node.childCount) {
+            node.getChild(index)?.let { collectNodesByViewId(it, targetId, matches) }
+        }
+    }
+
+    private fun clickNodeOrClickableParent(node: AccessibilityNodeInfo): Boolean {
+        var candidate: AccessibilityNodeInfo? = node
+        repeat(5) {
+            val current = candidate ?: return false
+            if (current.isClickable && current.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                return true
+            }
+            candidate = current.parent
+        }
+        return node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+    }
+
+    private fun tapNodeCenter(node: AccessibilityNodeInfo): Boolean {
+        val bounds = Rect()
+        node.getBoundsInScreen(bounds)
+        if (bounds.isEmpty) return false
+
+        return dispatchTap(bounds.exactCenterX(), bounds.exactCenterY())
+    }
+
+    private fun tapNavigationDestination(
+        root: AccessibilityNodeInfo,
+        destination: DatingMessageDestination,
+    ): Boolean {
+        val containerId = destination.navigationContainerViewId ?: return false
+        val tabIndex = destination.navigationTabIndex ?: return false
+        val tabCount = destination.navigationTabCount ?: return false
+        if (tabCount <= 0 || tabIndex !in 0 until tabCount) return false
+
+        val container = root.findAccessibilityNodeInfosByViewId(containerId).firstOrNull()
+            ?: return false
+        val bounds = Rect()
+        container.getBoundsInScreen(bounds)
+        if (bounds.isEmpty) return false
+
+        val tabWidth = bounds.width().toFloat() / tabCount
+        val x = bounds.left + tabWidth * (tabIndex + 0.5f)
+        return dispatchTap(x, bounds.exactCenterY())
+    }
+
+    private fun dispatchTap(x: Float, y: Float): Boolean {
+        val tapPath = Path().apply {
+            moveTo(x, y)
+        }
+        val gesture = GestureDescription.Builder()
+            .addStroke(GestureDescription.StrokeDescription(tapPath, 0L, 80L))
+            .build()
+        return dispatchGesture(gesture, null, null)
     }
 
     /**
@@ -381,4 +637,13 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
         Log.d(TAG, "onDestroy: Accessibility service destroyed")
         super.onDestroy()
     }
+
+    private data class DatingMessageDestination(
+        val viewIds: List<String>,
+        val labels: List<String>,
+        val fallbackUri: String?,
+        val navigationContainerViewId: String? = null,
+        val navigationTabIndex: Int? = null,
+        val navigationTabCount: Int? = null,
+    )
 }

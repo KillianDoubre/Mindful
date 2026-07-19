@@ -10,6 +10,7 @@
 
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mindful/config/app_constants.dart';
 import 'package:mindful/core/database/app_database.dart';
 import 'package:mindful/core/enums/app_theme_mode.dart';
 import 'package:mindful/core/enums/default_home_tab.dart';
@@ -17,7 +18,6 @@ import 'package:mindful/core/extensions/ext_date_time.dart';
 import 'package:mindful/core/services/drift_db_service.dart';
 import 'package:mindful/core/services/method_channel_service.dart';
 import 'package:mindful/core/utils/default_models_utils.dart';
-import 'package:mindful/l10n/generated/app_localizations.dart';
 
 /// A Riverpod state notifier provider that manages [MindfulSettings].
 final mindfulSettingsProvider =
@@ -41,7 +41,10 @@ class MindfulSettingsNotifier extends StateNotifier<MindfulSettings> {
     final savedSettings = await dao.loadMindfulSettings();
     final currentVersion =
         MethodChannelService.instance.deviceInfo.mindfulVersion;
-    state = savedSettings.copyWith(appVersion: currentVersion);
+    state = savedSettings.copyWith(
+      appVersion: currentVersion,
+      localeCode: AppConstants.defaultLocale,
+    );
 
     if (savedSettings.appVersion != currentVersion) {
       if (currentVersion == _focusDurationDefaultMigrationVersion) {
@@ -87,20 +90,6 @@ class MindfulSettingsNotifier extends StateNotifier<MindfulSettings> {
   /// Switch dynamic color
   void switchDynamicColor() =>
       state = state.copyWith(useDynamicColors: !state.useDynamicColors);
-
-  /// Changes app locale if it is supported.
-  void changeLocale(String localeCode) async {
-    if (AppLocalizations.supportedLocales.any(
-      (e) => e.languageCode == localeCode,
-    )) {
-      /// Update state
-      state = state.copyWith(localeCode: localeCode);
-
-      /// Update native side
-      await MethodChannelService.instance
-          .updateLocale(languageCode: localeCode);
-    }
-  }
 
   /// Changes the default initial home tab.
   void changeHomeTab(DefaultHomeTab tab) =>

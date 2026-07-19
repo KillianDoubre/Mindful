@@ -31,9 +31,6 @@ class MindfulApp extends ConsumerWidget {
     final accentColor =
         ref.watch(mindfulSettingsProvider.select((v) => v.accentColor));
 
-    final localeCode =
-        ref.watch(mindfulSettingsProvider.select((v) => v.localeCode));
-
     final useAmoledDark =
         ref.watch(mindfulSettingsProvider.select((v) => v.useAmoledDark));
 
@@ -72,8 +69,8 @@ class MindfulApp extends ConsumerWidget {
           ),
 
           /// Localization
-          locale: Locale(localeCode),
-          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('fr'),
+          supportedLocales: const [Locale('fr')],
           localizationsDelegates: const [
             AppLocalizations.delegate,
             GlobalMaterialLocalizations.delegate,

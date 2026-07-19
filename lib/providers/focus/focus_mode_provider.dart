@@ -22,6 +22,7 @@ import 'package:mindful/core/enums/session_type.dart';
 import 'package:mindful/core/extensions/ext_date_time.dart';
 import 'package:mindful/core/services/drift_db_service.dart';
 import 'package:mindful/core/services/method_channel_service.dart';
+import 'package:mindful/core/services/systems_repository.dart';
 import 'package:mindful/core/utils/default_models_utils.dart';
 import 'package:mindful/models/focus_mode_model.dart';
 
@@ -264,6 +265,7 @@ class FocusModeNotifier extends StateNotifier<FocusModeModel>
     state = state.removeActiveSession();
 
     if (isTheSessionSuccessful) {
+      await SystemsRepository.instance.completeFocusSession(updatedSession.id);
       _incrementOrResetStreaks();
       _sessionCompletionCallback?.call();
     }

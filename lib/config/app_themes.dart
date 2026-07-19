@@ -13,7 +13,7 @@ import 'package:mindful/ui/transitions/default_page_transition_builder.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 class AppTheme {
-  static const _kSeedColor = Colors.indigo;
+  static const _kSeedColor = Color(0xFF6366F1);
 
   static final _kShimmerEffect = ShimmerEffect(
     highlightColor: Colors.white.withValues(alpha: 0.6),
@@ -25,26 +25,29 @@ class AppTheme {
     builders: {TargetPlatform.android: DefaultPageTransitionsBuilder()},
   );
 
-  static final materialColors = <String, MaterialColor>{
-    'Amber': Colors.amber,
-    'Blue': Colors.blue,
-    'Blue Grey': Colors.blueGrey,
-    'Brown': Colors.brown,
-    'Cyan': Colors.cyan,
-    'Deep Orange': Colors.deepOrange,
-    'Deep Purple': Colors.deepPurple,
-    'Green': Colors.green,
-    'Grey': Colors.grey,
-    'Indigo': Colors.indigo,
-    'Light Blue': Colors.lightBlue,
-    'Light Green': Colors.lightGreen,
-    'Lime': Colors.lime,
-    'Orange': Colors.orange,
-    'Pink': Colors.pink,
-    'Purple': Colors.purple,
-    'Red': Colors.red,
-    'Teal': Colors.teal,
-    'Yellow': Colors.yellow,
+  /// Curated 2026 accent palette.
+  ///
+  /// Each entry is a Material 3 *seed* color (not a full swatch) — the tonal
+  /// scheme is generated from it by [ColorScheme.fromSeed]. The tones are fresh,
+  /// slightly desaturated jewel/pastel hues (Tailwind/Radix inspired) that read
+  /// as modern in both light and dark, and are spread evenly across the spectrum
+  /// so neighbouring choices stay distinct. Labels are in French to match the
+  /// app locale. Keep the 'Indigo' key: it is AppConstants.defaultMaterialColor.
+  static const materialColors = <String, Color>{
+    'Indigo': Color(0xFF6366F1),
+    'Océan': Color(0xFF3B82F6),
+    'Azur': Color(0xFF0EA5E9),
+    'Turquoise': Color(0xFF06B6D4),
+    'Menthe': Color(0xFF14B8A6),
+    'Émeraude': Color(0xFF10B981),
+    'Citron vert': Color(0xFF84CC16),
+    'Ambre': Color(0xFFF59E0B),
+    'Corail': Color(0xFFFB6F5C),
+    'Rose': Color(0xFFF43F5E),
+    'Fuchsia': Color(0xFFD946EF),
+    'Prune': Color(0xFFA855F7),
+    'Violet': Color(0xFF8B5CF6),
+    'Ardoise': Color(0xFF64748B),
   };
 
   static ThemeData darkTheme({Color? seedColor, required bool isAmoled}) =>

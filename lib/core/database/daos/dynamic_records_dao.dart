@@ -202,6 +202,7 @@ class DynamicRecordsDao extends DatabaseAccessor<AppDatabase>
     required TimeOfDayAdapter activePeriodEnd,
     required int periodDurationInMins,
     required List<ActivePeriod> activePeriods,
+    required bool isIntentPromptEnabled,
   }) async =>
       into(restrictionGroupsTable).insertReturning(
         RestrictionGroupsTableCompanion.insert(
@@ -212,6 +213,7 @@ class DynamicRecordsDao extends DatabaseAccessor<AppDatabase>
           activePeriodEnd: Value(activePeriodEnd),
           periodDurationInMins: Value(periodDurationInMins),
           activePeriods: Value(activePeriods),
+          isIntentPromptEnabled: Value(isIntentPromptEnabled),
         ),
         mode: InsertMode.insertOrReplace,
       );

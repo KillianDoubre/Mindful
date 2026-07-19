@@ -30,32 +30,36 @@ import com.mindful.android.utils.DateTimeUtils
 import com.mindful.android.utils.ThreadUtils
 import com.mindful.android.utils.Utils
 import java.util.concurrent.ConcurrentLinkedDeque
+import java.util.concurrent.atomic.AtomicBoolean
 
 
 class OverlayManager(
     private val context: Context,
 ) {
     private var overlays: ConcurrentLinkedDeque<View> = ConcurrentLinkedDeque()
+    private val sheetReserved = AtomicBoolean(false)
     private val windowManager: WindowManager =
         context.getSystemService(WINDOW_SERVICE) as WindowManager
+
+    val hasSheetOverlay: Boolean
+        get() = sheetReserved.get()
 
 
     /// Animate out the overlay
     fun dismissSheetOverlay() {
+        sheetReserved.set(false)
         overlays.pollFirst()?.let { sheetOverlay ->
             ThreadUtils.runOnMainThread {
                 // Get views
                 val bg = sheetOverlay.findViewById<View>(R.id.overlay_background)
-                val quote = sheetOverlay.findViewById<View>(R.id.overlay_sheet_quote_panel)
                 val sheet = sheetOverlay.findViewById<LinearLayout>(R.id.overlay_sheet)
 
                 // Animate
-                bg.animate().alpha(0f).setDuration(400).start()
-                quote.animate().alpha(0f).setDuration(400).start()
+                bg.animate().alpha(0f).setDuration(180).start()
                 sheet.animate()
                     .translationY(SLIDE_DOWN_END_Y)
                     .setInterpolator(OvershootInterpolator(1.5f))
-                    .setDuration(500)
+                    .setDuration(240)
                     .withEndAction {
                         windowManager.removeView(sheetOverlay)
                     }
@@ -69,16 +73,17 @@ class OverlayManager(
         restrictionState: RestrictionState,
         addReminderWithDelay: ((futureMinutes: Int) -> Unit)? = null,
     ) {
-        // Return if overlay is not null
-        if (overlays.isNotEmpty()) return
+        if (!sheetReserved.compareAndSet(false, true)) return
 
         ThreadUtils.runOnMainThread {
             runCatching {
 
                 // Notify, stop and return if don't have overlay permission
                 if (!haveOverlayPermission(context)) {
+                    sheetReserved.set(false)
                     return@runOnMainThread
                 }
+                if (!sheetReserved.get()) return@runOnMainThread
 
                 // Build overlay
                 val sheetOverlay = OverlayBuilder.buildFullScreenOverlay(
@@ -103,25 +108,80 @@ class OverlayManager(
 
                     // Get views
                     val bg = sheetOverlay.findViewById<View>(R.id.overlay_background)
-                    val quote = sheetOverlay.findViewById<View>(R.id.overlay_sheet_quote_panel)
                     val sheet = sheetOverlay.findViewById<LinearLayout>(R.id.overlay_sheet)
 
                     // Set initial
                     bg.alpha = 0f
-                    quote.alpha = 0f
                     sheet.translationY = SLIDE_UP_START_Y
 
                     // Animate
-                    bg.animate().alpha(1f).setDuration(400).start()
-                    quote.animate().alpha(1f).setDuration(400).start()
+                    bg.animate().alpha(1f).setDuration(120).start()
                     sheet.animate()
                         .translationY(0f)
                         .setInterpolator(OvershootInterpolator(1.5f))
-                        .setDuration(500)
+                        .setDuration(220)
                         .start()
                 }
             }.getOrElse {
+                sheetReserved.set(false)
                 SharedPrefsHelper.insertCrashLogToPrefs(context, it)
+            }
+        }
+    }
+
+    fun showIntentionOverlay(
+        packageName: String,
+        isLimitExhausted: Boolean,
+        isLimitCheckPending: Boolean = false,
+        onDecision: (reason: String?, outcome: String) -> Unit,
+    ) {
+        if (!sheetReserved.compareAndSet(false, true)) return
+
+        ThreadUtils.runOnMainThread {
+            runCatching {
+                if (!haveOverlayPermission(context)) {
+                    sheetReserved.set(false)
+                    return@runOnMainThread
+                }
+                if (!sheetReserved.get()) return@runOnMainThread
+
+                val sheetOverlay = OverlayBuilder.buildIntentionOverlay(
+                    context = context,
+                    packageName = packageName,
+                    isLimitExhausted = isLimitExhausted,
+                    isLimitCheckPending = isLimitCheckPending,
+                    onDecision = onDecision,
+                    dismissOverlay = ::dismissSheetOverlay,
+                ).apply {
+                    systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                            View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
+                            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                }
+
+                windowManager.addView(sheetOverlay, sheetLayoutParams)
+                overlays.push(sheetOverlay)
+
+                val bg = sheetOverlay.findViewById<View>(R.id.overlay_background)
+                val sheet = sheetOverlay.findViewById<LinearLayout>(R.id.overlay_sheet)
+                bg.alpha = 0f
+                sheet.translationY = SLIDE_UP_START_Y
+                bg.animate().alpha(1f).setDuration(120).start()
+                sheet.animate()
+                    .translationY(0f)
+                    .setInterpolator(OvershootInterpolator(1.2f))
+                    .setDuration(220)
+                    .start()
+            }.getOrElse {
+                sheetReserved.set(false)
+                SharedPrefsHelper.insertCrashLogToPrefs(context, it)
+            }
+        }
+    }
+
+    fun resolveIntentionLimit(isLimitExhausted: Boolean) {
+        ThreadUtils.runOnMainThread {
+            overlays.peekFirst()?.let { sheetOverlay ->
+                OverlayBuilder.resolveIntentionLimit(sheetOverlay, isLimitExhausted)
             }
         }
     }
@@ -213,7 +273,7 @@ class OverlayManager(
     companion object {
         private const val TAG = "Mindful.OverlayManager"
 
-        private const val SLIDE_UP_START_Y = 640f
+        private const val SLIDE_UP_START_Y = 180f
         private const val SLIDE_DOWN_END_Y = 1280f
 
         private val sheetLayoutParams = WindowManager.LayoutParams(

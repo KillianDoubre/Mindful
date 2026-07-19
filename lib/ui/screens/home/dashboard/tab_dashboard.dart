@@ -18,17 +18,20 @@ import 'package:mindful/core/enums/item_position.dart';
 import 'package:mindful/core/extensions/ext_build_context.dart';
 import 'package:mindful/core/extensions/ext_list.dart';
 import 'package:mindful/core/extensions/ext_num.dart';
+import 'package:mindful/models/productivity_item.dart';
+import 'package:mindful/providers/productivity/productivity_items_provider.dart';
 import 'package:mindful/providers/usage/todays_apps_usage_provider.dart';
+import 'package:mindful/providers/usage/opening_intent_history_provider.dart';
 import 'package:mindful/ui/common/content_section_header.dart';
-import 'package:mindful/ui/common/default_expandable_list_tile.dart';
 import 'package:mindful/ui/common/default_list_tile.dart';
 import 'package:mindful/ui/common/sliver_active_session_alert.dart';
 import 'package:mindful/ui/common/default_refresh_indicator.dart';
 import 'package:mindful/ui/common/sliver_tabs_bottom_padding.dart';
+import 'package:mindful/ui/common/opening_intent_history_card.dart';
 import 'package:mindful/ui/controllers/tab_controller_provider.dart';
 import 'package:mindful/ui/screens/home/dashboard/glance_cards/focus_daily_glance.dart';
 import 'package:mindful/ui/screens/home/dashboard/glance_cards/screen_time_glance.dart';
-import 'package:mindful/ui/screens/home/dashboard/glance_cards_grid.dart';
+import 'package:mindful/ui/screens/systems/systems_tab.dart';
 import 'package:mindful/ui/transitions/default_effects.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import 'package:sliver_tools/sliver_tools.dart';
@@ -40,11 +43,25 @@ class TabDashboard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isUsageLoading =
         ref.watch(todaysAppsUsageProvider.select((v) => v.isLoading));
+    final tasks = ref
+        .watch(productivityItemsProvider(ProductivityItemType.task))
+        .valueOrNull;
+    final notesCount = ref
+        .watch(productivityItemsProvider(ProductivityItemType.note))
+        .valueOrNull
+        ?.length;
+    final todoCount = tasks?.where((task) => !task.isCompleted).length;
 
     return DefaultRefreshIndicator(
-      onRefresh: () async => ref
-          .read(todaysAppsUsageProvider.notifier)
-          .refreshTodaysUsage(resetState: true),
+      onRefresh: () async {
+        ref.invalidate(openingIntentHistoryProvider);
+        await Future.wait([
+          ref
+              .read(todaysAppsUsageProvider.notifier)
+              .refreshTodaysUsage(resetState: true),
+          ref.read(openingIntentHistoryProvider.future),
+        ]);
+      },
       child: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
@@ -71,17 +88,11 @@ class TabDashboard extends ConsumerWidget {
                 ),
               ),
 
-              /// Usage glance
-              DefaultExpandableListTile(
-                position: ItemPosition.mid,
-                titleText: context.locale.glance_tile_title,
-                subtitleText: context.locale.glance_tile_subtitle,
-                content: Skeletonizer.zone(
-                  enabled: isUsageLoading,
-                  enableSwitchAnimation: true,
-                  child: const GlanceCardsGrid(),
-                ),
-              ),
+              12.vBox,
+              const OpeningIntentHistoryCard(),
+
+              12.vBox,
+              const SystemsNextActionCard(),
 
               /// Parental controls
               DefaultListTile(
@@ -95,11 +106,15 @@ class TabDashboard extends ConsumerWidget {
                     .pushNamed(AppRoutes.parentalControlsPath),
               ),
 
+              /// Productivity
+              ..._productivity(
+                context,
+                todoCount: todoCount,
+                notesCount: notesCount,
+              ),
+
               /// Restrictions
               ..._restrictions(context),
-
-              /// Productivity
-              ..._productivity(context),
             ].animateListOnce(
               ref: ref,
               uniqueKey: "home.dashboard",
@@ -128,7 +143,7 @@ class TabDashboard extends ConsumerWidget {
           titleText: context.locale.apps_blocking_tile_title,
           subtitleText: context.locale.apps_blocking_tile_subtitle,
           onPressed: () => TabControllerProvider.maybeOf(context)?.animateToTab(
-            DefaultHomeTab.statistics.index,
+            DefaultHomeTab.statistics.navigationIndex,
           ),
         ),
 
@@ -177,34 +192,23 @@ class TabDashboard extends ConsumerWidget {
         ),
       ];
 
-  static List<Widget> _productivity(BuildContext context) => [
+  static List<Widget> _productivity(
+    BuildContext context, {
+    required int? todoCount,
+    required int? notesCount,
+  }) =>
+      [
         /// Productivity
         ContentSectionHeader(title: context.locale.productivity_heading),
 
-        /// Habits
-        DefaultListTile(
-          position: ItemPosition.top,
-          leadingIcon: FluentIcons.drink_coffee_20_regular,
-          titleText: context.locale.habits_tile_title,
-          subtitleText: context.locale.habits_tile_subtitle,
-          trailing: const Icon(FluentIcons.chevron_right_20_regular),
-          onPressed: () => context.showSnackAlert(
-            context.locale.coming_soon_snack_alert,
-            icon: FluentIcons.info_20_filled,
-          ),
-        ),
-
         /// Tasks and todos
         DefaultListTile(
-          position: ItemPosition.mid,
+          position: ItemPosition.top,
           leadingIcon: FluentIcons.reading_list_20_regular,
           titleText: context.locale.tasks_tile_title,
           subtitleText: context.locale.tasks_tile_subtitle,
-          trailing: const Icon(FluentIcons.chevron_right_20_regular),
-          onPressed: () => context.showSnackAlert(
-            context.locale.coming_soon_snack_alert,
-            icon: FluentIcons.info_20_filled,
-          ),
+          trailing: _CountTrailing(count: todoCount),
+          onPressed: () => Navigator.of(context).pushNamed(AppRoutes.tasksPath),
         ),
 
         /// Notes & lists
@@ -213,11 +217,42 @@ class TabDashboard extends ConsumerWidget {
           leadingIcon: FluentIcons.note_20_regular,
           titleText: context.locale.notes_tile_title,
           subtitleText: context.locale.notes_tile_subtitle,
-          trailing: const Icon(FluentIcons.chevron_right_20_regular),
-          onPressed: () => context.showSnackAlert(
-            context.locale.coming_soon_snack_alert,
-            icon: FluentIcons.info_20_filled,
-          ),
+          trailing: _CountTrailing(count: notesCount),
+          onPressed: () => Navigator.of(context).pushNamed(AppRoutes.notesPath),
         ),
       ];
+}
+
+class _CountTrailing extends StatelessWidget {
+  const _CountTrailing({required this.count});
+
+  final int? count;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          constraints: const BoxConstraints(minWidth: 30),
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: colors.primary.withValues(alpha: .12),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            count?.toString() ?? '–',
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: colors.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+        ),
+        const SizedBox(width: 7),
+        const Icon(FluentIcons.chevron_right_20_regular),
+      ],
+    );
+  }
 }

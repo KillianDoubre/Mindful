@@ -10,6 +10,8 @@ import com.mindful.android.R
 import com.mindful.android.generics.ServiceBinder
 import com.mindful.android.helpers.device.NotificationHelper
 import com.mindful.android.helpers.storage.SharedPrefsHelper
+import com.mindful.android.enums.RestrictionType
+import com.mindful.android.models.RestrictionGroup
 
 class MindfulTrackerService : Service() {
     companion object {
@@ -79,10 +81,57 @@ class MindfulTrackerService : Service() {
     @WorkerThread
     private fun onNewAppLaunch(packageName: String) {
         try {
-            reminderManager.cancelReminders()
-            overlayManager.dismissSheetOverlay()
+            // Accessibility events emitted by our own overlay must never dismiss
+            // or recreate it while the user is choosing an intention.
+            if (overlayManager.hasSheetOverlay) return
 
-            /// check current restrictions
+            reminderManager.cancelReminders()
+
+            val promptGroup = restrictionManager.getIntentPromptGroup(packageName)
+
+            if (promptGroup != null) {
+                // Resolve inexpensive restrictions first, then cover the target app
+                // before querying the heavier UsageEvents history.
+                val immediateState = restrictionManager.isAppRestricted(
+                    packageName = packageName,
+                    includeScreenTime = false,
+                )
+                if (immediateState != null && immediateState.timeLeftMillis <= 0L) {
+                    if (immediateState.type == RestrictionType.APP_TIMER ||
+                        immediateState.type == RestrictionType.GROUP_TIMER
+                    ) {
+                        showIntentionPrompt(packageName, promptGroup, true)
+                    } else {
+                        overlayManager.showSheetOverlay(packageName, immediateState)
+                    }
+                    return
+                }
+
+                showIntentionPrompt(
+                    packageName = packageName,
+                    group = promptGroup,
+                    isLimitExhausted = false,
+                    isLimitCheckPending = true,
+                )
+
+                val evaluatedState = restrictionManager.isAppRestricted(
+                    packageName = packageName,
+                    incrementLaunchCount = false,
+                )
+                Log.d(TAG, "onNewAppLaunch: $packageName's evaluated state => $evaluatedState")
+
+                if (evaluatedState != null && evaluatedState.timeLeftMillis > 0L) {
+                    reminderManager.scheduleReminders(packageName, evaluatedState)
+                }
+                val isTimerExhausted = evaluatedState != null &&
+                        evaluatedState.timeLeftMillis <= 0L &&
+                        (evaluatedState.type == RestrictionType.APP_TIMER ||
+                                evaluatedState.type == RestrictionType.GROUP_TIMER)
+                overlayManager.resolveIntentionLimit(isTimerExhausted)
+                return
+            }
+
+            /// No conscious-opening prompt: evaluate restrictions normally.
             val currentOrFutureState = restrictionManager.isAppRestricted(packageName)
             Log.d(TAG, "onNewAppLaunch: $packageName's evaluated state => $currentOrFutureState")
 
@@ -93,6 +142,7 @@ class MindfulTrackerService : Service() {
                         packageName = packageName,
                         restrictionState = it,
                     )
+                    return
                 }
                 /// Under limit but will be exhausted in some time
                 else {
@@ -102,9 +152,34 @@ class MindfulTrackerService : Service() {
                     )
                 }
             }
+
         } catch (e: Exception) {
             SharedPrefsHelper.insertCrashLogToPrefs(this, e)
             Log.e(TAG, "onNewAppLaunch: Failed to process new app launch event", e)
+        }
+    }
+
+    private fun showIntentionPrompt(
+        packageName: String,
+        group: RestrictionGroup,
+        isLimitExhausted: Boolean,
+        isLimitCheckPending: Boolean = false,
+    ) {
+        overlayManager.showIntentionOverlay(
+            packageName = packageName,
+            isLimitExhausted = isLimitExhausted,
+            isLimitCheckPending = isLimitCheckPending,
+        ) { reason, outcome ->
+            reason?.let {
+                SharedPrefsHelper.insertOpeningIntent(
+                    context = this,
+                    groupId = group.id,
+                    groupName = group.groupName,
+                    packageName = packageName,
+                    reason = it,
+                    outcome = outcome,
+                )
+            }
         }
     }
 

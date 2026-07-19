@@ -14,6 +14,7 @@
     <string name="admin_description">Mindful does not collect, store, or transmit any user data. As Free and Open Source Software (FOSS), you can review and modify the source code. Administrative privileges are required solely for essential system operations, ensuring the app functions correctly without compromising your privacy.</string>
     <string name="toast_enable_notification">Please enable notification</string>
     <string name="toast_blocked_content">Content blocked! going back</string>
+    <string name="toast_dating_redirect_messages">Time limit reached. Opening chats.</string>
     <string name="toast_redirecting">Filtering search results</string>
     <string name="toast_dnd_utilized_by_feature" comment="Placeholder is the name of feature like Focus mode, Bedtime or more" formatted="true">%s is currently using DND mode.</string>
     <string name="service_running_notification_title">Mindful is running</string>
@@ -60,6 +61,17 @@
     <string name="app_paused_overlay_button_ten_minutes">10 minutes</string>
     <string name="app_paused_overlay_button_twenty_minutes">20 minutes</string>
     <string name="app_paused_overlay_button_close_app" comment="App name as placeholder. ex: 'Close Instagram'" formatted="true">Close %s</string>
+    <string name="opening_intent_overlay_title">Conscious opening</string>
+    <string name="opening_intent_overlay_question" formatted="true">Why are you opening %s?</string>
+    <string name="opening_intent_overlay_helper">Choose the intention closest to what you feel.</string>
+    <string name="opening_intent_reason_boredom">Boredom</string>
+    <string name="opening_intent_reason_stress">Stress</string>
+    <string name="opening_intent_reason_information">Find information</string>
+    <string name="opening_intent_reason_reply">Reply to someone</string>
+    <string name="opening_intent_reason_habit">Habit</string>
+    <string name="opening_intent_reason_work">Work / study</string>
+    <string name="opening_intent_button_cancel">Cancel</string>
+    <string name="opening_intent_button_continue">Continue</string>
 
     <string name="app_screen_time_usage_info" comment="Time as placeholder. ex: 'Used for 2h 15m'" formatted="true">Used for %s</string>
 

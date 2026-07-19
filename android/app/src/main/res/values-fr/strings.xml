@@ -1,5 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="toast_blocked_content">Contenu bloqué.</string>
+    <string name="toast_dating_redirect_messages">Temps écoulé : ouverture des chats.</string>
+    <string name="app_paused_reason_focus_session">C’est l’heure de vous concentrer. Cette application est en pause pour vous aider à rester pleinement dans votre session.</string>
+    <string name="app_paused_reason_bedtime">C’est l’heure de dormir. Cette application est en pause pour vous aider à décrocher et à préparer une nuit reposante.</string>
+    <string name="app_paused_reason_launch_count_out">Vous avez atteint le nombre maximal d’ouvertures autorisées pour cette application aujourd’hui. Il est temps de faire une pause.</string>
+    <string name="app_paused_reason_app_timer_left">Vous utilisez cette application depuis un moment. Faites une pause et recentrez-vous sur ce qui compte pour vous.</string>
+    <string name="app_paused_reason_app_timer_out">Vous avez atteint votre limite quotidienne pour cette application. Profitez-en pour faire une pause.</string>
+    <string name="app_paused_reason_app_active_period_over">Cette application est en pause en dehors de la plage horaire que vous avez définie.</string>
+    <string name="app_paused_reason_group_timer_left" formatted="true">Vous utilisez les applications du groupe « %s » depuis un moment. Faites une pause et recentrez-vous.</string>
+    <string name="app_paused_reason_group_timer_out" formatted="true">Vous avez atteint la limite quotidienne totale du groupe « %s ». Faites une pause jusqu’à sa réinitialisation.</string>
+    <string name="app_paused_reason_group_active_period_over" formatted="true">Les applications du groupe « %s » sont en pause en dehors de la plage horaire définie.</string>
+
+    <string name="app_paused_restriction_focus_mode">Mode concentration</string>
+    <string name="app_paused_restriction_bedtime_mode">Mode coucher</string>
+    <string name="app_paused_restriction_launch_count">Nombre d’ouvertures</string>
+    <string name="app_paused_restriction_app_timer">Limite de l’application</string>
+    <string name="app_paused_restriction_app_active_period">Plage horaire de l’application</string>
+    <string name="app_paused_restriction_group_timer">Limite du groupe</string>
+    <string name="app_paused_restriction_group_active_period">Plage horaire du groupe</string>
+
+    <string name="app_paused_overlay_button_emergency">Urgence</string>
+    <string name="app_paused_overlay_label_spent_today">Utilisé aujourd’hui</string>
+    <string name="app_paused_overlay_label_left_today">Restant aujourd’hui</string>
+    <string name="app_paused_overlay_ask_need_more_time">Besoin de quelques minutes de plus ?</string>
+    <string name="app_paused_overlay_button_two_minutes">2 minutes</string>
+    <string name="app_paused_overlay_button_five_minutes">5 minutes</string>
+    <string name="app_paused_overlay_button_ten_minutes">10 minutes</string>
+    <string name="app_paused_overlay_button_twenty_minutes">20 minutes</string>
+    <string name="app_paused_overlay_button_close_app" formatted="true">Fermer %s</string>
+    <string name="opening_intent_overlay_title">Ouverture consciente</string>
+    <string name="opening_intent_overlay_question" formatted="true">Pourquoi ouvrez-vous %s ?</string>
+    <string name="opening_intent_overlay_helper">Choisissez l’intention la plus proche de ce que vous ressentez.</string>
+    <string name="opening_intent_reason_boredom">Me divertir</string>
+    <string name="opening_intent_reason_stress">Anti-stress</string>
+    <string name="opening_intent_reason_information">Rechercher une info</string>
+    <string name="opening_intent_reason_reply">Intéraction sociale</string>
+    <string name="opening_intent_reason_habit">Par habitude</string>
+    <string name="opening_intent_reason_work">Pour travailler</string>
+    <string name="opening_intent_button_cancel">Annuler</string>
+    <string name="opening_intent_button_continue">Continuer</string>
+
+    <string name="app_screen_time_usage_info" formatted="true">Utilisé pendant %s</string>
     <string name="focus_session_completed_notification_info">Session de concentration terminée.</string>
     <string name="focus_session_stopped_notification_info">Session de concentration arrêtée.</string>
 </resources>

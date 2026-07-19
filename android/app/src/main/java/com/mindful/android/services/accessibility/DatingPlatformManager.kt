@@ -21,12 +21,16 @@ import org.json.JSONObject
  */
 class DatingPlatformManager(
     private val context: Context,
-    private val blockedContentGoBack: () -> Unit,
+    private val blockedContentOpenMessages: (
+        packageName: String,
+        sourceNode: AccessibilityNodeInfo?,
+    ) -> Unit,
     private val getForegroundRoot: (String) -> AccessibilityNodeInfo?,
     initialResetTimeMinutes: Int,
 ) {
     /** Package name to accumulated milliseconds spent during this daily period. */
     private val dailyMsByPackage: MutableMap<String, Long> = HashMap()
+    private val retainedBlockedSectionByPackage: MutableMap<String, Boolean> = HashMap()
     private val timerHandler = Handler(Looper.getMainLooper())
 
     private var resetTimeMinutes = initialResetTimeMinutes.coerceIn(0, 24 * 60 - 1)
@@ -36,6 +40,8 @@ class DatingPlatformManager(
     private var lastTickElapsedMs = 0L
     private var lastSaveElapsedMs = 0L
     private var lastProcessedEventTimeMs = 0L
+    private var lastRedirectPackage: String? = null
+    private var lastRedirectElapsedMs = 0L
 
     private val timerTick = object : Runnable {
         override fun run() {
@@ -69,7 +75,17 @@ class DatingPlatformManager(
             it.appPackage == packageName && it.isEnabled
         }
 
-        if (config == null || !isBlockedPageOpen(packageName, node)) {
+        if (config == null) {
+            stopActiveSession(persistNow = true)
+            return
+        }
+
+        if (!isBlockedPageOpen(packageName, node)) {
+            // The messages page is intentionally unrestricted. Clearing the
+            // redirect guard here lets a later return to discovery be blocked
+            // immediately, even within the cooldown window.
+            lastRedirectPackage = null
+            lastRedirectElapsedMs = 0L
             stopActiveSession(persistNow = true)
             return
         }
@@ -87,8 +103,7 @@ class DatingPlatformManager(
 
         if ((dailyMsByPackage[packageName] ?: 0L) >= activeAllowedMs) {
             Log.d(TAG, "onAccessibilityEvent: $packageName dating budget exhausted")
-            stopActiveSession(persistNow = true)
-            blockedContentGoBack.invoke()
+            redirectToMessages(packageName, node)
             return
         }
 
@@ -113,8 +128,7 @@ class DatingPlatformManager(
 
         activeAllowedMs = config.allowedMs.coerceAtLeast(MIN_ALLOWED_MS)
         if ((dailyMsByPackage[packageName] ?: 0L) >= activeAllowedMs) {
-            stopActiveSession(persistNow = true)
-            blockedContentGoBack.invoke()
+            redirectToMessages(packageName, getForegroundRoot(packageName))
         }
     }
 
@@ -141,8 +155,7 @@ class DatingPlatformManager(
 
         if ((dailyMsByPackage[packageName] ?: 0L) >= activeAllowedMs) {
             Log.d(TAG, "tickActiveSession: $packageName dating budget exhausted")
-            stopActiveSession(persistNow = true)
-            blockedContentGoBack.invoke()
+            redirectToMessages(packageName, foregroundRoot)
             return
         }
 
@@ -189,6 +202,30 @@ class DatingPlatformManager(
         if (persistNow && hadActiveSession) persist()
     }
 
+    /**
+     * Leaves discovery for the app's own messages tab. Accessibility apps can
+     * emit several content-change events during a tab transition, so the short
+     * cooldown prevents duplicate navigation while still allowing a retry if
+     * the target app did not accept the first action.
+     */
+    private fun redirectToMessages(
+        packageName: String,
+        sourceNode: AccessibilityNodeInfo?,
+    ) {
+        stopActiveSession(persistNow = true)
+
+        val nowElapsedMs = SystemClock.elapsedRealtime()
+        if (lastRedirectPackage == packageName &&
+            nowElapsedMs - lastRedirectElapsedMs < REDIRECT_COOLDOWN_MS
+        ) {
+            return
+        }
+
+        lastRedirectPackage = packageName
+        lastRedirectElapsedMs = nowElapsedMs
+        blockedContentOpenMessages.invoke(packageName, sourceNode)
+    }
+
     private fun updateResetTime(value: Int) {
         val normalized = value.coerceIn(0, 24 * 60 - 1)
         if (normalized == resetTimeMinutes) return
@@ -210,13 +247,85 @@ class DatingPlatformManager(
     private fun isBlockedPageOpen(packageName: String, node: AccessibilityNodeInfo): Boolean {
         val sig = BLOCKED_PAGES[packageName] ?: return false
 
-        if (sig.viewIds.any { node.findAccessibilityNodeInfosByViewId(it).isNotEmpty() }) {
+        val safePageSelected = sig.safeSelectedViewIds.any { viewId ->
+            findNodesByViewId(node, viewId).any(::isNodeOrParentSelected)
+        }
+        val safePageContentVisible = sig.safeViewIds.any {
+            findNodesByViewId(node, it).isNotEmpty()
+        }
+        if (safePageSelected || safePageContentVisible) {
+            retainedBlockedSectionByPackage.remove(packageName)
+            return false
+        }
+
+        val blockedNavigationSelected = sig.selectedViewIds.any { viewId ->
+            findNodesByViewId(node, viewId).any(::isNodeOrParentSelected)
+        }
+        val blockedContentVisible =
+            sig.viewIds.any { findNodesByViewId(node, it).isNotEmpty() } ||
+                    sig.texts.any { node.findAccessibilityNodeInfosByText(it).isNotEmpty() } ||
+                    (sig.descriptions.isNotEmpty() && containsDescription(node, sig.descriptions))
+
+        if (blockedNavigationSelected || blockedContentVisible) {
+            if (sig.retainForNestedPages) {
+                retainedBlockedSectionByPackage[packageName] = true
+            }
             return true
         }
-        if (sig.texts.any { node.findAccessibilityNodeInfosByText(it).isNotEmpty() }) {
-            return true
+
+        // Hinge temporarily removes its navigation/title semantics when a
+        // Standouts card opens or animates. Keep the last known blocked section
+        // until Matches, a conversation, or Profile is explicitly detected.
+        return sig.retainForNestedPages &&
+                retainedBlockedSectionByPackage[packageName] == true
+    }
+
+    /**
+     * Android Views expose qualified ids (package:id/name), while Happn's
+     * Compose semantics expose raw test-tag ids (name). The platform lookup
+     * does not reliably resolve the latter, so fall back to a tree traversal.
+     */
+    private fun findNodesByViewId(
+        root: AccessibilityNodeInfo,
+        targetId: String,
+    ): List<AccessibilityNodeInfo> {
+        val platformMatches = runCatching {
+            root.findAccessibilityNodeInfosByViewId(targetId)
+        }.getOrDefault(emptyList())
+        if (platformMatches.isNotEmpty()) return platformMatches
+
+        val matches = mutableListOf<AccessibilityNodeInfo>()
+        collectNodesByViewId(root, targetId, matches)
+        return matches
+    }
+
+    private fun collectNodesByViewId(
+        node: AccessibilityNodeInfo,
+        targetId: String,
+        matches: MutableList<AccessibilityNodeInfo>,
+    ) {
+        val nodeId = node.viewIdResourceName
+        if (nodeId == targetId ||
+            nodeId?.substringAfterLast(":id/") == targetId.substringAfterLast(":id/")
+        ) {
+            matches.add(node)
         }
-        return sig.descriptions.isNotEmpty() && containsDescription(node, sig.descriptions)
+        for (index in 0 until node.childCount) {
+            node.getChild(index)?.let { collectNodesByViewId(it, targetId, matches) }
+        }
+    }
+
+    /** Main navigation items can expose their selected state on the item itself
+     * or on a clickable parent, depending on whether the app uses Views or
+     * Compose. Only a selected item identifies the active page. */
+    private fun isNodeOrParentSelected(node: AccessibilityNodeInfo): Boolean {
+        var candidate: AccessibilityNodeInfo? = node
+        repeat(4) {
+            val current = candidate ?: return false
+            if (current.isSelected || current.isChecked) return true
+            candidate = current.parent
+        }
+        return false
     }
 
     private fun containsDescription(
@@ -260,6 +369,7 @@ class DatingPlatformManager(
         private const val TIMER_INTERVAL_MS = 1000L
         private const val SAVE_INTERVAL_MS = 5000L
         private const val MIN_ALLOWED_MS = 60 * 1000L
+        private const val REDIRECT_COOLDOWN_MS = 1500L
 
         /**
          * Signatures identifying each dating app's engagement pages. Chat and
@@ -267,22 +377,55 @@ class DatingPlatformManager(
          */
         private val BLOCKED_PAGES: Map<String, PageSignatures> = mapOf(
             "com.tinder" to PageSignatures(
+                selectedViewIds = listOf(
+                    // Explore (and its event/experience variants).
+                    "com.tinder:id/action_experiences",
+                    "com.tinder:id/action_events",
+                    // Likes / Likes You.
+                    "com.tinder:id/action_gold_home",
+                ),
                 viewIds = listOf(
+                    // Main swipe page.
                     "com.tinder:id/recs_card_container",
                     "com.tinder:id/recs_card_carousel",
+                    "com.tinder:id/main_cardstack_recs_view",
+                    "com.tinder:id/recs_view_root_container",
+                    // Explore and the profile cards opened from Explore.
+                    "com.tinder:id/compose_discovery_view",
+                    "com.tinder:id/explore_sparks_profile_card",
+                    "com.tinder:id/explore_web_view",
+                    // Likes / Likes You (Fast Match).
                     "com.tinder:id/fast_match_overlay",
+                    "com.tinder:id/fast_match_compose_container",
+                    "com.tinder:id/fast_match_recs_view",
+                    "com.tinder:id/gold_home_tab_likes_you_container",
                     "com.tinder:id/likes_you_background_ring",
-                    "com.tinder:id/edit_profile_view_pager",
-                    "com.tinder:id/edit_profile_fragment_container",
+                    "com.tinder:id/likes_you_card",
                 ),
             ),
             "co.hinge.app" to PageSignatures(
+                retainForNestedPages = true,
+                selectedViewIds = listOf(
+                    // Main profile feed (untitled in the UI).
+                    "co.hinge.app:id/discover",
+                    // Curated profiles.
+                    "co.hinge.app:id/standouts",
+                    // "Te Like" / Likes You.
+                    "co.hinge.app:id/likes_you",
+                ),
+                safeSelectedViewIds = listOf(
+                    "co.hinge.app:id/matches",
+                    "co.hinge.app:id/profile_hub",
+                ),
+                safeViewIds = listOf(
+                    // Individual conversation views reached from Matches or
+                    // directly from a notification.
+                    "co.hinge.app:id/messageComposition",
+                    "co.hinge.app:id/messageCompositionContainer",
+                    "co.hinge.app:id/sendChatButtonContainer",
+                ),
                 viewIds = listOf(
                     "co.hinge.app:id/boost_button_text",
-                    "co.hinge.app:id/edit_prompts",
-                    "co.hinge.app:id/editDateIdeasBottomSheet",
-                    "co.hinge.app:id/layoutMediaGrid",
-                    "co.hinge.app:id/smartPhotoToggleRow",
                 ),
                 texts = listOf("Standouts"),
                 descriptions = listOf(
@@ -292,23 +435,26 @@ class DatingPlatformManager(
             ),
             "com.bumble.app" to PageSignatures(
                 viewIds = listOf(
+                    // "À découvrir" uses a Compose compatibility root.
+                    "com.bumble.app:id/super_compatible_root",
+                    // "Mon fil" uses the encounters stack.
                     "com.bumble.app:id/encounters_root",
+                    "com.bumble.app:id/encountersGridProfile_list",
+                    "com.bumble.app:id/encountersStackContainer",
                     "com.bumble.app:id/encountersProfile_voteLike",
+                    // "Likes reçus" is Bumble's beeline screen.
                     "com.bumble.app:id/beeline_root",
                     "com.bumble.app:id/component_beeline_card_stack_top",
-                    "com.bumble.app:id/rib_profile_editor",
-                    "com.bumble.app:id/profile_editor_elements",
                 ),
             ),
             "com.ftw_and_co.happn" to PageSignatures(
                 viewIds = listOf(
+                    // Compose test-tag ids are intentionally unqualified.
                     "timeline_button_like",
                     "action_timeline_matching_prefs",
                     "vibes_title",
                     "likes_title",
                     "list_of_likes_nav_bar_boost_button",
-                    "edit_profile_firstname_with_age",
-                    "see_my_own_profile",
                     "map_position_button",
                 ),
             ),
@@ -316,6 +462,10 @@ class DatingPlatformManager(
     }
 
     private data class PageSignatures(
+        val retainForNestedPages: Boolean = false,
+        val selectedViewIds: List<String> = emptyList(),
+        val safeSelectedViewIds: List<String> = emptyList(),
+        val safeViewIds: List<String> = emptyList(),
         val viewIds: List<String> = emptyList(),
         val texts: List<String> = emptyList(),
         val descriptions: List<String> = emptyList(),

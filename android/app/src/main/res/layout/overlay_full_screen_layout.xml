@@ -13,49 +13,11 @@
         android:background="@color/surface" />
 
     <LinearLayout
-        android:id="@+id/overlay_sheet_quote_panel"
+        android:id="@+id/overlay_sheet_container"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:gravity="bottom"
         android:orientation="vertical">
-
-        <!-- Quote Panel-->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:gravity="center_vertical"
-            android:orientation="vertical"
-            android:paddingHorizontal="24dp">
-
-            <!-- Quote -->
-            <TextView
-                android:id="@+id/overlay_sheet_quote"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:fontFamily="sans-serif-condensed"
-                android:gravity="start"
-                android:text='"The secret of health for both mind and body is not to mourn for the past, nor to worry about the future, but to live the present moment wisely and earnestly"'
-                android:textColor="@color/textSecondary"
-                android:textSize="16sp"
-                android:textStyle="italic"
-                tools:ignore="HardcodedText,RtlHardcoded" />
-
-            <!-- Author -->
-            <TextView
-                android:id="@+id/overlay_sheet_quote_author"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:fontFamily="cursive"
-                android:gravity="end"
-                android:text="Buddha"
-                android:textColor="@color/accent"
-                android:textSize="24sp"
-                android:textStyle="bold|italic"
-                tools:ignore="HardcodedText,RtlHardcoded" />
-
-        </LinearLayout>
-
 
         <!-- Bottom Sheet -->
         <LinearLayout
@@ -88,7 +50,8 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:paddingTop="8dp">
+                    android:paddingTop="8dp"
+                    android:paddingBottom="24dp">
 
 
                     <!--  Main card  -->
@@ -270,6 +233,62 @@
                         </LinearLayout>
                     </LinearLayout>
 
+                    <!-- Conscious opening reasons -->
+                    <LinearLayout
+                        android:id="@+id/overlay_sheet_intention_container"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp"
+                            android:gravity="center"
+                            android:text="@string/opening_intent_overlay_helper"
+                            android:textColor="@color/textSecondary"
+                            android:textSize="13sp" />
+
+                        <RadioGroup
+                            android:id="@+id/overlay_intent_reason_group"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical">
+
+                            <RadioButton
+                                android:id="@+id/overlay_intent_reason_boredom"
+                                style="@style/OpeningIntentRadioButton"
+                                android:text="@string/opening_intent_reason_boredom" />
+
+                            <RadioButton
+                                android:id="@+id/overlay_intent_reason_stress"
+                                style="@style/OpeningIntentRadioButton"
+                                android:text="@string/opening_intent_reason_stress" />
+
+                            <RadioButton
+                                android:id="@+id/overlay_intent_reason_information"
+                                style="@style/OpeningIntentRadioButton"
+                                android:text="@string/opening_intent_reason_information" />
+
+                            <RadioButton
+                                android:id="@+id/overlay_intent_reason_reply"
+                                style="@style/OpeningIntentRadioButton"
+                                android:text="@string/opening_intent_reason_reply" />
+
+                            <RadioButton
+                                android:id="@+id/overlay_intent_reason_habit"
+                                style="@style/OpeningIntentRadioButton"
+                                android:text="@string/opening_intent_reason_habit" />
+
+                            <RadioButton
+                                android:id="@+id/overlay_intent_reason_work"
+                                style="@style/OpeningIntentRadioButton"
+                                android:text="@string/opening_intent_reason_work" />
+                        </RadioGroup>
+                    </LinearLayout>
+
                     <!-- Reminder options -->
                     <LinearLayout
                         android:id="@+id/overlay_sheet_limit_options_use_more"
@@ -371,18 +390,42 @@
                         android:textAllCaps="false"
                         android:textColor="@color/secondaryContainer" />
 
-                    <!-- Made in India -->
-                    <TextView
-                        android:id="@+id/overlay_sheet_made"
+                    <!-- Conscious opening actions -->
+                    <LinearLayout
+                        android:id="@+id/overlay_sheet_intention_actions"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
-                        android:layout_marginBottom="32dp"
-                        android:gravity="center"
-                        android:text="Made with ♥️ in 🇮🇳"
-                        android:textColor="@color/textSecondary"
-                        android:textSize="12sp"
-                        tools:ignore="HardcodedText" />
+                        android:layout_marginTop="12dp"
+                        android:orientation="horizontal"
+                        android:visibility="gone">
+
+                        <Button
+                            android:id="@+id/overlay_sheet_btn_intention_cancel"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:background="@drawable/shape_rounded_md"
+                            android:backgroundTint="@color/primaryContainer"
+                            android:text="@string/opening_intent_button_cancel"
+                            android:textAllCaps="false"
+                            android:textColor="@color/textPrimary" />
+
+                        <View
+                            android:layout_width="8dp"
+                            android:layout_height="0dp" />
+
+                        <Button
+                            android:id="@+id/overlay_sheet_btn_intention_continue"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:background="@drawable/shape_rounded_md"
+                            android:backgroundTint="@color/accent"
+                            android:enabled="false"
+                            android:text="@string/opening_intent_button_continue"
+                            android:textAllCaps="false"
+                            android:textColor="@color/secondaryContainer" />
+                    </LinearLayout>
                 </LinearLayout>
             </ScrollView>
         </LinearLayout>

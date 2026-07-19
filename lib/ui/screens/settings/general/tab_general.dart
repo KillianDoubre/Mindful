@@ -20,9 +20,7 @@ import 'package:mindful/core/extensions/ext_build_context.dart';
 import 'package:mindful/core/extensions/ext_num.dart';
 import 'package:mindful/core/extensions/ext_widget.dart';
 import 'package:mindful/config/hero_tags.dart';
-import 'package:mindful/config/locales.dart';
 import 'package:mindful/core/services/method_channel_service.dart';
-import 'package:mindful/l10n/generated/app_localizations.dart';
 import 'package:mindful/providers/system/mindful_settings_provider.dart';
 import 'package:mindful/ui/common/default_list_tile.dart';
 import 'package:mindful/ui/dialogs/input_field_dialog.dart';
@@ -158,22 +156,6 @@ class TabGeneral extends ConsumerWidget {
               _editUsername(context, ref, mindfulSettings.username),
         ).sliver,
 
-        /// App Language
-        DefaultDropdownTile<String>(
-          position: ItemPosition.mid,
-          titleText: context.locale.app_language_tile_title,
-          dialogIcon: FluentIcons.color_20_filled,
-          value: mindfulSettings.localeCode,
-          onSelected: ref.read(mindfulSettingsProvider.notifier).changeLocale,
-          items: AppLocalizations.supportedLocales
-              .map((e) => DefaultDropdownItem(
-                    value: e.languageCode,
-                    label:
-                        Locales.knownLocales[e.languageCode] ?? e.languageCode,
-                  ))
-              .toList(),
-        ).sliver,
-
         /// Default home tab
         DefaultDropdownTile<DefaultHomeTab>(
           position: ItemPosition.mid,
@@ -185,6 +167,10 @@ class TabGeneral extends ConsumerWidget {
             DefaultDropdownItem(
               label: context.locale.dashboard_tab_title,
               value: DefaultHomeTab.dashboard,
+            ),
+            DefaultDropdownItem(
+              label: 'Systèmes',
+              value: DefaultHomeTab.systems,
             ),
             DefaultDropdownItem(
               label: context.locale.statistics_tab_title,

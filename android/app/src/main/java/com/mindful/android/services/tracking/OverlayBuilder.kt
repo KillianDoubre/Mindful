@@ -10,6 +10,7 @@ import android.widget.Button
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
+import android.widget.RadioGroup
 import android.widget.TextView
 import androidx.annotation.MainThread
 import com.mindful.android.R
@@ -17,7 +18,6 @@ import com.mindful.android.enums.RestrictionType
 import com.mindful.android.models.RestrictionState
 import com.mindful.android.utils.AppUtils
 import com.mindful.android.utils.DateTimeUtils
-import com.mindful.android.utils.MindfulQuotes
 import com.mindful.android.utils.ThreadUtils
 
 object OverlayBuilder {
@@ -75,20 +75,6 @@ object OverlayBuilder {
         // Inflate the custom layout for the dialog
         val inflater = LayoutInflater.from(context)
         val sheetView = inflater.inflate(R.layout.overlay_full_screen_layout, null)
-
-        // Set quote and author
-        val quoteTxt = sheetView.findViewById<TextView>(R.id.overlay_sheet_quote)
-        val quoteAuthorTxt = sheetView.findViewById<TextView>(R.id.overlay_sheet_quote_author)
-        val randomQuote = MindfulQuotes.getRandomQuote()
-        quoteTxt.text = buildString {
-            append("\"")
-            append(randomQuote.value)
-            append("\"")
-        }
-        quoteAuthorTxt.text = buildString {
-            append("— ")
-            append(randomQuote.key)
-        }
 
         // Resolve app icon and label
         val (appName, appIcon) = getAppLabelAndIcon(context, packageName)
@@ -209,6 +195,106 @@ object OverlayBuilder {
         }
 
         return sheetView
+    }
+
+    @MainThread
+    fun buildIntentionOverlay(
+        context: Context,
+        packageName: String,
+        isLimitExhausted: Boolean,
+        isLimitCheckPending: Boolean,
+        onDecision: (reason: String?, outcome: String) -> Unit,
+        dismissOverlay: () -> Unit,
+    ): View {
+        val sheetView = LayoutInflater.from(context)
+            .inflate(R.layout.overlay_full_screen_layout, null)
+        val (appName, appIcon) = getAppLabelAndIcon(context, packageName)
+
+        sheetView.findViewById<TextView>(R.id.overlay_sheet_app_name).text = appName
+        sheetView.findViewById<ImageView>(R.id.overlay_sheet_app_icon).setImageDrawable(appIcon)
+        sheetView.findViewById<TextView>(R.id.overlay_sheet_limit_type).text =
+            context.getString(R.string.opening_intent_overlay_title)
+        sheetView.findViewById<TextView>(R.id.overlay_sheet_limit_info).text =
+            context.getString(R.string.opening_intent_overlay_question, appName)
+
+        sheetView.findViewById<View>(R.id.overlay_sheet_btn_close_app).visibility = View.GONE
+        sheetView.findViewById<View>(R.id.overlay_sheet_intention_container).visibility =
+            View.VISIBLE
+        sheetView.findViewById<View>(R.id.overlay_sheet_intention_actions).visibility =
+            View.VISIBLE
+
+        val continueButton =
+            sheetView.findViewById<Button>(R.id.overlay_sheet_btn_intention_continue)
+        continueButton.tag = if (isLimitCheckPending) null else isLimitExhausted
+        if (isLimitExhausted && !isLimitCheckPending) {
+            continueButton.text = context.getString(R.string.app_paused_overlay_button_emergency)
+        }
+        var selectedReason: String? = null
+        val reasonButtons = mapOf(
+            "boredom" to R.id.overlay_intent_reason_boredom,
+            "stress" to R.id.overlay_intent_reason_stress,
+            "information" to R.id.overlay_intent_reason_information,
+            "reply" to R.id.overlay_intent_reason_reply,
+            "habit" to R.id.overlay_intent_reason_habit,
+            "work" to R.id.overlay_intent_reason_work,
+        )
+
+        sheetView.findViewById<RadioGroup>(R.id.overlay_intent_reason_group)
+            .setOnCheckedChangeListener { _, checkedId ->
+                selectedReason = reasonButtons.entries
+                    .firstOrNull { it.value == checkedId }
+                    ?.key
+                continueButton.isEnabled =
+                    selectedReason != null && continueButton.tag is Boolean
+            }
+
+        sheetView.findViewById<Button>(R.id.overlay_sheet_btn_intention_cancel)
+            .setOnClickListener {
+                onDecision(selectedReason, "cancelled")
+                val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+                    addCategory(Intent.CATEGORY_HOME)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.applicationContext.startActivity(homeIntent)
+                dismissOverlay.invoke()
+            }
+
+        continueButton.setOnClickListener {
+            selectedReason?.let { reason ->
+                val resolvedLimitExhausted = continueButton.tag as? Boolean
+                    ?: return@setOnClickListener
+                onDecision(
+                    reason,
+                    if (resolvedLimitExhausted) "emergency" else "continued"
+                )
+                if (resolvedLimitExhausted) {
+                    context.applicationContext.startActivity(
+                        AppUtils.getIntentForMindfulUri(
+                            context,
+                            "com.mindful.android://open/appDashboard?package=$packageName"
+                        )
+                    )
+                }
+                dismissOverlay.invoke()
+            }
+        }
+
+        return sheetView
+    }
+
+    @MainThread
+    fun resolveIntentionLimit(sheetView: View, isLimitExhausted: Boolean) {
+        val continueButton =
+            sheetView.findViewById<Button>(R.id.overlay_sheet_btn_intention_continue)
+        continueButton.tag = isLimitExhausted
+        continueButton.text = sheetView.context.getString(
+            if (isLimitExhausted) R.string.app_paused_overlay_button_emergency
+            else R.string.opening_intent_button_continue
+        )
+        val checkedReason = sheetView
+            .findViewById<RadioGroup>(R.id.overlay_intent_reason_group)
+            .checkedRadioButtonId
+        continueButton.isEnabled = checkedReason != -1
     }
 
 

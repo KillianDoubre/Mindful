@@ -14,19 +14,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mindful/config/hero_tags.dart';
 import 'package:mindful/core/enums/item_position.dart';
 import 'package:mindful/core/extensions/ext_build_context.dart';
+import 'package:mindful/core/extensions/ext_num.dart';
 import 'package:mindful/core/extensions/ext_widget.dart';
 import 'package:mindful/core/services/auth_service.dart';
+import 'package:mindful/core/utils/widget_utils.dart';
 import 'package:mindful/providers/system/parental_controls_provider.dart';
 import 'package:mindful/providers/system/permissions_provider.dart';
 import 'package:mindful/ui/common/content_section_header.dart';
 import 'package:mindful/ui/common/default_list_tile.dart';
+import 'package:mindful/ui/common/rounded_container.dart';
 import 'package:mindful/ui/common/scaffold_shell.dart';
 import 'package:mindful/ui/common/sliver_tabs_bottom_padding.dart';
 import 'package:mindful/ui/common/styled_text.dart';
-import 'package:mindful/ui/dialogs/time_picker_dialog.dart';
+import 'package:mindful/ui/common/time_period_start_end_cards.dart';
 import 'package:mindful/ui/permissions/admin_permission_tile.dart';
 import 'package:mindful/ui/screens/parental_controls/invincible_mode_settings.dart';
-import 'package:mindful/ui/transitions/default_hero.dart';
 
 class ParentalControlsScreen extends ConsumerWidget {
   const ParentalControlsScreen({super.key});
@@ -109,43 +111,54 @@ class ParentalControlsScreen extends ConsumerWidget {
               /// Tamper protection
               const AdminPermissionTile().sliver,
 
-              /// Uninstall window
-              DefaultHero(
-                tag: HeroTags.uninstallWindowTileTag,
-                child: DefaultListTile(
-                  position: ItemPosition.bottom,
-                  titleText: context.locale.uninstall_window_tile_title,
-                  subtitleText: context.locale.uninstall_window_tile_subtitle,
-                  trailing: StyledText(
-                    parentalControls.uninstallWindowTime.format(context),
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  onPressed: () async {
-                    /// Check if between the specified window
-                    if (isAdminEnabled &&
-                        !ref
-                            .read(parentalControlsProvider.notifier)
-                            .isBetweenUninstallWindow) {
-                      context.showSnackAlert(
-                        context.locale.permission_admin_snack_alert,
-                      );
-                      return;
-                    }
-
-                    final pickedTime = await showCustomTimePickerDialog(
-                      context: context,
-                      heroTag: HeroTags.uninstallWindowTileTag,
-                      initialTime: parentalControls.uninstallWindowTime,
-                      info: context.locale.uninstall_window_tile_title,
-                    );
-
-                    if (pickedTime != null && context.mounted) {
-                      ref
+              /// Shared modification window (start + end) — the daily window
+              /// during which Mindful can be uninstalled and invincible-mode /
+              /// restriction settings can be changed.
+              RoundedContainer(
+                borderRadius: getBorderRadiusFromPosition(ItemPosition.bottom),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    StyledText(
+                      context.locale.uninstall_window_tile_title,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    4.vBox,
+                    StyledText(
+                      context.locale.uninstall_window_tile_subtitle,
+                      fontSize: 13,
+                      isSubtitle: true,
+                    ),
+                    16.vBox,
+                    TimePeriodStartEndCards(
+                      startTime: parentalControls.uninstallWindowTime,
+                      endTime: parentalControls.invincibleWindowTime,
+                      startHeroTag: HeroTags.uninstallWindowTileTag,
+                      endHeroTag: HeroTags.invincibleWindowTileTag,
+                      isModifiable: () {
+                        final protectionActive = isAdminEnabled ||
+                            parentalControls.isInvincibleModeOn;
+                        final allowed = !protectionActive ||
+                            ref
+                                .read(parentalControlsProvider.notifier)
+                                .isBetweenWindow;
+                        if (!allowed) {
+                          context.showSnackAlert(
+                            context.locale.permission_admin_snack_alert,
+                          );
+                        }
+                        return allowed;
+                      },
+                      onStartTimeChanged: ref
                           .read(parentalControlsProvider.notifier)
-                          .changeUninstallWindowTime(pickedTime);
-                    }
-                  },
+                          .changeWindowStartTime,
+                      onEndTimeChanged: ref
+                          .read(parentalControlsProvider.notifier)
+                          .changeWindowEndTime,
+                    ),
+                  ],
                 ),
               ).sliver,
 

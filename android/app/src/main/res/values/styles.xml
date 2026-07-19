@@ -11,6 +11,20 @@
   -->
 
 <resources>
+    <style name="OpeningIntentRadioButton">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginVertical">3dp</item>
+        <item name="android:minHeight">50dp</item>
+        <item name="android:background">@drawable/shape_rounded_md</item>
+        <item name="android:backgroundTint">@color/primaryContainer</item>
+        <item name="android:buttonTint">@color/accent</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:paddingHorizontal">14dp</item>
+        <item name="android:paddingVertical">6dp</item>
+        <item name="android:textColor">@color/textSecondary</item>
+        <item name="android:textSize">14sp</item>
+    </style>
     <!-- Theme applied to the Android Window while the process is starting when the OS's Dark Mode setting is off -->
     <style name="LaunchTheme" parent="Theme.AppCompat.DayNight">
         <!-- Show a splash screen on the activity. Automatically removed when

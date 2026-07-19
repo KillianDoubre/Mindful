@@ -389,7 +389,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get parental_controls_tip =>
-      'Besoin d\'un contrôle parental ? Définissez des restrictions sur l\'appareil de votre enfant pour lui offrir une expérience plus sûre.';
+      'Besoin d\'un contrôle ? Définissez des restrictions sur l\'appareil de votre enfant pour lui offrir une expérience plus sûre.';
 
   @override
   String get notification_batching_tip =>
@@ -676,7 +676,7 @@ class AppLocalizationsFr extends AppLocalizations {
       'La liste des applications distrayantes ne peut pas être modifiée lorsque l\'horaire de coucher est actif.';
 
   @override
-  String get parental_controls_tab_title => 'Contrôle parental';
+  String get parental_controls_tab_title => 'Contrôle';
 
   @override
   String get invincible_mode_heading => 'Mode invincible';
@@ -782,7 +782,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get uninstall_window_tile_subtitle =>
-      'La protection anti-modification peut être désactivée pendant les 10 minutes suivant l\'heure choisie.';
+      'Plage horaire quotidienne pendant laquelle vous pouvez désinstaller Mindful et modifier le mode invincible ou les restrictions.';
 
   @override
   String get invincible_window_tile_title => 'Fenêtre du mode invincible';
@@ -902,7 +902,7 @@ class AppLocalizationsFr extends AppLocalizations {
       'Limiter les vidéos courtes sur Reddit.';
 
   @override
-  String get websites_blocking_tab_title => 'Blocage des sites web';
+  String get websites_blocking_tab_title => 'Blocage des sites';
 
   @override
   String get websites_blocking_tab_info =>
@@ -1592,14 +1592,14 @@ class AppLocalizationsFr extends AppLocalizations {
       'Adoptez de meilleures habitudes et suivez vos progrès.';
 
   @override
-  String get tasks_tile_title => 'Tâches et listes';
+  String get tasks_tile_title => 'Tâches';
 
   @override
   String get tasks_tile_subtitle =>
       'Planifiez vos prochaines tâches et activités.';
 
   @override
-  String get notes_tile_title => 'Notes et listes';
+  String get notes_tile_title => 'Notes';
 
   @override
   String get notes_tile_subtitle =>

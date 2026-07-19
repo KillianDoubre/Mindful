@@ -22,6 +22,8 @@ import 'package:mindful/ui/screens/settings/settings_screen.dart';
 import 'package:mindful/ui/screens/dating_blocking/dating_blocking_screen.dart';
 import 'package:mindful/ui/screens/shorts_blocking/shorts_blocking_screen.dart';
 import 'package:mindful/ui/screens/notifications/notifications_screen.dart';
+import 'package:mindful/ui/screens/productivity/notes_screen.dart';
+import 'package:mindful/ui/screens/productivity/tasks_screen.dart';
 import 'package:mindful/ui/screens/websites_blocking/websites_blocking_screen.dart';
 import 'package:mindful/ui/splash_screen.dart';
 
@@ -39,6 +41,8 @@ class AppRoutes {
   static const String shortsBlockingPath = '/shortsBlocking';
   static const String datingBlockingPath = '/datingBlocking';
   static const String websitesBlockingPath = '/websitesBlocking';
+  static const String tasksPath = '/tasks';
+  static const String notesPath = '/notes';
 
   static const String appDashboardPath = '/appDashboard';
   static const String notificationsPath = '/notifications';
@@ -77,6 +81,10 @@ class AppRoutes {
 
     /// Websites blocking screen
     websitesBlockingPath: (context) => const WebsitesBlockingScreen(),
+
+    /// Personal productivity screens
+    tasksPath: (context) => const TasksScreen(),
+    notesPath: (context) => const NotesScreen(),
 
     /// Notifications list screen
     notificationsPath: (context) => NotificationsScreen(

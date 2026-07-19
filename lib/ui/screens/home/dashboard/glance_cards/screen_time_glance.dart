@@ -33,6 +33,7 @@ class ScreenTimeGlance extends ConsumerWidget {
 
     return UsageGlanceCard(
       isPrimary: true,
+      compact: true,
       position: ItemPosition.topLeft,
       icon: FluentIcons.phone_screen_time_20_regular,
       title: context.locale.screen_time_label,

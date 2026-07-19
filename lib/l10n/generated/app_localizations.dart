@@ -1377,7 +1377,7 @@ abstract class AppLocalizations {
   /// No description provided for @uninstall_window_tile_subtitle.
   ///
   /// In en, this message translates to:
-  /// **'Tamper protection can be disabled within 10 minutes from the selected time.'**
+  /// **'Daily time window during which you can uninstall Mindful and change invincible mode or restrictions.'**
   String get uninstall_window_tile_subtitle;
 
   /// No description provided for @invincible_window_tile_title.

@@ -771,7 +771,7 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get uninstall_window_tile_subtitle =>
-      'Tamper protection can be disabled within 10 minutes from the selected time.';
+      'Daily time window during which you can uninstall Mindful and change invincible mode or restrictions.';
 
   @override
   String get invincible_window_tile_title => 'Invincible window';

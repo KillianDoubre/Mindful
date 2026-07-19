@@ -42,6 +42,11 @@ data class RestrictionGroup(
     val activePeriods: List<ActivePeriod> = emptyList(),
 
     /**
+     * Whether an intention must be selected before opening an app in the group.
+     */
+    val isIntentPromptEnabled: Boolean = false,
+
+    /**
      * Set of app package names associated with this group.
      */
     val distractingApps: Set<String> = emptySet(),
@@ -70,6 +75,7 @@ data class RestrictionGroup(
                 activePeriodStart = jsonObject.optInt("activePeriodStart", 0),
                 activePeriodEnd = jsonObject.optInt("activePeriodEnd", 0),
                 activePeriods = activePeriods,
+                isIntentPromptEnabled = jsonObject.optBoolean("isIntentPromptEnabled", false),
                 distractingApps = JsonUtils.parseStringSet(
                     jsonObject.optJSONArray("distractingApps")?.toString()
                 )

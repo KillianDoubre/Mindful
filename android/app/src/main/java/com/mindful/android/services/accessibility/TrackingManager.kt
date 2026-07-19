@@ -2,8 +2,8 @@ package com.mindful.android.services.accessibility
 
 import android.content.Context
 import android.content.Intent
+import android.provider.Settings
 import android.util.Log
-import androidx.annotation.WorkerThread
 import com.mindful.android.AppConstants.SYSTEM_UI_PACKAGE
 import com.mindful.android.helpers.storage.SharedPrefsHelper
 
@@ -20,10 +20,18 @@ class TrackingManager(
     }
 
     private var lastActiveApp: String = ""
+    private val inputMethodPackage: String by lazy {
+        Settings.Secure.getString(
+            context.contentResolver,
+            Settings.Secure.DEFAULT_INPUT_METHOD,
+        )?.substringBefore('/') ?: ""
+    }
 
-    @WorkerThread
     fun onNewEvent(packageName: String) {
-        if (lastActiveApp != packageName && packageName != SYSTEM_UI_PACKAGE) {
+        if (lastActiveApp != packageName &&
+            packageName != SYSTEM_UI_PACKAGE &&
+            packageName != inputMethodPackage
+        ) {
             lastActiveApp = packageName
             broadcastEvent(ACTION_NEW_APP_LAUNCHED, packageName)
         }

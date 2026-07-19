@@ -45,6 +45,7 @@ class RestrictionGroupsNotifier
 
     // Listen to changes and update the tracker service.
     addListener((_) => updateGroupsInTrackerService());
+    await updateGroupsInTrackerService();
   }
 
   /// Creates a new restriction group and adds it to the state.
@@ -56,6 +57,7 @@ class RestrictionGroupsNotifier
     required int periodDurationInMins,
     required List<ActivePeriod> activePeriods,
     required List<String> distractingApps,
+    required bool isIntentPromptEnabled,
   }) async {
     final newGroup = await _dao.insertRestrictionGroup(
       groupName: groupName,
@@ -65,6 +67,7 @@ class RestrictionGroupsNotifier
       periodDurationInMins: periodDurationInMins,
       activePeriods: activePeriods,
       distractingApps: distractingApps,
+      isIntentPromptEnabled: isIntentPromptEnabled,
     );
 
     state = {...state}..update(
@@ -104,7 +107,8 @@ class RestrictionGroupsNotifier
           (e) =>
               (e.timerSec > 0 ||
                   e.periodDurationInMins > 0 ||
-                  e.activePeriods.isNotEmpty) &&
+                  e.activePeriods.isNotEmpty ||
+                  e.isIntentPromptEnabled) &&
               e.distractingApps
                   .where((e) => _installedApps.contains(e))
                   .isNotEmpty,

@@ -75,9 +75,18 @@ class RestrictionManager(
         Log.d(TAG, "updateBedtimeApps: Bedtime apps updated: $bedtimeApps")
     }
 
+    fun getIntentPromptGroup(packageName: String): RestrictionGroup? =
+        restrictionGroups.values.firstOrNull { group ->
+            group.isIntentPromptEnabled && group.distractingApps.contains(packageName)
+        }
+
 
     // returns nearest time stamp for rechecking
-    fun isAppRestricted(packageName: String): RestrictionState? {
+    fun isAppRestricted(
+        packageName: String,
+        includeScreenTime: Boolean = true,
+        incrementLaunchCount: Boolean = true,
+    ): RestrictionState? {
         // If already restricted by focus or bedtime or cached
         val alreadyRestrictedState = evaluateIfAlreadyRestricted(packageName)
         if (alreadyRestrictedState != null) {
@@ -88,21 +97,26 @@ class RestrictionManager(
         val restriction = appsRestrictions[packageName] ?: return null
 
         // Increment and Check app launch count
-        val launchCount = appsLaunchCount.getOrDefault(packageName, 0) + 1
-        if ((restriction.launchLimit > 0) && (launchCount > restriction.launchLimit)) {
-            return RestrictionState(type = RestrictionType.LAUNCH_COUNT).also {
-                alreadyRestrictedApps[packageName] = it
+        if (incrementLaunchCount) {
+            val launchCount = appsLaunchCount.getOrDefault(packageName, 0) + 1
+            if ((restriction.launchLimit > 0) && (launchCount > restriction.launchLimit)) {
+                return RestrictionState(type = RestrictionType.LAUNCH_COUNT).also {
+                    alreadyRestrictedApps[packageName] = it
+                }
             }
+            appsLaunchCount[packageName] = launchCount
         }
-        appsLaunchCount[packageName] = launchCount
 
         val futureStates: MutableSet<RestrictionState> = mutableSetOf()
 
         /// evaluate active periods
         evaluateActivePeriodLimit(restriction, futureStates)?.let { return it }
 
-        /// Evaluate screen time
-        evaluateScreenTimeLimit(restriction, futureStates)?.let { return it }
+        /// Evaluate screen time only when requested. The conscious-opening
+        /// overlay can be shown before this heavier usage-events query.
+        if (includeScreenTime) {
+            evaluateScreenTimeLimit(restriction, futureStates)?.let { return it }
+        }
 
         /// Return the nearest expiration
         if (futureStates.isNotEmpty()) {

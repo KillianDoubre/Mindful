@@ -52,6 +52,10 @@ class RestrictionGroupsTable extends Table {
       .map(const ActivePeriodListConverter())
       .withDefault(Constant(jsonEncode([])))();
 
+  /// Ask the user to name their intention before opening an app in this group.
+  BoolColumn get isIntentPromptEnabled =>
+      boolean().withDefault(const Constant(false))();
+
   /// List of app's packages which are associated with the group.
   TextColumn get distractingApps => text()
       .map(const StringListConverter())

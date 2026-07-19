@@ -22,6 +22,7 @@ import 'package:mindful/core/extensions/ext_num.dart';
 import 'package:mindful/core/extensions/ext_widget.dart';
 import 'package:mindful/config/hero_tags.dart';
 import 'package:mindful/providers/focus/focus_mode_provider.dart';
+import 'package:mindful/providers/systems/systems_provider.dart';
 import 'package:mindful/ui/common/default_fab_button.dart';
 import 'package:mindful/ui/common/flip_countdown_text.dart';
 import 'package:mindful/ui/common/scaffold_shell.dart';
@@ -109,6 +110,11 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen> {
         ref.watch(focusModeProvider.select((v) => v.elapsedTimeSec));
 
     final sessionDurationSec = activeSession.value?.durationSecs ?? 0;
+    final linkedSystemName = activeSession.value == null
+        ? null
+        : ref
+            .watch(focusSystemNameProvider(activeSession.value!.id))
+            .valueOrNull;
 
     /// Is the session finite means it does have any finite duration
     final isFinite = sessionDurationSec > 0;
@@ -152,7 +158,7 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen> {
                     ),
             ],
             titleBuilder: (percentage) =>
-                _buildTitle(activeSession.value, percentage),
+                _buildTitle(activeSession.value, percentage, linkedSystemName),
             fab: _isCompleted ||
                     !activeSession.hasValue ||
                     (enforceSession && isFinite)
@@ -193,7 +199,11 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen> {
     );
   }
 
-  Widget _buildTitle(FocusSession? session, double percentage) {
+  Widget _buildTitle(
+    FocusSession? session,
+    double percentage,
+    String? linkedSystemName,
+  ) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -208,8 +218,7 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen> {
         ),
         2.vBox,
         AppBarTitle(
-          titleText: sessionTypeLabels(context)[session?.type] ??
-              context.locale.active_session_tab_title,
+          titleText: linkedSystemName ?? 'Travail',
         )
       ],
     );

@@ -13,12 +13,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mindful/core/enums/item_position.dart';
-import 'package:mindful/core/enums/session_type.dart';
+import 'package:mindful/core/services/systems_repository.dart';
 import 'package:mindful/core/extensions/ext_build_context.dart';
 import 'package:mindful/core/extensions/ext_duration.dart';
 import 'package:mindful/core/extensions/ext_widget.dart';
 import 'package:mindful/config/hero_tags.dart';
 import 'package:mindful/providers/focus/focus_mode_provider.dart';
+import 'package:mindful/models/life_system.dart';
+import 'package:mindful/providers/systems/systems_provider.dart';
 import 'package:mindful/ui/common/default_dropdown_tile.dart';
 import 'package:mindful/ui/common/default_expandable_list_tile.dart';
 import 'package:mindful/ui/common/default_list_tile.dart';
@@ -50,13 +52,33 @@ class FocusConfigurations extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final sessionType =
-        ref.watch(focusModeProvider.select((v) => v.focusMode.sessionType));
-
     final isSessionActive = ref
         .watch(focusModeProvider.select((v) => v.activeSession.value != null));
 
     final profile = ref.watch(focusModeProvider.select((v) => v.focusProfile));
+    final systems = ref
+            .watch(systemsProvider)
+            .valueOrNull
+            ?.where(
+              (system) =>
+                  system.status == LifeSystemStatus.active ||
+                  system.status == LifeSystemStatus.maintenance,
+            )
+            .toList() ??
+        const <LifeSystem>[];
+    final selectedSystemId =
+        ref.watch(selectedFocusSystemProvider).valueOrNull ??
+            (systems.isEmpty ? 0 : systems.first.id);
+    final focusItems = systems.isEmpty
+        ? [DefaultDropdownItem<int>(label: 'Travail', value: 0)]
+        : systems
+            .map(
+              (system) => DefaultDropdownItem<int>(
+                label: system.name,
+                value: system.id,
+              ),
+            )
+            .toList();
 
     return MultiSliver(
       children: [
@@ -65,17 +87,19 @@ class FocusConfigurations extends ConsumerWidget {
         ).sliver,
 
         /// Session tag
-        DefaultDropdownTile<SessionType>(
+        DefaultDropdownTile<int>(
           position: ItemPosition.top,
-          enabled: !isSessionActive,
-          titleText: context.locale.focus_profile_tile_title,
+          enabled: !isSessionActive && focusItems.length > 1,
+          titleText: 'Système de concentration',
           dialogIcon: FluentIcons.door_tag_20_filled,
-          value: sessionType,
-          onSelected: ref.read(focusModeProvider.notifier).setSessionType,
-          items: sessionTypeLabels(context)
-              .entries
-              .map((e) => DefaultDropdownItem(label: e.value, value: e.key))
-              .toList(),
+          value: selectedSystemId,
+          onSelected: (systemId) async {
+            await SystemsRepository.instance.selectFocusSystem(
+              systemId == 0 ? null : systemId,
+            );
+            ref.invalidate(selectedFocusSystemProvider);
+          },
+          items: focusItems,
         ).sliver,
 
         /// Session timer

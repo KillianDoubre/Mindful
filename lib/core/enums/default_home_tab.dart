@@ -14,4 +14,17 @@ enum DefaultHomeTab {
   statistics,
   notifications,
   bedtime,
+  systems,
+}
+
+extension DefaultHomeTabNavigation on DefaultHomeTab {
+  /// Visual position in the label-free home footer. Persisted enum indices stay
+  /// stable so an existing preference never changes meaning after the update.
+  int get navigationIndex => switch (this) {
+        DefaultHomeTab.dashboard => 0,
+        DefaultHomeTab.systems => 1,
+        DefaultHomeTab.statistics => 2,
+        DefaultHomeTab.notifications => 3,
+        DefaultHomeTab.bedtime => 0,
+      };
 }
