@@ -79,6 +79,11 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
                     "matches",
                 ),
                 labels = listOf("Matchs", "Matches", "Messages", "Vos matchs"),
+                activeContentViewIds = listOf(
+                    "co.hinge.app:id/messageComposition",
+                    "co.hinge.app:id/messageCompositionContainer",
+                    "co.hinge.app:id/sendChatButtonContainer",
+                ),
                 fallbackUri = "hinge://matches",
             ),
             "com.bumble.app" to DatingMessageDestination(
@@ -370,6 +375,16 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
                     it.packageName?.toString() == packageName
                 } ?: sourceNode
 
+                // A target app can keep the blocked page mounted while its
+                // messaging tab is already selected. Never send another click
+                // in that state, including from a delayed retry.
+                if (currentRoot != null &&
+                    isDatingMessageDestinationActive(currentRoot, destination)
+                ) {
+                    Log.d(TAG, "openDatingMessages: $packageName already on messages")
+                    return@runCatching
+                }
+
                 val clickedInApp = currentRoot?.let {
                     clickDatingMessageDestination(it, destination)
                 } == true
@@ -429,6 +444,50 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
             // other supported navigation bars.
             tapNodeCenter(node) || clickNodeOrClickableParent(node)
         } == true || tapNavigationDestination(root, destination)
+    }
+
+    private fun isDatingMessageDestinationActive(
+        root: AccessibilityNodeInfo,
+        destination: DatingMessageDestination,
+    ): Boolean {
+        if (destination.activeContentViewIds.any { findNodesByViewId(root, it).isNotEmpty() }) {
+            return true
+        }
+
+        val selectedById = destination.viewIds.any { viewId ->
+            findNodesByViewId(root, viewId).any(::isNodeOrParentSelected)
+        }
+        return selectedById || containsSelectedExactLabel(root, destination.labels)
+    }
+
+    private fun containsSelectedExactLabel(
+        node: AccessibilityNodeInfo,
+        labels: List<String>,
+    ): Boolean {
+        val nodeLabels = listOfNotNull(node.text, node.contentDescription)
+            .map { it.toString().trim() }
+        if (nodeLabels.any { value -> labels.any { it.equals(value, ignoreCase = true) } } &&
+            isNodeOrParentSelected(node)
+        ) {
+            return true
+        }
+
+        for (index in 0 until node.childCount) {
+            node.getChild(index)?.let { child ->
+                if (containsSelectedExactLabel(child, labels)) return true
+            }
+        }
+        return false
+    }
+
+    private fun isNodeOrParentSelected(node: AccessibilityNodeInfo): Boolean {
+        var candidate: AccessibilityNodeInfo? = node
+        repeat(5) {
+            val current = candidate ?: return false
+            if (current.isSelected || current.isChecked) return true
+            candidate = current.parent
+        }
+        return false
     }
 
     private fun findNodeWithExactLabel(
@@ -641,6 +700,7 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
     private data class DatingMessageDestination(
         val viewIds: List<String>,
         val labels: List<String>,
+        val activeContentViewIds: List<String> = emptyList(),
         val fallbackUri: String?,
         val navigationContainerViewId: String? = null,
         val navigationTabIndex: Int? = null,

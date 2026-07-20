@@ -377,6 +377,11 @@ class DatingPlatformManager(
          */
         private val BLOCKED_PAGES: Map<String, PageSignatures> = mapOf(
             "com.tinder" to PageSignatures(
+                safeSelectedViewIds = listOf(
+                    // Conversations / Matches. This takes precedence over
+                    // engagement views that can remain mounted behind the tab.
+                    "com.tinder:id/action_matches",
+                ),
                 selectedViewIds = listOf(
                     // Explore (and its event/experience variants).
                     "com.tinder:id/action_experiences",
@@ -434,6 +439,10 @@ class DatingPlatformManager(
                 ),
             ),
             "com.bumble.app" to PageSignatures(
+                safeSelectedViewIds = listOf(
+                    // Chats remains usable after the discovery budget expires.
+                    "com.bumble.app:id/chat",
+                ),
                 viewIds = listOf(
                     // "À découvrir" uses a Compose compatibility root.
                     "com.bumble.app:id/super_compatible_root",
@@ -448,6 +457,12 @@ class DatingPlatformManager(
                 ),
             ),
             "com.ftw_and_co.happn" to PageSignatures(
+                safeSelectedViewIds = listOf(
+                    // Compose can keep all bottom destinations in the tree, so
+                    // the selected Chat item must win over blocked signatures.
+                    "tab_bar_item_chat_list",
+                    "com.ftw_and_co.happn:id/chat_dest",
+                ),
                 viewIds = listOf(
                     // Compose test-tag ids are intentionally unqualified.
                     "timeline_button_like",

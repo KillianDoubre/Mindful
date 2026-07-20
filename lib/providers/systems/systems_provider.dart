@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mindful/core/services/systems_repository.dart';
 import 'package:mindful/models/life_system.dart';
@@ -47,8 +48,14 @@ class SystemsNotifier extends StateNotifier<AsyncValue<List<LifeSystem>>> {
   late final StreamSubscription<void> _subscription;
 
   Future<void> refresh() async {
-    final next = await AsyncValue.guard(_repository.loadSystems);
-    if (mounted) state = next;
+    try {
+      final systems = await _repository.loadSystems();
+      if (mounted) state = AsyncData(systems);
+    } catch (error, stackTrace) {
+      debugPrint('SystemsRepository.loadSystems failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      if (mounted) state = AsyncError(error, stackTrace);
+    }
   }
 
   Future<int> save(LifeSystemDraft draft, {int? id}) async {

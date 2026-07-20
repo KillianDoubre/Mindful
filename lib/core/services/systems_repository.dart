@@ -730,71 +730,79 @@ class SystemsRepository {
         ON p.victory_id = v.id AND p.week_start = ?
       WHERE v.system_id = ? ORDER BY v.sort_order ASC
     ''', variables: [Variable.withInt(start), Variable.withInt(id)]).get();
-    final victories = victoryRows
-        .map((row) => SystemVictory(
-              id: row.read<int>('id'),
-              title: row.read<String>('title'),
-              targetCount: row.read<int>('target_count'),
-              completedCount: row.read<int>('completed_count'),
-              isImportant: row.read<int>('is_important') == 1,
-              sortOrder: row.read<int>('sort_order'),
-            ))
-        .toList();
+    final victories = <SystemVictory>[
+      for (final row in victoryRows)
+        SystemVictory(
+          id: row.read<int>('id'),
+          title: row.read<String>('title'),
+          targetCount: row.read<int>('target_count'),
+          completedCount: row.read<int>('completed_count'),
+          isImportant: row.read<int>('is_important') == 1,
+          sortOrder: row.read<int>('sort_order'),
+        ),
+    ];
 
     final ruleRows = await _db.customSelect(
       'SELECT * FROM system_rules WHERE system_id = ? ORDER BY sort_order ASC',
       variables: [Variable.withInt(id)],
     ).get();
-    final rules = ruleRows
-        .map((row) => SystemRule(
-              id: row.read<int>('id'),
-              text: row.read<String>('rule_text'),
-              isActive: row.read<int>('is_active') == 1,
-              sortOrder: row.read<int>('sort_order'),
-            ))
-        .toList();
+    final rules = <SystemRule>[
+      for (final row in ruleRows)
+        SystemRule(
+          id: row.read<int>('id'),
+          text: row.read<String>('rule_text'),
+          isActive: row.read<int>('is_active') == 1,
+          sortOrder: row.read<int>('sort_order'),
+        ),
+    ];
 
     final frictionRows = await _db.customSelect(
       'SELECT * FROM system_frictions WHERE system_id = ? ORDER BY sort_order ASC',
       variables: [Variable.withInt(id)],
     ).get();
-    final frictions = frictionRows
-        .map((row) => SystemFriction(
-              id: row.read<int>('id'),
-              text: row.read<String>('friction_text'),
-              type: SystemFrictionType.fromDatabase(
-                row.read<String>('friction_type'),
-              ),
-              status: SystemFrictionStatus.fromDatabase(
-                row.read<String>('status'),
-              ),
-              sortOrder: row.read<int>('sort_order'),
-            ))
-        .toList();
+    final frictions = <SystemFriction>[
+      for (final row in frictionRows)
+        SystemFriction(
+          id: row.read<int>('id'),
+          text: row.read<String>('friction_text'),
+          type: SystemFrictionType.fromDatabase(
+            row.read<String>('friction_type'),
+          ),
+          status: SystemFrictionStatus.fromDatabase(
+            row.read<String>('status'),
+          ),
+          sortOrder: row.read<int>('sort_order'),
+        ),
+    ];
 
     final weekRows = await _db.customSelect('''
       SELECT * FROM system_weeks WHERE system_id = ?
       ORDER BY week_start DESC LIMIT 16
     ''', variables: [Variable.withInt(id)]).get();
-    final weeks = weekRows.map((row) => _weekFromRow(row.data)).toList();
+    final weeks = <SystemWeek>[
+      for (final row in weekRows) _weekFromRow(row.data),
+    ];
     final currentWeek = weeks.firstWhere(
       (week) => week.weekStart.millisecondsSinceEpoch == start,
     );
-    final closed = weeks
-        .where(
-          (week) =>
-              week.weekStart.millisecondsSinceEpoch < start &&
-              week.statusAtEnd != LifeSystemStatus.paused,
-        )
-        .toList();
-    final baseline =
-        _weightedMomentum(closed.map((week) => week.completionRatio).toList());
-    final provisional = currentWeek.completionRatio * .60 +
+    final closed = <SystemWeek>[
+      for (final week in weeks)
+        if (week.weekStart.millisecondsSinceEpoch < start &&
+            week.statusAtEnd != LifeSystemStatus.paused)
+          week,
+    ];
+    final ratios = <double>[
+      for (final week in closed) week.completionRatio,
+    ];
+    final baseline = _weightedMomentum(ratios);
+    final double provisional = currentWeek.completionRatio * .60 +
         (closed.isNotEmpty ? closed[0].completionRatio * .30 : 0) +
         (closed.length > 1 ? closed[1].completionRatio * .10 : 0);
-    final momentum = status == LifeSystemStatus.paused
+    final double momentum = status == LifeSystemStatus.paused
         ? baseline
-        : (baseline > provisional ? baseline : provisional).clamp(0.0, 1.0);
+        : (baseline > provisional ? baseline : provisional)
+            .clamp(0.0, 1.0)
+            .toDouble();
     await _db.customStatement('''
       UPDATE system_weeks SET momentum = ?
       WHERE system_id = ? AND week_start = ?
@@ -804,7 +812,9 @@ class SystemsRepository {
       SELECT * FROM system_events WHERE system_id = ?
       ORDER BY occurred_at DESC LIMIT 20
     ''', variables: [Variable.withInt(id)]).get();
-    final events = eventRows.map((row) => _eventFromRow(row.data)).toList();
+    final events = <SystemEvent>[
+      for (final row in eventRows) _eventFromRow(row.data),
+    ];
 
     return LifeSystem(
       id: id,
