@@ -31,10 +31,10 @@ class SystemsTab extends ConsumerWidget {
               error: (_, __) => _LoadError(
                 onRetry: ref.read(systemsProvider.notifier).refresh,
               ),
-              data: (items) => _SystemsSummary(systems: items),
+              // Summary moved to the home dashboard (SystemsSummaryCard).
+              data: (_) => const SizedBox(height: 6),
             ),
           ),
-          const SliverToBoxAdapter(child: SizedBox(height: 14)),
           ...systems.when(
             loading: () => const <Widget>[],
             error: (_, __) => const <Widget>[],
@@ -494,52 +494,99 @@ class _SoftPill extends StatelessWidget {
       );
 }
 
-class _SystemsSummary extends StatelessWidget {
-  const _SystemsSummary({required this.systems});
+/// Systems summary card ("Des preuves, pas des séries.") used on the home
+/// dashboard. Watches [systemsProvider] and, when [onTap] is provided, becomes
+/// a tappable shortcut (e.g. to switch to the Systems tab).
+class SystemsSummaryCard extends ConsumerWidget {
+  const SystemsSummaryCard({super.key, this.onTap});
 
-  final List<LifeSystem> systems;
+  final VoidCallback? onTap;
 
   @override
-  Widget build(BuildContext context) => GlassSurface(
-        showShadow: false,
-        padding: const EdgeInsets.all(17),
-        borderRadius: BorderRadius.circular(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(systemsProvider);
+    return state.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (systems) => _SystemsSummary(systems: systems, onTap: onTap),
+    );
+  }
+}
+
+class _SystemsSummary extends StatelessWidget {
+  const _SystemsSummary({required this.systems, this.onTap});
+
+  final List<LifeSystem> systems;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            Text(
-              'Des preuves, pas des séries.',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-            ),
-            const SizedBox(height: 5),
-            Text(
-              systems.isEmpty
-                  ? 'Construisez un environnement qui rend l’action réelle plus simple.'
-                  : '${systems.length}/5 systèmes · chacun conserve son propre rythme.',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-            ),
-            if (systems.isNotEmpty) ...[
-              const SizedBox(height: 13),
-              Wrap(
-                spacing: 7,
-                runSpacing: 7,
-                children: LifeSystemStatus.values
-                    .map(
-                      (status) => _CountPill(
-                        status: status,
-                        count: systems.where((s) => s.status == status).length,
-                      ),
-                    )
-                    .toList(),
+            Expanded(
+              child: Text(
+                'Des preuves, pas des séries.',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
               ),
-            ],
+            ),
+            if (onTap != null)
+              const Padding(
+                padding: EdgeInsets.only(left: 8),
+                child: Icon(FluentIcons.chevron_right_20_regular),
+              ),
           ],
         ),
-      );
+        const SizedBox(height: 5),
+        Text(
+          systems.isEmpty
+              ? 'Construisez un environnement qui rend l’action réelle plus simple.'
+              : '${systems.length}/5 systèmes · chacun conserve son propre rythme.',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+        ),
+        if (systems.isNotEmpty) ...[
+          const SizedBox(height: 13),
+          Wrap(
+            spacing: 7,
+            runSpacing: 7,
+            children: LifeSystemStatus.values
+                .map(
+                  (status) => _CountPill(
+                    status: status,
+                    count: systems.where((s) => s.status == status).length,
+                  ),
+                )
+                .toList(),
+          ),
+        ],
+      ],
+    );
+
+    return GlassSurface(
+      showShadow: false,
+      padding: onTap == null ? const EdgeInsets.all(17) : EdgeInsets.zero,
+      borderRadius: BorderRadius.circular(24),
+      child: onTap == null
+          ? content
+          : Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(24),
+                onTap: onTap,
+                child: Padding(
+                  padding: const EdgeInsets.all(17),
+                  child: content,
+                ),
+              ),
+            ),
+    );
+  }
 }
 
 class _EmptySystems extends StatelessWidget {

@@ -3,6 +3,7 @@ package com.mindful.android.services.tracking
 import android.app.Service
 import android.content.Intent
 import android.os.IBinder
+import android.os.SystemClock
 import android.util.Log
 import androidx.annotation.WorkerThread
 import com.mindful.android.AppConstants
@@ -16,9 +17,19 @@ import com.mindful.android.models.RestrictionGroup
 class MindfulTrackerService : Service() {
     companion object {
         private const val TAG = "Mindful.MindfulTrackerService"
+
+        // Returning to an app within this window counts as resuming from the
+        // background (not a fresh open), so the intention prompt is not shown
+        // again. A real open — first time, or after a longer absence — still prompts.
+        private const val RESUME_WINDOW_MS = 5 * 60 * 1000L
     }
 
     private val mBinder = ServiceBinder(this@MindfulTrackerService)
+
+    /// Foreground bookkeeping used to tell a fresh app open apart from a quick
+    /// background -> foreground return (see [onNewAppLaunch]).
+    private var lastForegroundPkg: String? = null
+    private val leftBackgroundAtMillis = HashMap<String, Long>()
 
     private lateinit var overlayManager: OverlayManager
     private lateinit var reminderManager: ReminderManager
@@ -85,11 +96,27 @@ class MindfulTrackerService : Service() {
             // or recreate it while the user is choosing an intention.
             if (overlayManager.hasSheetOverlay) return
 
+            // Tell a fresh open apart from a quick background -> foreground return.
+            // The same package re-firing (e.g. unlocking back into it) or coming
+            // back within RESUME_WINDOW_MS counts as a resume, not a new open.
+            val nowMs = SystemClock.elapsedRealtime()
+            val previousPkg = lastForegroundPkg
+            if (previousPkg != null && previousPkg != packageName) {
+                leftBackgroundAtMillis[previousPkg] = nowMs
+            }
+            val awayMs =
+                leftBackgroundAtMillis[packageName]?.let { nowMs - it } ?: Long.MAX_VALUE
+            val isReturningFromBackground =
+                previousPkg == packageName || awayMs < RESUME_WINDOW_MS
+            lastForegroundPkg = packageName
+
             reminderManager.cancelReminders()
 
             val promptGroup = restrictionManager.getIntentPromptGroup(packageName)
 
-            if (promptGroup != null) {
+            // Skip the intention prompt on a background return; enforcement
+            // (block overlay + reminders) still runs via the normal path below.
+            if (promptGroup != null && !isReturningFromBackground) {
                 // Resolve inexpensive restrictions first, then cover the target app
                 // before querying the heavier UsageEvents history.
                 val immediateState = restrictionManager.isAppRestricted(
@@ -131,7 +158,9 @@ class MindfulTrackerService : Service() {
                 return
             }
 
-            /// No conscious-opening prompt: evaluate restrictions normally.
+            /// No conscious-opening prompt (or a background return): evaluate
+            /// restrictions normally — shows the block overlay if the limit is
+            /// exhausted and schedules reminders otherwise.
             val currentOrFutureState = restrictionManager.isAppRestricted(packageName)
             Log.d(TAG, "onNewAppLaunch: $packageName's evaluated state => $currentOrFutureState")
 

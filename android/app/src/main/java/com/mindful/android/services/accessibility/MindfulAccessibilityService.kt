@@ -53,7 +53,10 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
     companion object {
         private const val TAG = "Mindful.MindfulAccessibilityService"
         private const val INSTAGRAM_INBOX_URI = "instagram://direct-inbox"
-        private val DATING_REDIRECT_RETRY_DELAYS_MS = longArrayOf(90L, 180L, 320L, 500L)
+        // Shared retry window ≈ 3.5s across 5 attempts (initial + these 4), run
+        // AFTER the per-app start delay, so a slow tab transition or app load
+        // still lands on the messages tab.
+        private val DATING_REDIRECT_RETRY_DELAYS_MS = listOf(400L, 700L, 1000L, 1400L)
 
         /**
          * Native destinations exposed by the currently supported dating apps.
@@ -101,6 +104,10 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
                 navigationContainerViewId = "com.bumble.app:id/mainApp_navigationTabBar",
                 navigationTabIndex = 4,
                 navigationTabCount = 5,
+                // Bumble's splash/app load can take ~5s before the navigation bar
+                // exists, so wait longer before the first tap (then the shared
+                // 3.5s retry window covers up to ~7.5s total).
+                startDelayMs = 4000L,
             ),
             "com.ftw_and_co.happn" to DatingMessageDestination(
                 viewIds = listOf(
@@ -359,7 +366,13 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
         packageName: String,
         sourceNode: AccessibilityNodeInfo?,
     ) {
-        tryOpenDatingMessages(packageName, sourceNode, attempt = 0)
+        // Wait for the app to settle before the first tap (Bumble ~4s, others
+        // ~1.5s). The source node is stale after the delay, so retries and this
+        // first attempt rely on the live rootInActiveWindow instead.
+        val startDelayMs = DATING_MESSAGE_DESTINATIONS[packageName]?.startDelayMs ?: 0L
+        ThreadUtils.runOnMainThread(startDelayMs) {
+            tryOpenDatingMessages(packageName, sourceNode = null, attempt = 0)
+        }
     }
 
     private fun tryOpenDatingMessages(
@@ -705,5 +718,8 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
         val navigationContainerViewId: String? = null,
         val navigationTabIndex: Int? = null,
         val navigationTabCount: Int? = null,
+        /// Delay before the first tab-tap attempt, letting the app finish its
+        /// splash/load so taps are not sent during an unstable transition.
+        val startDelayMs: Long = 1500L,
     )
 }
