@@ -47,6 +47,7 @@ object NotificationHelper {
     private const val SERVICE_CHANNEL_ID: String =
         "mindful.notification.channel.SERVICE"
     const val USAGE_REMINDERS_CHANNEL_ID: String = "mindful.notification.channel.USAGE_REMINDERS"
+    const val SYSTEMS_CHANNEL_ID: String = "mindful.notification.channel.SYSTEMS"
 
     /**
      * Registers notification channels for the application. This method creates and registers
@@ -113,6 +114,15 @@ object NotificationHelper {
                     "These notifications include usage reminders for timed apps."
             }
 
+            val systemsChannel = NotificationChannel(
+                SYSTEMS_CHANNEL_ID,
+                "Systems Reminders",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description =
+                    "These notifications remind you to work on your systems and to run your weekly review."
+            }
+
             // Register channels
             val notificationManager =
                 context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -123,7 +133,8 @@ object NotificationHelper {
                     bedtimeChannel,
                     notificationBatchingChannel,
                     serviceChannel,
-                    usageRemindersChannel
+                    usageRemindersChannel,
+                    systemsChannel
                 )
             )
         }

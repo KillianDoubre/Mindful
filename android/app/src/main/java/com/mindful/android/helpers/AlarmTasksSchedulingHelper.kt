@@ -27,6 +27,9 @@ import com.mindful.android.receivers.alarm.MidnightResetReceiver
 import com.mindful.android.receivers.alarm.NotificationBatchReceiver
 import com.mindful.android.receivers.alarm.NotificationBatchReceiver.Companion.EXTRA_NOTIFICATION_SETTINGS_JSON
 import com.mindful.android.receivers.alarm.NotificationBatchReceiver.NotificationBatchWorker
+import com.mindful.android.receivers.alarm.SystemsReminderReceiver
+import com.mindful.android.receivers.alarm.SystemsReminderReceiver.Companion.EXTRA_SYSTEMS_REMINDERS_JSON
+import com.mindful.android.models.SystemsReminders
 import com.mindful.android.services.tracking.MindfulTrackerService
 import com.mindful.android.utils.DateTimeUtils.todToTodayCal
 import com.mindful.android.utils.Utils
@@ -41,6 +44,8 @@ object AlarmTasksSchedulingHelper {
     private const val MIDNIGHT_RESET_ALARM_ID = 101
     private const val BEDTIME_ROUTINE_ALARM_ID = 102
     private const val NOTIFICATION_BATCH_ALARM_ID = 103
+    private const val SYSTEMS_DAILY_REMINDER_ALARM_ID = 104
+    private const val SYSTEMS_WEEKLY_REMINDER_ALARM_ID = 105
 
 
     /**
@@ -245,6 +250,95 @@ object AlarmTasksSchedulingHelper {
             intentActions = listOf(NotificationBatchReceiver.ACTION_PUSH_BATCH)
         )
         Log.d(TAG, "cancelNotificationBatchTask: Notification batch tasks cancelled successfully")
+    }
+
+    /**
+     * Schedules (or cancels) the Systems reminders based on the provided config.
+     *
+     * Each enabled reminder is scheduled for its next occurrence; the receiver
+     * itself decides whether to notify based on the active weekdays and then
+     * reschedules for the following day. Disabled reminders are cancelled.
+     *
+     * @param context The application context.
+     * @param jsonSystemsReminders The json string of the [SystemsReminders] config.
+     */
+    fun scheduleSystemsReminders(context: Context, jsonSystemsReminders: String) {
+        if (jsonSystemsReminders.isBlank()) {
+            cancelSystemsReminders(context)
+            return
+        }
+
+        val reminders = SystemsReminders.fromJson(jsonSystemsReminders)
+        val extraMap = mapOf(EXTRA_SYSTEMS_REMINDERS_JSON to jsonSystemsReminders)
+
+        /// Daily systems reminder
+        if (reminders.daily.isEnabled) {
+            scheduleOrUpdateExactAlarmTask(
+                context = context,
+                receiverClass = SystemsReminderReceiver::class.java,
+                intentAction = SystemsReminderReceiver.ACTION_DAILY_SYSTEMS,
+                requestCode = SYSTEMS_DAILY_REMINDER_ALARM_ID,
+                epochTimeMs = nextTimeOfDayEpochMs(reminders.daily.minutes),
+                extraMap = extraMap,
+            )
+        } else {
+            cancelExactAlarmTasks(
+                context = context,
+                receiverClass = SystemsReminderReceiver::class.java,
+                requestCode = SYSTEMS_DAILY_REMINDER_ALARM_ID,
+                intentActions = listOf(SystemsReminderReceiver.ACTION_DAILY_SYSTEMS),
+            )
+        }
+
+        /// Weekly review reminder
+        if (reminders.weekly.isEnabled) {
+            scheduleOrUpdateExactAlarmTask(
+                context = context,
+                receiverClass = SystemsReminderReceiver::class.java,
+                intentAction = SystemsReminderReceiver.ACTION_WEEKLY_SYSTEMS_REVIEW,
+                requestCode = SYSTEMS_WEEKLY_REMINDER_ALARM_ID,
+                epochTimeMs = nextTimeOfDayEpochMs(reminders.weekly.minutes),
+                extraMap = extraMap,
+            )
+        } else {
+            cancelExactAlarmTasks(
+                context = context,
+                receiverClass = SystemsReminderReceiver::class.java,
+                requestCode = SYSTEMS_WEEKLY_REMINDER_ALARM_ID,
+                intentActions = listOf(SystemsReminderReceiver.ACTION_WEEKLY_SYSTEMS_REVIEW),
+            )
+        }
+        Log.d(TAG, "scheduleSystemsReminders: Systems reminders scheduled/updated")
+    }
+
+    /**
+     * Cancels both Systems reminder alarms.
+     */
+    fun cancelSystemsReminders(context: Context) {
+        cancelExactAlarmTasks(
+            context = context,
+            receiverClass = SystemsReminderReceiver::class.java,
+            requestCode = SYSTEMS_DAILY_REMINDER_ALARM_ID,
+            intentActions = listOf(SystemsReminderReceiver.ACTION_DAILY_SYSTEMS),
+        )
+        cancelExactAlarmTasks(
+            context = context,
+            receiverClass = SystemsReminderReceiver::class.java,
+            requestCode = SYSTEMS_WEEKLY_REMINDER_ALARM_ID,
+            intentActions = listOf(SystemsReminderReceiver.ACTION_WEEKLY_SYSTEMS_REVIEW),
+        )
+    }
+
+    /**
+     * Returns the epoch millis for the next occurrence of the given time of day.
+     * If the time already passed today, it rolls over to tomorrow.
+     */
+    private fun nextTimeOfDayEpochMs(todMinutes: Int): Long {
+        val cal = todToTodayCal(todMinutes)
+        if (cal.timeInMillis <= System.currentTimeMillis()) {
+            cal.add(Calendar.DATE, 1)
+        }
+        return cal.timeInMillis
     }
 
     /**

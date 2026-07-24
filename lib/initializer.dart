@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mindful/core/services/drift_db_service.dart';
 import 'package:mindful/core/services/method_channel_service.dart';
+import 'package:mindful/core/services/systems_repository.dart';
 
 /// Initializer to initialize necessary things.
 class Initializer {
@@ -53,6 +54,11 @@ class Initializer {
     final notificationSettings = await uniqueDao.loadNotificationSettings();
     await MethodChannelService.instance
         .updateNotificationSettings(notificationSettings);
+
+    /// Fetch and (re)schedule Systems reminders
+    final systemsReminders =
+        await SystemsRepository.instance.loadRemindersConfig();
+    await MethodChannelService.instance.updateSystemsReminders(systemsReminders);
 
     debugPrint(
       "All necessary services and schedules are initialized and it took ${DateTime.now().difference(startTimeStamp).inMilliseconds}ms.",

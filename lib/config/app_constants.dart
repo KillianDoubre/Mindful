@@ -20,7 +20,7 @@ class AppConstants {
   static const defaultLocale = "fr";
   static const defaultUsername = "Achiever";
   static const defaultCurve = Curves.fastEaseInToSlowEaseOut;
-  static const defaultAnimDuration = Duration(milliseconds: 350);
+  static const defaultAnimDuration = Duration(milliseconds: 200);
 
   // Custom packages
   static const removedAppPackage = "com.android.removed";

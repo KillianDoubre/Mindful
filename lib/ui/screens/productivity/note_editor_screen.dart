@@ -6,7 +6,6 @@ import 'package:mindful/models/productivity_item.dart';
 import 'package:mindful/providers/productivity/productivity_items_provider.dart';
 import 'package:mindful/ui/common/glass_surface.dart';
 import 'package:mindful/ui/common/mindful_background.dart';
-import 'package:mindful/ui/screens/productivity/note_edit_icon.dart';
 
 const _noteColors = <int>[
   0,
@@ -37,15 +36,20 @@ const _highlightColors = <int>[
   0xFFE1BEE7,
 ];
 
+/// A full-screen, always-editable note canvas (Google Keep style).
+///
+/// Reading and editing share the exact same surface: there is no separate
+/// read-only mode. The whole note is a single uniform block — a tinted glass
+/// card holding a borderless title and full-width, background-free text blocks.
+/// A single persistent toolbar at the bottom drives block type, formatting,
+/// adding and deleting blocks.
 class NoteEditorScreen extends ConsumerStatefulWidget {
   const NoteEditorScreen({
     super.key,
     this.note,
-    this.startInEditMode = false,
   });
 
   final ProductivityItem? note;
-  final bool startInEditMode;
 
   @override
   ConsumerState<NoteEditorScreen> createState() => _NoteEditorScreenState();
@@ -55,10 +59,6 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
   late final TextEditingController _titleController;
   late List<NoteBlock> _blocks;
   late int _noteColorValue;
-  late String _savedTitle;
-  late List<NoteBlock> _savedBlocks;
-  late int _savedNoteColorValue;
-  late bool _isEditing;
 
   String? _activeBlockId;
   String? _focusBlockId;
@@ -78,10 +78,6 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
     _titleController = TextEditingController(text: widget.note?.title);
     _blocks = NoteDocument.decode(widget.note?.details ?? '').blocks.toList();
     _noteColorValue = widget.note?.colorValue ?? 0;
-    _savedTitle = widget.note?.title ?? '';
-    _savedBlocks = [..._blocks];
-    _savedNoteColorValue = _noteColorValue;
-    _isEditing = widget.note == null || widget.startInEditMode;
     _activeBlockId = _blocks.firstOrNull?.id;
     _titleController.addListener(_markDirty);
   }
@@ -96,7 +92,8 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
     final activeBlock = _activeBlock;
 
     return PopScope(
@@ -116,133 +113,97 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
             onPressed: _requestClose,
             icon: const Icon(Icons.arrow_back_rounded),
           ),
-          title: Text(
-            widget.note == null
-                ? 'Nouvelle note'
-                : (_isEditing ? 'Modifier la note' : 'Note'),
-          ),
+          title: Text(widget.note == null ? 'Nouvelle note' : 'Note'),
           actions: [
-            if (!_isEditing)
-              IconButton(
-                tooltip: 'Modifier la note',
-                onPressed: _enterEditMode,
-                icon: const NoteEditIcon(),
-              ),
-            if (_isEditing && widget.note != null)
+            _ColorMenu(
+              tooltip: 'Couleur de la note',
+              icon: Icons.palette_outlined,
+              values: _noteColors,
+              selectedValue: _noteColorValue,
+              onSelected: (value) {
+                setState(() => _noteColorValue = value);
+                _markDirty();
+              },
+            ),
+            if (widget.note != null)
               IconButton(
                 tooltip: 'Supprimer la note',
                 onPressed: _confirmDelete,
                 icon: Icon(Icons.delete_outline_rounded, color: colors.error),
               ),
-            if (_isEditing)
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: FilledButton.icon(
-                  onPressed: _isSaving ? null : _save,
-                  icon: _isSaving
-                      ? const SizedBox.square(
-                          dimension: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.check_rounded, size: 19),
-                  label: const Text('Enregistrer'),
-                ),
+            Padding(
+              padding: const EdgeInsets.only(right: 8, left: 4),
+              child: FilledButton.icon(
+                onPressed: (_isSaving || !_isDirty) ? null : _save,
+                icon: _isSaving
+                    ? const SizedBox.square(
+                        dimension: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.check_rounded, size: 19),
+                label: const Text('Enregistrer'),
               ),
+            ),
           ],
         ),
         body: Stack(
           fit: StackFit.expand,
           children: [
             const MindfulBackground(),
-            if (_isEditing)
-              Column(
-                children: [
-                  _buildTitleAndNoteColor(context),
-                  if (activeBlock != null)
-                    _FormattingToolbar(
-                      block: activeBlock,
-                      onTypeChanged: _changeActiveBlockType,
-                      onChanged: _replaceBlock,
-                    ),
-                  Expanded(child: _buildBlocksList()),
-                  _AddBlockBar(onAdd: _insertBlock),
-                ],
-              )
-            else
-              _buildReadOnlyView(context),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTitleAndNoteColor(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-      child: GlassSurface(
-        showShadow: false,
-        color: _resolveNoteColor(theme, _noteColorValue),
-        borderRadius: BorderRadius.circular(24),
-        padding: const EdgeInsets.fromLTRB(18, 12, 10, 10),
-        child: Column(
-          children: [
-            TextField(
-              controller: _titleController,
-              textCapitalization: TextCapitalization.sentences,
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-              decoration: const InputDecoration(
-                hintText: 'Titre de la note',
-                border: InputBorder.none,
-              ),
-            ),
-            SizedBox(
-              height: 42,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: _noteColors.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (context, index) {
-                  final value = _noteColors[index];
-                  final isSelected = value == _noteColorValue;
-                  return Semantics(
-                    button: true,
-                    selected: isSelected,
-                    label:
-                        value == 0 ? 'Couleur automatique' : 'Couleur de note',
-                    child: InkWell(
-                      onTap: () {
-                        setState(() => _noteColorValue = value);
-                        _markDirty();
-                      },
-                      customBorder: const CircleBorder(),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 160),
-                        width: 38,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: value == 0
-                              ? colors.surfaceContainerHighest
-                              : Color(value),
-                          border: Border.all(
-                            color: isSelected
-                                ? colors.primary
-                                : colors.outlineVariant,
-                            width: isSelected ? 3 : 1,
-                          ),
+            Column(
+              children: [
+                Expanded(
+                  child: ListView(
+                    physics: const BouncingScrollPhysics(),
+                    // Keep the keyboard (and any active text selection) alive
+                    // while scrolling — onDrag would dismiss both.
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.manual,
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                    children: [
+                      GlassSurface(
+                        color: _resolveNoteColor(theme, _noteColorValue),
+                        borderRadius: BorderRadius.circular(28),
+                        padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildTitleField(theme),
+                            const SizedBox(height: 4),
+                            for (var index = 0;
+                                index < _blocks.length;
+                                index++)
+                              _NoteBlockEditor(
+                                key: ValueKey(_blocks[index].id),
+                                block: _blocks[index],
+                                orderedNumber: _orderedNumberAt(index),
+                                requestFocus: _blocks[index].id == _focusBlockId,
+                                onFocused: () => setState(
+                                  () {
+                                    _activeBlockId = _blocks[index].id;
+                                    _focusBlockId = null;
+                                  },
+                                ),
+                                onChanged: _replaceBlock,
+                                onListBreak: _handleListBreak,
+                                onListShortcut: _applyListShortcut,
+                                onBackspaceEmpty: _handleBackspaceEmpty,
+                              ),
+                          ],
                         ),
-                        child: isSelected
-                            ? Icon(Icons.check_rounded,
-                                size: 18, color: colors.onSurface)
-                            : null,
                       ),
-                    ),
-                  );
-                },
-              ),
+                    ],
+                  ),
+                ),
+                if (activeBlock != null)
+                  _BottomEditingBar(
+                    block: activeBlock,
+                    onTypeChanged: _changeActiveBlockType,
+                    onBlockChanged: _replaceBlock,
+                    onAdd: _insertBlock,
+                    onDelete: () => _removeBlock(activeBlock),
+                  ),
+              ],
             ),
           ],
         ),
@@ -250,99 +211,19 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
     );
   }
 
-  Widget _buildReadOnlyView(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
-    return ListView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(16, 18, 16, 32),
-      children: [
-        GlassSurface(
-          color: _resolveNoteColor(theme, _noteColorValue),
-          borderRadius: BorderRadius.circular(28),
-          padding: const EdgeInsets.fromLTRB(22, 24, 22, 28),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SelectableText(
-                _titleController.text,
-                style: theme.textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Divider(color: colors.outlineVariant.withValues(alpha: 0.65)),
-              const SizedBox(height: 10),
-              for (var index = 0; index < _blocks.length; index++)
-                _ReadOnlyNoteBlock(
-                  block: _blocks[index],
-                  orderedNumber: _orderedNumberAt(index),
-                ),
-            ],
-          ),
+  Widget _buildTitleField(ThemeData theme) => TextField(
+        controller: _titleController,
+        textCapitalization: TextCapitalization.sentences,
+        maxLines: null,
+        style: theme.textTheme.headlineSmall?.copyWith(
+          fontWeight: FontWeight.w700,
         ),
-        const SizedBox(height: 18),
-        FilledButton.icon(
-          onPressed: _enterEditMode,
-          icon: NoteEditIcon(color: colors.onPrimary),
-          label: const Text('Modifier cette note'),
-          style: FilledButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 15),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(18),
-            ),
-          ),
+        decoration: const InputDecoration(
+          hintText: 'Titre',
+          border: InputBorder.none,
+          isDense: true,
+          contentPadding: EdgeInsets.symmetric(vertical: 4),
         ),
-      ],
-    );
-  }
-
-  Widget _buildBlocksList() => ReorderableListView.builder(
-        buildDefaultDragHandles: false,
-        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
-        itemCount: _blocks.length,
-        onReorderItem: (oldIndex, newIndex) {
-          if (oldIndex == newIndex) return;
-          setState(() {
-            final block = _blocks.removeAt(oldIndex);
-            _blocks.insert(newIndex, block);
-          });
-          HapticFeedback.selectionClick();
-          _markDirty();
-        },
-        proxyDecorator: (child, _, animation) => AnimatedBuilder(
-          animation: animation,
-          builder: (context, _) => Transform.scale(
-            scale: 1 + animation.value * 0.025,
-            child: Material(
-              color: Colors.transparent,
-              elevation: animation.value * 8,
-              borderRadius: BorderRadius.circular(20),
-              child: child,
-            ),
-          ),
-        ),
-        itemBuilder: (context, index) {
-          final block = _blocks[index];
-          return Padding(
-            key: ValueKey(block.id),
-            padding: const EdgeInsets.only(bottom: 10),
-            child: _NoteBlockEditor(
-              block: block,
-              index: index,
-              orderedNumber: _orderedNumberAt(index),
-              isActive: block.id == _activeBlockId,
-              requestFocus: block.id == _focusBlockId,
-              onFocused: () => setState(() {
-                _activeBlockId = block.id;
-                _focusBlockId = null;
-              }),
-              onChanged: _replaceBlock,
-              onDelete: () => _removeBlock(block),
-            ),
-          );
-        },
       );
 
   int _orderedNumberAt(int index) {
@@ -383,6 +264,71 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
     _markDirty();
   }
 
+  /// Google-Keep-style markdown shortcut: `- ` / `* ` starts a bullet list and
+  /// `1. ` / `1) ` starts a numbered list. The prefix is consumed by the caller.
+  void _applyListShortcut(NoteBlock block, NoteBlockKind kind) {
+    _replaceBlock(block.copyWith(kind: kind, text: ''));
+  }
+
+  /// Handles Enter inside a list/checkbox block: continue the list with a fresh
+  /// sibling of the same kind, or — when Enter is pressed on an already empty
+  /// item (a second line break) — end the list by turning it into a paragraph.
+  void _handleListBreak(NoteBlock block, String before, String after) {
+    final index = _blocks.indexWhere((current) => current.id == block.id);
+    if (index < 0) return;
+
+    if (before.isEmpty && after.isEmpty) {
+      setState(() {
+        _blocks[index] = block.copyWith(
+          kind: NoteBlockKind.paragraph,
+          text: '',
+        );
+        _activeBlockId = block.id;
+      });
+      _markDirty();
+      return;
+    }
+
+    final sibling = NoteBlock.empty(block.kind).copyWith(
+      headingLevel: block.headingLevel,
+      text: after,
+    );
+    setState(() {
+      _blocks[index] = block.copyWith(text: before);
+      _blocks.insert(index + 1, sibling);
+      _activeBlockId = sibling.id;
+      _focusBlockId = sibling.id;
+    });
+    _markDirty();
+  }
+
+  /// Backspace on an empty block: a list/checkbox item drops its marker and
+  /// becomes a paragraph; an empty paragraph merges into the previous block.
+  void _handleBackspaceEmpty(NoteBlock block) {
+    final index = _blocks.indexWhere((current) => current.id == block.id);
+    if (index < 0) return;
+
+    if (block.kind != NoteBlockKind.paragraph) {
+      setState(() {
+        _blocks[index] = block.copyWith(kind: NoteBlockKind.paragraph);
+        _activeBlockId = block.id;
+        _focusBlockId = block.id;
+      });
+      _markDirty();
+      return;
+    }
+
+    if (index > 0) {
+      final previous = _blocks[index - 1];
+      setState(() {
+        _blocks.removeAt(index);
+        _activeBlockId = previous.id;
+        _focusBlockId = previous.id;
+      });
+      _markDirty();
+    }
+  }
+
   void _removeBlock(NoteBlock block) {
     setState(() {
       if (_blocks.length == 1) {
@@ -402,28 +348,9 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
   }
 
   void _markDirty() {
-    if (_isEditing && !_isDirty && mounted) {
+    if (!_isDirty && mounted) {
       setState(() => _isDirty = true);
     }
-  }
-
-  void _enterEditMode() {
-    setState(() {
-      _isEditing = true;
-      _activeBlockId = _blocks.firstOrNull?.id;
-    });
-  }
-
-  void _restoreSavedVersion() {
-    setState(() {
-      _isEditing = false;
-      _isDirty = false;
-      _blocks = [..._savedBlocks];
-      _noteColorValue = _savedNoteColorValue;
-      _activeBlockId = _blocks.firstOrNull?.id;
-      _focusBlockId = null;
-    });
-    _titleController.text = _savedTitle;
   }
 
   Future<void> _save() async {
@@ -450,9 +377,6 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
             id: widget.note?.id,
           );
       if (!mounted) return;
-      _savedTitle = title;
-      _savedBlocks = [..._blocks];
-      _savedNoteColorValue = _noteColorValue;
       if (widget.note == null) {
         setState(() => _isDirty = false);
         await Future<void>.delayed(Duration.zero);
@@ -460,7 +384,6 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
       } else {
         setState(() {
           _isDirty = false;
-          _isEditing = false;
           _isSaving = false;
         });
       }
@@ -476,11 +399,7 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
 
   Future<void> _requestClose() async {
     if (!_isDirty) {
-      if (_isEditing && widget.note != null) {
-        setState(() => _isEditing = false);
-      } else {
-        Navigator.pop(context);
-      }
+      Navigator.pop(context);
       return;
     }
     final discard = await showDialog<bool>(
@@ -502,13 +421,9 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
       ),
     );
     if (discard == true && mounted) {
-      if (widget.note != null) {
-        _restoreSavedVersion();
-      } else {
-        setState(() => _isDirty = false);
-        await Future<void>.delayed(Duration.zero);
-        if (mounted) Navigator.pop(context);
-      }
+      setState(() => _isDirty = false);
+      await Future<void>.delayed(Duration.zero);
+      if (mounted) Navigator.pop(context);
     }
   }
 
@@ -554,114 +469,6 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
   }
 }
 
-class _ReadOnlyNoteBlock extends StatelessWidget {
-  const _ReadOnlyNoteBlock({
-    required this.block,
-    required this.orderedNumber,
-  });
-
-  final NoteBlock block;
-  final int orderedNumber;
-
-  @override
-  Widget build(BuildContext context) {
-    final style = _noteBlockTextStyle(context, block);
-    final text = block.text.trim();
-    final content = switch (block.kind) {
-      NoteBlockKind.checkbox => Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(top: 1, right: 10),
-              child: Icon(
-                block.isChecked
-                    ? Icons.check_box_rounded
-                    : Icons.check_box_outline_blank_rounded,
-                size: 22,
-              ),
-            ),
-            Expanded(child: SelectableText(text, style: style)),
-          ],
-        ),
-      NoteBlockKind.unorderedList => Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Padding(
-              padding: EdgeInsets.only(right: 12),
-              child: Text('•', style: TextStyle(fontSize: 22)),
-            ),
-            Expanded(child: SelectableText(text, style: style)),
-          ],
-        ),
-      NoteBlockKind.orderedList => Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(right: 10, top: 2),
-              child: Text(
-                '$orderedNumber.',
-                style: const TextStyle(fontWeight: FontWeight.w700),
-              ),
-            ),
-            Expanded(child: SelectableText(text, style: style)),
-          ],
-        ),
-      NoteBlockKind.number => _ReadOnlyNumberBlock(block: block, style: style),
-      _ => SelectableText(text, style: style),
-    };
-
-    if (text.isEmpty && block.kind != NoteBlockKind.number) {
-      return const SizedBox(height: 8);
-    }
-    return Padding(
-      padding: EdgeInsets.only(
-        bottom: block.kind == NoteBlockKind.heading ? 16 : 12,
-      ),
-      child: content,
-    );
-  }
-}
-
-class _ReadOnlyNumberBlock extends StatelessWidget {
-  const _ReadOnlyNumberBlock({required this.block, required this.style});
-
-  final NoteBlock block;
-  final TextStyle style;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final value = block.numberValue == block.numberValue.roundToDouble()
-        ? block.numberValue.toInt().toString()
-        : block.numberValue.toStringAsFixed(2).replaceFirst(RegExp(r'0+$'), '');
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (block.text.trim().isNotEmpty) ...[
-          SelectableText(block.text.trim(), style: style),
-          const SizedBox(height: 8),
-        ],
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
-          decoration: BoxDecoration(
-            color: colors.primary.withValues(alpha: 0.11),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Text(
-            [value, block.unit.trim()]
-                .where((part) => part.isNotEmpty)
-                .join(' '),
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: colors.primary,
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 TextStyle _noteBlockTextStyle(BuildContext context, NoteBlock block) {
   final colors = Theme.of(context).colorScheme;
   final headingSize = switch (block.headingLevel) {
@@ -691,82 +498,62 @@ TextStyle _noteBlockTextStyle(BuildContext context, NoteBlock block) {
   );
 }
 
-class _FormattingToolbar extends StatelessWidget {
-  const _FormattingToolbar({
+/// The single persistent toolbar at the bottom of the editor. Rides above the
+/// keyboard when it is open. Combines block-type selection, inline formatting,
+/// text/highlight colours, and add/delete for the active block.
+class _BottomEditingBar extends StatelessWidget {
+  const _BottomEditingBar({
     required this.block,
     required this.onTypeChanged,
-    required this.onChanged,
+    required this.onBlockChanged,
+    required this.onAdd,
+    required this.onDelete,
   });
 
   final NoteBlock block;
   final void Function(NoteBlockKind kind, [int headingLevel]) onTypeChanged;
-  final ValueChanged<NoteBlock> onChanged;
+  final ValueChanged<NoteBlock> onBlockChanged;
+  final void Function(NoteBlockKind kind, [int headingLevel]) onAdd;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.fromLTRB(12, 4, 12, 8),
       child: GlassSurface(
-        showShadow: false,
-        borderRadius: BorderRadius.circular(20),
+        blur: 16,
+        borderRadius: BorderRadius.circular(22),
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         child: SizedBox(
-          height: 44,
+          height: 46,
           child: ListView(
             scrollDirection: Axis.horizontal,
             children: [
-              PopupMenuButton<String>(
-                tooltip: 'Type de bloc',
-                onSelected: _applyType,
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'p', child: Text('Texte normal')),
-                  PopupMenuItem(value: 'h2', child: Text('Titre H2')),
-                  PopupMenuItem(value: 'h3', child: Text('Titre H3')),
-                  PopupMenuItem(value: 'h4', child: Text('Titre H4')),
-                  PopupMenuItem(value: 'h5', child: Text('Titre H5')),
-                  PopupMenuItem(value: 'h6', child: Text('Titre H6')),
-                  PopupMenuDivider(),
-                  PopupMenuItem(value: 'check', child: Text('Case à cocher')),
-                  PopupMenuItem(value: 'number', child: Text('Nombre + unité')),
-                  PopupMenuItem(value: 'ul', child: Text('Liste à puces')),
-                  PopupMenuItem(value: 'ol', child: Text('Liste numérotée')),
-                ],
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.title_rounded, size: 20),
-                      const SizedBox(width: 6),
-                      Text(
-                        _typeLabel,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      const Icon(Icons.arrow_drop_down_rounded),
-                    ],
-                  ),
-                ),
-              ),
-              VerticalDivider(color: colors.outlineVariant),
+              _AddBlockMenu(onAdd: onAdd),
+              _dividerFor(colors),
+              _TypeMenu(block: block, onTypeChanged: onTypeChanged),
+              _dividerFor(colors),
               _FormatToggle(
                 tooltip: 'Gras',
                 icon: Icons.format_bold_rounded,
                 selected: block.isBold,
                 onPressed: () =>
-                    onChanged(block.copyWith(isBold: !block.isBold)),
+                    onBlockChanged(block.copyWith(isBold: !block.isBold)),
               ),
               _FormatToggle(
                 tooltip: 'Italique',
                 icon: Icons.format_italic_rounded,
                 selected: block.isItalic,
                 onPressed: () =>
-                    onChanged(block.copyWith(isItalic: !block.isItalic)),
+                    onBlockChanged(block.copyWith(isItalic: !block.isItalic)),
               ),
               _FormatToggle(
                 tooltip: 'Souligner',
                 icon: Icons.format_underlined_rounded,
                 selected: block.isUnderlined,
-                onPressed: () => onChanged(
+                onPressed: () => onBlockChanged(
                   block.copyWith(isUnderlined: !block.isUnderlined),
                 ),
               ),
@@ -774,7 +561,7 @@ class _FormattingToolbar extends StatelessWidget {
                 tooltip: 'Barrer',
                 icon: Icons.format_strikethrough_rounded,
                 selected: block.isStruckThrough,
-                onPressed: () => onChanged(
+                onPressed: () => onBlockChanged(
                   block.copyWith(isStruckThrough: !block.isStruckThrough),
                 ),
               ),
@@ -784,7 +571,7 @@ class _FormattingToolbar extends StatelessWidget {
                 values: _textColors,
                 selectedValue: block.textColor,
                 onSelected: (value) =>
-                    onChanged(block.copyWith(textColor: value)),
+                    onBlockChanged(block.copyWith(textColor: value)),
               ),
               _ColorMenu(
                 tooltip: 'Surligner',
@@ -792,7 +579,13 @@ class _FormattingToolbar extends StatelessWidget {
                 values: _highlightColors,
                 selectedValue: block.highlightColor,
                 onSelected: (value) =>
-                    onChanged(block.copyWith(highlightColor: value)),
+                    onBlockChanged(block.copyWith(highlightColor: value)),
+              ),
+              _dividerFor(colors),
+              IconButton(
+                tooltip: 'Supprimer le bloc',
+                onPressed: onDelete,
+                icon: const Icon(Icons.backspace_outlined),
               ),
             ],
           ),
@@ -800,6 +593,123 @@ class _FormattingToolbar extends StatelessWidget {
       ),
     );
   }
+
+  Widget _dividerFor(ColorScheme colors) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 8),
+        child: VerticalDivider(color: colors.outlineVariant, width: 1),
+      );
+}
+
+class _AddBlockMenu extends StatelessWidget {
+  const _AddBlockMenu({required this.onAdd});
+
+  final void Function(NoteBlockKind kind, [int headingLevel]) onAdd;
+
+  @override
+  Widget build(BuildContext context) => PopupMenuButton<String>(
+        tooltip: 'Ajouter un bloc',
+        icon: const Icon(Icons.add_rounded),
+        onSelected: (value) {
+          switch (value) {
+            case 'p':
+              onAdd(NoteBlockKind.paragraph);
+            case 'h':
+              onAdd(NoteBlockKind.heading, 2);
+            case 'check':
+              onAdd(NoteBlockKind.checkbox);
+            case 'number':
+              onAdd(NoteBlockKind.number);
+            case 'ul':
+              onAdd(NoteBlockKind.unorderedList);
+            case 'ol':
+              onAdd(NoteBlockKind.orderedList);
+          }
+        },
+        itemBuilder: (_) => const [
+          PopupMenuItem(
+            value: 'p',
+            child: ListTile(
+              leading: Icon(Icons.notes_rounded),
+              title: Text('Texte'),
+            ),
+          ),
+          PopupMenuItem(
+            value: 'h',
+            child: ListTile(
+              leading: Icon(Icons.title_rounded),
+              title: Text('Titre'),
+            ),
+          ),
+          PopupMenuItem(
+            value: 'check',
+            child: ListTile(
+              leading: Icon(Icons.check_box_outlined),
+              title: Text('Case à cocher'),
+            ),
+          ),
+          PopupMenuItem(
+            value: 'number',
+            child: ListTile(
+              leading: Icon(Icons.exposure_plus_1_rounded),
+              title: Text('Nombre + unité'),
+            ),
+          ),
+          PopupMenuItem(
+            value: 'ul',
+            child: ListTile(
+              leading: Icon(Icons.format_list_bulleted_rounded),
+              title: Text('Liste à puces'),
+            ),
+          ),
+          PopupMenuItem(
+            value: 'ol',
+            child: ListTile(
+              leading: Icon(Icons.format_list_numbered_rounded),
+              title: Text('Liste numérotée'),
+            ),
+          ),
+        ],
+      );
+}
+
+class _TypeMenu extends StatelessWidget {
+  const _TypeMenu({required this.block, required this.onTypeChanged});
+
+  final NoteBlock block;
+  final void Function(NoteBlockKind kind, [int headingLevel]) onTypeChanged;
+
+  @override
+  Widget build(BuildContext context) => PopupMenuButton<String>(
+        tooltip: 'Type de bloc',
+        onSelected: _applyType,
+        itemBuilder: (_) => const [
+          PopupMenuItem(value: 'p', child: Text('Texte normal')),
+          PopupMenuItem(value: 'h2', child: Text('Titre H2')),
+          PopupMenuItem(value: 'h3', child: Text('Titre H3')),
+          PopupMenuItem(value: 'h4', child: Text('Titre H4')),
+          PopupMenuItem(value: 'h5', child: Text('Titre H5')),
+          PopupMenuItem(value: 'h6', child: Text('Titre H6')),
+          PopupMenuDivider(),
+          PopupMenuItem(value: 'check', child: Text('Case à cocher')),
+          PopupMenuItem(value: 'number', child: Text('Nombre + unité')),
+          PopupMenuItem(value: 'ul', child: Text('Liste à puces')),
+          PopupMenuItem(value: 'ol', child: Text('Liste numérotée')),
+        ],
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: Row(
+            children: [
+              const Icon(Icons.title_rounded, size: 20),
+              const SizedBox(width: 6),
+              Text(
+                _typeLabel,
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              const Icon(Icons.arrow_drop_down_rounded),
+            ],
+          ),
+        ),
+      );
 
   String get _typeLabel => switch (block.kind) {
         NoteBlockKind.heading => 'H${block.headingLevel}',
@@ -818,22 +728,16 @@ class _FormattingToolbar extends StatelessWidget {
       case 'h5':
       case 'h6':
         onTypeChanged(NoteBlockKind.heading, int.parse(value.substring(1)));
-        return;
       case 'check':
         onTypeChanged(NoteBlockKind.checkbox);
-        return;
       case 'number':
         onTypeChanged(NoteBlockKind.number);
-        return;
       case 'ul':
         onTypeChanged(NoteBlockKind.unorderedList);
-        return;
       case 'ol':
         onTypeChanged(NoteBlockKind.orderedList);
-        return;
       default:
         onTypeChanged(NoteBlockKind.paragraph);
-        return;
     }
   }
 }
@@ -922,100 +826,27 @@ class _ColorMenu extends StatelessWidget {
       );
 }
 
-class _AddBlockBar extends StatelessWidget {
-  const _AddBlockBar({required this.onAdd});
-
-  final void Function(NoteBlockKind kind, [int headingLevel]) onAdd;
-
-  @override
-  Widget build(BuildContext context) => SafeArea(
-        top: false,
-        minimum: const EdgeInsets.fromLTRB(12, 4, 12, 10),
-        child: GlassSurface(
-          blur: 16,
-          borderRadius: BorderRadius.circular(22),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-          child: SizedBox(
-            height: 44,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: [
-                _AddBlockButton(
-                  icon: Icons.notes_rounded,
-                  label: 'Texte',
-                  onTap: () => onAdd(NoteBlockKind.paragraph),
-                ),
-                _AddBlockButton(
-                  icon: Icons.title_rounded,
-                  label: 'Titre',
-                  onTap: () => onAdd(NoteBlockKind.heading, 2),
-                ),
-                _AddBlockButton(
-                  icon: Icons.check_box_outlined,
-                  label: 'Case',
-                  onTap: () => onAdd(NoteBlockKind.checkbox),
-                ),
-                _AddBlockButton(
-                  icon: Icons.exposure_plus_1_rounded,
-                  label: 'Nombre',
-                  onTap: () => onAdd(NoteBlockKind.number),
-                ),
-                _AddBlockButton(
-                  icon: Icons.format_list_bulleted_rounded,
-                  label: 'UL',
-                  onTap: () => onAdd(NoteBlockKind.unorderedList),
-                ),
-                _AddBlockButton(
-                  icon: Icons.format_list_numbered_rounded,
-                  label: 'OL',
-                  onTap: () => onAdd(NoteBlockKind.orderedList),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-}
-
-class _AddBlockButton extends StatelessWidget {
-  const _AddBlockButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => TextButton.icon(
-        onPressed: onTap,
-        icon: Icon(icon, size: 18),
-        label: Text(label),
-      );
-}
-
 class _NoteBlockEditor extends StatefulWidget {
   const _NoteBlockEditor({
     required this.block,
-    required this.index,
     required this.orderedNumber,
-    required this.isActive,
     required this.requestFocus,
     required this.onFocused,
     required this.onChanged,
-    required this.onDelete,
+    required this.onListBreak,
+    required this.onListShortcut,
+    required this.onBackspaceEmpty,
+    super.key,
   });
 
   final NoteBlock block;
-  final int index;
   final int orderedNumber;
-  final bool isActive;
   final bool requestFocus;
   final VoidCallback onFocused;
   final ValueChanged<NoteBlock> onChanged;
-  final VoidCallback onDelete;
+  final void Function(NoteBlock block, String before, String after) onListBreak;
+  final void Function(NoteBlock block, NoteBlockKind kind) onListShortcut;
+  final ValueChanged<NoteBlock> onBackspaceEmpty;
 
   @override
   State<_NoteBlockEditor> createState() => _NoteBlockEditorState();
@@ -1027,6 +858,11 @@ class _NoteBlockEditorState extends State<_NoteBlockEditor> {
   late final TextEditingController _unitController;
   late final FocusNode _focusNode;
 
+  bool get _isListLike =>
+      widget.block.kind == NoteBlockKind.unorderedList ||
+      widget.block.kind == NoteBlockKind.orderedList ||
+      widget.block.kind == NoteBlockKind.checkbox;
+
   @override
   void initState() {
     super.initState();
@@ -1035,7 +871,7 @@ class _NoteBlockEditorState extends State<_NoteBlockEditor> {
       text: _formatNumber(widget.block.numberValue),
     );
     _unitController = TextEditingController(text: widget.block.unit);
-    _focusNode = FocusNode()..addListener(_handleFocus);
+    _focusNode = FocusNode(onKeyEvent: _handleKeyEvent)..addListener(_handleFocus);
     if (widget.requestFocus) {
       WidgetsBinding.instance
           .addPostFrameCallback((_) => _focusNode.requestFocus());
@@ -1045,6 +881,9 @@ class _NoteBlockEditorState extends State<_NoteBlockEditor> {
   @override
   void didUpdateWidget(covariant _NoteBlockEditor oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // A conversion (markdown shortcut / list break) clears or rewrites the
+    // controller itself before notifying the parent, so only resync when the
+    // field is idle to avoid clobbering text the user is actively typing.
     if (!_focusNode.hasFocus && _textController.text != widget.block.text) {
       _textController.text = widget.block.text;
     }
@@ -1072,44 +911,58 @@ class _NoteBlockEditorState extends State<_NoteBlockEditor> {
     if (_focusNode.hasFocus) widget.onFocused();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return GlassSurface(
-      showShadow: false,
-      color: widget.isActive
-          ? colors.primaryContainer.withValues(alpha: 0.78)
-          : colors.surfaceContainerHigh,
-      borderRadius: BorderRadius.circular(20),
-      padding: const EdgeInsets.fromLTRB(8, 8, 4, 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(child: _buildBlockContent(context)),
-          Column(
-            children: [
-              ReorderableDragStartListener(
-                index: widget.index,
-                child: Padding(
-                  padding: const EdgeInsets.all(10),
-                  child: Icon(
-                    Icons.drag_indicator_rounded,
-                    color: colors.onSurfaceVariant,
-                  ),
-                ),
-              ),
-              IconButton(
-                tooltip: 'Supprimer le bloc',
-                visualDensity: VisualDensity.compact,
-                onPressed: widget.onDelete,
-                icon: const Icon(Icons.close_rounded, size: 19),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
+  /// Backspace at the very start of an empty block removes its marker / merges
+  /// it upward, mirroring Google Keep.
+  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is KeyDownEvent &&
+        event.logicalKey == LogicalKeyboardKey.backspace &&
+        _textController.text.isEmpty &&
+        widget.block.kind != NoteBlockKind.number) {
+      widget.onBackspaceEmpty(widget.block);
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
   }
+
+  /// Detects the markdown list prefixes (`- `, `* `, `1. `, `1) `) typed at the
+  /// very start of a paragraph block.
+  NoteBlockKind? _listShortcutFor(String value) {
+    if (value == '- ' || value == '* ') return NoteBlockKind.unorderedList;
+    if (value == '1. ' || value == '1) ') return NoteBlockKind.orderedList;
+    return null;
+  }
+
+  void _onTextChanged(String value) {
+    // Markdown shortcut: convert an empty paragraph into a list on the prefix.
+    if (widget.block.kind == NoteBlockKind.paragraph) {
+      final shortcut = _listShortcutFor(value);
+      if (shortcut != null) {
+        _textController.clear();
+        widget.onListShortcut(widget.block, shortcut);
+        return;
+      }
+    }
+
+    // Enter inside a list/checkbox splits into a new item (or ends the list).
+    if (_isListLike && value.contains('\n')) {
+      final breakIndex = value.indexOf('\n');
+      final before = value.substring(0, breakIndex);
+      final after = value.substring(breakIndex + 1);
+      _textController
+        ..text = before
+        ..selection = TextSelection.collapsed(offset: before.length);
+      widget.onListBreak(widget.block, before, after);
+      return;
+    }
+
+    widget.onChanged(widget.block.copyWith(text: value));
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 1),
+        child: _buildBlockContent(context),
+      );
 
   Widget _buildBlockContent(BuildContext context) {
     final block = widget.block;
@@ -1118,12 +971,21 @@ class _NoteBlockEditorState extends State<_NoteBlockEditor> {
       NoteBlockKind.checkbox => Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Checkbox.adaptive(
-              value: block.isChecked,
-              onChanged: (value) => widget.onChanged(
-                block.copyWith(isChecked: value ?? false),
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: SizedBox.square(
+                dimension: 24,
+                child: Checkbox.adaptive(
+                  value: block.isChecked,
+                  visualDensity: VisualDensity.compact,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  onChanged: (value) => widget.onChanged(
+                    block.copyWith(isChecked: value ?? false),
+                  ),
+                ),
               ),
             ),
+            const SizedBox(width: 10),
             Expanded(child: textField),
           ],
         ),
@@ -1131,8 +993,8 @@ class _NoteBlockEditorState extends State<_NoteBlockEditor> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Padding(
-              padding: EdgeInsets.fromLTRB(10, 12, 8, 0),
-              child: Text('•', style: TextStyle(fontSize: 22)),
+              padding: EdgeInsets.only(top: 10, right: 10),
+              child: Text('•', style: TextStyle(fontSize: 20)),
             ),
             Expanded(child: textField),
           ],
@@ -1141,7 +1003,7 @@ class _NoteBlockEditorState extends State<_NoteBlockEditor> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 13, 8, 0),
+              padding: const EdgeInsets.only(top: 11, right: 8),
               child: Text(
                 '${widget.orderedNumber}.',
                 style: const TextStyle(fontWeight: FontWeight.w700),
@@ -1159,52 +1021,48 @@ class _NoteBlockEditorState extends State<_NoteBlockEditor> {
         controller: _textController,
         focusNode: _focusNode,
         maxLines: null,
-        minLines: widget.block.kind == NoteBlockKind.heading ? 1 : 2,
+        minLines: 1,
         textCapitalization: TextCapitalization.sentences,
+        keyboardType: TextInputType.multiline,
         style: _noteBlockTextStyle(context, widget.block),
         decoration: InputDecoration(
           hintText: widget.block.kind == NoteBlockKind.heading
-              ? 'Votre titre H${widget.block.headingLevel}'
+              ? 'Titre H${widget.block.headingLevel}'
               : 'Écrivez ici…',
           border: InputBorder.none,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(vertical: 6),
         ),
-        onChanged: (value) =>
-            widget.onChanged(widget.block.copyWith(text: value)),
+        onChanged: _onTextChanged,
       );
 
-  Widget _numberBlock(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(6, 2, 4, 4),
-      child: Column(
+  Widget _numberBlock(BuildContext context) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _textField(context),
           Row(
             children: [
-              IconButton.filledTonal(
+              IconButton(
                 tooltip: 'Diminuer',
+                visualDensity: VisualDensity.compact,
                 onPressed: () => _increment(-1),
-                icon: const Icon(Icons.remove_rounded),
+                icon: const Icon(Icons.remove_circle_outline_rounded),
               ),
-              const SizedBox(width: 8),
               SizedBox(
-                width: 94,
+                width: 72,
                 child: TextField(
                   controller: _numberController,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
                   textAlign: TextAlign.center,
-                  decoration: InputDecoration(
-                    labelText: 'Valeur',
-                    filled: true,
-                    fillColor: colors.surface.withValues(alpha: 0.45),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide.none,
-                    ),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  decoration: const InputDecoration(
+                    hintText: '0',
+                    border: InputBorder.none,
+                    isDense: true,
                   ),
                   onChanged: (value) {
                     final parsed = double.tryParse(value.replaceAll(',', '.'));
@@ -1215,25 +1073,21 @@ class _NoteBlockEditorState extends State<_NoteBlockEditor> {
                   },
                 ),
               ),
-              const SizedBox(width: 8),
-              IconButton.filledTonal(
+              IconButton(
                 tooltip: 'Augmenter',
+                visualDensity: VisualDensity.compact,
                 onPressed: () => _increment(1),
-                icon: const Icon(Icons.add_rounded),
+                icon: const Icon(Icons.add_circle_outline_rounded),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: TextField(
                   controller: _unitController,
-                  decoration: InputDecoration(
-                    labelText: 'Unité',
-                    hintText: 'kg, €, min…',
-                    filled: true,
-                    fillColor: colors.surface.withValues(alpha: 0.45),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide.none,
-                    ),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                  decoration: const InputDecoration(
+                    hintText: 'unité (kg, €, min…)',
+                    border: InputBorder.none,
+                    isDense: true,
                   ),
                   onChanged: (value) =>
                       widget.onChanged(widget.block.copyWith(unit: value)),
@@ -1242,9 +1096,7 @@ class _NoteBlockEditorState extends State<_NoteBlockEditor> {
             ],
           ),
         ],
-      ),
-    );
-  }
+      );
 
   void _increment(double amount) {
     final current =

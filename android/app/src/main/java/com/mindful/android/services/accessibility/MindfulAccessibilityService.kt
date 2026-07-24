@@ -20,6 +20,9 @@ import android.content.pm.PackageManager
 import android.graphics.Path
 import android.graphics.Rect
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED
@@ -43,6 +46,7 @@ import com.mindful.android.models.Wellbeing
 import com.mindful.android.receivers.DeviceAppsChangedReceiver
 import com.mindful.android.utils.ThreadUtils
 import com.mindful.android.utils.executors.Throttler
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -53,10 +57,11 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
     companion object {
         private const val TAG = "Mindful.MindfulAccessibilityService"
         private const val INSTAGRAM_INBOX_URI = "instagram://direct-inbox"
-        // Shared retry window ≈ 3.5s across 5 attempts (initial + these 4), run
-        // AFTER the per-app start delay, so a slow tab transition or app load
-        // still lands on the messages tab.
-        private val DATING_REDIRECT_RETRY_DELAYS_MS = listOf(400L, 700L, 1000L, 1400L)
+        // Redirect uses active polling instead of a fixed delay: it taps as soon
+        // as the messages tab exists (instant when the app is already loaded) and
+        // keeps re-checking every poll until the switch is confirmed or the
+        // per-app deadline (maxRedirectWaitMs) is reached.
+        private const val DATING_REDIRECT_POLL_MS = 300L
 
         /**
          * Native destinations exposed by the currently supported dating apps.
@@ -105,9 +110,8 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
                 navigationTabIndex = 4,
                 navigationTabCount = 5,
                 // Bumble's splash/app load can take ~5s before the navigation bar
-                // exists, so wait longer before the first tap (then the shared
-                // 3.5s retry window covers up to ~7.5s total).
-                startDelayMs = 4000L,
+                // exists and it has no deep-link fallback, so poll longer.
+                maxRedirectWaitMs = 5000L,
             ),
             "com.ftw_and_co.happn" to DatingMessageDestination(
                 viewIds = listOf(
@@ -134,14 +138,22 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
             TYPE_VIEW_SCROLLED
         )
 
-        private val browserPackages = mutableSetOf<String>()
-        private val shortsPlatformPackages = mutableSetOf<String>()
-        private val devicePlatformPackages = mutableSetOf<String>()
+        // Thread-safe: written from the background config executor and read
+        // concurrently from the event-processing thread pool.
+        private val browserPackages = ConcurrentHashMap.newKeySet<String>()
+        private val shortsPlatformPackages = ConcurrentHashMap.newKeySet<String>()
+        private val devicePlatformPackages = ConcurrentHashMap.newKeySet<String>()
     }
 
 
     // Fixed thread pool for parallel event processing
     private val executorService: ExecutorService = Executors.newFixedThreadPool(4)
+
+    // Serializes config refreshes off the main looper. Only the heavy
+    // PackageManager work runs here; the accessibility-tree call is posted back
+    // to the main thread (a11y-tree APIs must not run off-main).
+    private val configExecutor: ExecutorService = Executors.newSingleThreadExecutor()
+    private val mainHandler = Handler(Looper.getMainLooper())
     private val throttler: Throttler = Throttler(500L)
     private val deviceAppsChangedReceiver: DeviceAppsChangedReceiver =
         DeviceAppsChangedReceiver(onAppsChanged = { refreshServiceConfig() })
@@ -154,6 +166,11 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
     private lateinit var trackingManager: TrackingManager
 
     private var wellbeing = Wellbeing()
+
+    // Package whose messages-redirect poll chain is currently running. Prevents
+    // overlapping chains (the manager can re-fire redirects during a long poll)
+    // from tapping in a storm. A redirect for another app supersedes it.
+    private var datingRedirectInFlightPackage: String? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -233,7 +250,9 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
                     event.className?.toString() == "com.mindful.android.MainActivity"
             val isRealActivityChange = event.eventType == TYPE_WINDOW_STATE_CHANGED &&
                     (eventPackageName != packageName || isMindfulActivity)
-            if (eventPackageName.isNotBlank() && isRealActivityChange) {
+            if (eventPackageName.isNotBlank() && isRealActivityChange &&
+                isForegroundWindowEvent(eventPackageName)
+            ) {
                 trackingManager.onNewEvent(eventPackageName)
             }
 
@@ -265,6 +284,24 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
 
         } catch (ignored: Exception) {
         }
+    }
+
+    /**
+     * Guards app-launch tracking against false positives.
+     *
+     * A [TYPE_WINDOW_STATE_CHANGED] event does not guarantee the app moved to
+     * the foreground: background apps emit these for notifications, toasts,
+     * picture-in-picture mini-players and other non-focused windows. Treating
+     * those as launches used to pop the conscious-opening prompt for apps the
+     * user never opened.
+     *
+     * The event is accepted only when it belongs to the currently active
+     * window. A null root means the foreground app is still loading (a genuine
+     * fresh launch that must not be missed), so it stays permitted.
+     */
+    private fun isForegroundWindowEvent(eventPackageName: String): Boolean {
+        val activePackage = rootInActiveWindow?.packageName?.toString() ?: return true
+        return activePackage == eventPackageName
     }
 
     /**
@@ -366,50 +403,90 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
         packageName: String,
         sourceNode: AccessibilityNodeInfo?,
     ) {
-        // Wait for the app to settle before the first tap (Bumble ~4s, others
-        // ~1.5s). The source node is stale after the delay, so retries and this
-        // first attempt rely on the live rootInActiveWindow instead.
-        val startDelayMs = DATING_MESSAGE_DESTINATIONS[packageName]?.startDelayMs ?: 0L
-        ThreadUtils.runOnMainThread(startDelayMs) {
-            tryOpenDatingMessages(packageName, sourceNode = null, attempt = 0)
+        // Runs on the main thread so datingRedirectInFlightPackage is only ever
+        // touched there (this can be invoked from a background executor).
+        ThreadUtils.runOnMainThread {
+            // Ignore a duplicate redirect for the same app while its poll runs; a
+            // redirect for a different app takes over.
+            if (datingRedirectInFlightPackage == packageName) return@runOnMainThread
+            datingRedirectInFlightPackage = packageName
+            tryOpenDatingMessages(
+                packageName = packageName,
+                startElapsedMs = SystemClock.elapsedRealtime(),
+                hasClicked = false,
+            )
         }
     }
 
+    /**
+     * Actively polls for the app's messages tab: taps it the instant it exists
+     * (immediate when the app is already loaded) and keeps re-checking until the
+     * switch is confirmed or the per-app deadline is reached. This avoids both a
+     * fixed pre-delay (lag when already loaded) and trusting a single tap that
+     * Compose reports as handled without actually switching tabs.
+     */
     private fun tryOpenDatingMessages(
         packageName: String,
-        sourceNode: AccessibilityNodeInfo?,
-        attempt: Int,
+        startElapsedMs: Long,
+        hasClicked: Boolean,
     ) {
         ThreadUtils.runOnMainThread {
             runCatching {
-                val destination = DATING_MESSAGE_DESTINATIONS[packageName]
-                    ?: return@runOnMainThread
-                val currentRoot = rootInActiveWindow?.takeIf {
-                    it.packageName?.toString() == packageName
-                } ?: sourceNode
+                // Superseded by a redirect for another app.
+                if (datingRedirectInFlightPackage != packageName) return@runCatching
 
-                // A target app can keep the blocked page mounted while its
-                // messaging tab is already selected. Never send another click
-                // in that state, including from a delayed retry.
-                if (currentRoot != null &&
-                    isDatingMessageDestinationActive(currentRoot, destination)
-                ) {
-                    Log.d(TAG, "openDatingMessages: $packageName already on messages")
+                val destination = DATING_MESSAGE_DESTINATIONS[packageName] ?: run {
+                    datingRedirectInFlightPackage = null
                     return@runCatching
                 }
 
-                val clickedInApp = currentRoot?.let {
-                    clickDatingMessageDestination(it, destination)
-                } == true
+                // Foreground guard: if the user has left or closed the dating app,
+                // abort the whole chain. We must never chase the messages page — nor
+                // deep-link back into it — once the app is no longer in front. A null
+                // package means the accessibility tree is not ready yet (e.g. during
+                // the splash), so we keep waiting rather than aborting in that case.
+                val root = rootInActiveWindow
+                val activePackage = root?.packageName?.toString()
+                if (activePackage != null && activePackage != packageName) {
+                    datingRedirectInFlightPackage = null
+                    Log.d(
+                        TAG,
+                        "openDatingMessages: $packageName left for $activePackage, aborting redirect"
+                    )
+                    return@runCatching
+                }
+                val currentRoot = root?.takeIf { activePackage == packageName }
 
-                if (!clickedInApp && attempt < DATING_REDIRECT_RETRY_DELAYS_MS.size) {
-                    ThreadUtils.runOnMainThread(DATING_REDIRECT_RETRY_DELAYS_MS[attempt]) {
-                        tryOpenDatingMessages(packageName, sourceNode = null, attempt = attempt + 1)
+                // Confirmed on the messages tab → done (toast only if we caused it).
+                if (currentRoot != null &&
+                    isDatingMessageDestinationActive(currentRoot, destination)
+                ) {
+                    datingRedirectInFlightPackage = null
+                    if (hasClicked) showDatingRedirectToast()
+                    Log.d(TAG, "openDatingMessages: $packageName on messages")
+                    return@runCatching
+                }
+
+                // Tap only when the tab is actually present (nothing is tapped
+                // during the splash, since the click helpers require a target).
+                val clickedNow = currentRoot != null &&
+                        clickDatingMessageDestination(currentRoot, destination)
+                val clicked = hasClicked || clickedNow
+
+                val waitedMs = SystemClock.elapsedRealtime() - startElapsedMs
+                if (waitedMs < destination.maxRedirectWaitMs) {
+                    ThreadUtils.runOnMainThread(DATING_REDIRECT_POLL_MS) {
+                        tryOpenDatingMessages(packageName, startElapsedMs, clicked)
                     }
                     return@runCatching
                 }
 
-                if (!clickedInApp && destination.fallbackUri != null) {
+                // Deadline reached without confirming the switch: deep-link
+                // fallback when the app has a reliable one — but only while the app
+                // is still confirmed in the foreground, so a closed app is never
+                // relaunched by the fallback.
+                datingRedirectInFlightPackage = null
+                if (destination.fallbackUri != null && activePackage == packageName) {
                     startActivity(
                         Intent(Intent.ACTION_VIEW, Uri.parse(destination.fallbackUri))
                             .setPackage(packageName)
@@ -419,25 +496,27 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
                                         Intent.FLAG_ACTIVITY_SINGLE_TOP
                             )
                     )
-                }
-
-                if (!clickedInApp && destination.fallbackUri == null) {
+                    showDatingRedirectToast()
+                } else {
                     Log.w(TAG, "openDatingMessages: Messages tab unavailable for $packageName")
-                    return@runCatching
                 }
-
-                Toast.makeText(
-                    this@MindfulAccessibilityService,
-                    getString(R.string.toast_dating_redirect_messages),
-                    Toast.LENGTH_LONG,
-                ).show()
-                Log.d(TAG, "openDatingMessages: Redirected $packageName to messages")
             }.onFailure {
+                if (datingRedirectInFlightPackage == packageName) {
+                    datingRedirectInFlightPackage = null
+                }
                 // Do not fall back to Back/Home: that would close the dating
                 // app, which is precisely what this feature must avoid.
                 Log.e(TAG, "openDatingMessages: Unable to open messages for $packageName", it)
             }
         }
+    }
+
+    private fun showDatingRedirectToast() {
+        Toast.makeText(
+            this@MindfulAccessibilityService,
+            getString(R.string.toast_dating_redirect_messages),
+            Toast.LENGTH_LONG,
+        ).show()
     }
 
     private fun clickDatingMessageDestination(
@@ -446,16 +525,19 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
     ): Boolean {
         destination.viewIds.forEach { viewId ->
             findNodesByViewId(root, viewId).forEach { node ->
-                if (clickNodeOrClickableParent(node)) return true
+                // A real tap at the tab node's centre is far more reliable than
+                // ACTION_CLICK, which Compose (Bumble) reports as handled without
+                // actually switching tabs. Fall back to ACTION_CLICK otherwise.
+                if (tapClickableNodeCenter(node) || clickNodeOrClickableParent(node)) return true
             }
         }
 
         return findNodeWithExactLabel(root, destination.labels)?.let { node ->
             // Bumble's Compose navigation reports ACTION_CLICK as handled but
-            // sometimes does not change tabs. A real tap at the accessibility
-            // node's centre reliably activates Chats and also works for the
-            // other supported navigation bars.
-            tapNodeCenter(node) || clickNodeOrClickableParent(node)
+            // sometimes does not change tabs. A real tap at the tab's centre
+            // reliably activates Chats and also works for the other supported
+            // navigation bars.
+            tapClickableNodeCenter(node) || clickNodeOrClickableParent(node)
         } == true || tapNavigationDestination(root, destination)
     }
 
@@ -571,6 +653,22 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
         return dispatchTap(bounds.exactCenterX(), bounds.exactCenterY())
     }
 
+    /**
+     * Taps the centre of the node's nearest clickable ancestor (or the node
+     * itself). The view-id/label match can be a small inner icon or text, so
+     * targeting the whole tab hit-area lands the gesture far more reliably.
+     */
+    private fun tapClickableNodeCenter(node: AccessibilityNodeInfo): Boolean {
+        var candidate: AccessibilityNodeInfo? = node
+        var depth = 0
+        while (candidate != null && depth < 5) {
+            if (candidate.isClickable) return tapNodeCenter(candidate)
+            candidate = candidate.parent
+            depth++
+        }
+        return tapNodeCenter(node)
+    }
+
     private fun tapNavigationDestination(
         root: AccessibilityNodeInfo,
         destination: DatingMessageDestination,
@@ -580,8 +678,22 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
         val tabCount = destination.navigationTabCount ?: return false
         if (tabCount <= 0 || tabIndex !in 0 until tabCount) return false
 
-        val container = root.findAccessibilityNodeInfosByViewId(containerId).firstOrNull()
+        val container = findNodesByViewId(root, containerId).firstOrNull()
             ?: return false
+
+        // Prefer the real tab node's centre when the bar exposes one child per
+        // tab — more precise than assuming equal-width tabs (Bumble's bar is not
+        // evenly divided). Fall back to geometry only if the layout differs.
+        if (container.childCount == tabCount) {
+            container.getChild(tabIndex)?.let { tab ->
+                val tabBounds = Rect()
+                tab.getBoundsInScreen(tabBounds)
+                if (!tabBounds.isEmpty) {
+                    return dispatchTap(tabBounds.exactCenterX(), tabBounds.exactCenterY())
+                }
+            }
+        }
+
         val bounds = Rect()
         container.getBoundsInScreen(bounds)
         if (bounds.isEmpty) return false
@@ -605,6 +717,15 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
      * Updates the service info with the latest settings and registered packages.
      */
     private fun refreshServiceConfig() {
+        // The PackageManager queries below are the expensive part and used to
+        // block the main looper (shared with the Flutter UI) on every settings
+        // change — the "Définir" freeze. Run them on a background thread, but
+        // marshal the accessibility-tree call (updateConfig -> rootInActiveWindow)
+        // back to the main thread, since a11y-tree APIs must run on main.
+        configExecutor.execute { refreshServiceConfigInternal() }
+    }
+
+    private fun refreshServiceConfigInternal() {
         try {
             // Using hashset to avoid duplicates
             browserPackages.clear()
@@ -661,7 +782,8 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
             }
 
 
-            datingPlatformManager.updateConfig(wellbeing)
+            // Accessibility-tree access must run on the main looper.
+            mainHandler.post { datingPlatformManager.updateConfig(wellbeing) }
 
             // Load nsfw website domains if needed
             if (wellbeing.blockNsfwSites) BrowserManager.initializeNsfwDomains()
@@ -696,6 +818,7 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
     override fun onDestroy() {
         try {
             executorService.shutdownNow()
+            configExecutor.shutdownNow()
             datingPlatformManager.shutdown()
             trackingManager.startManualTracking()
 
@@ -718,8 +841,9 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
         val navigationContainerViewId: String? = null,
         val navigationTabIndex: Int? = null,
         val navigationTabCount: Int? = null,
-        /// Delay before the first tab-tap attempt, letting the app finish its
-        /// splash/load so taps are not sent during an unstable transition.
-        val startDelayMs: Long = 1500L,
+        /// How long to keep polling/tapping for the messages tab before giving up
+        /// (and using the deep-link fallback if any). Instant when the tab already
+        /// exists; only matters while the app is still loading.
+        val maxRedirectWaitMs: Long = 1500L,
     )
 }

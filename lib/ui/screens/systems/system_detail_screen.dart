@@ -170,21 +170,10 @@ class _SystemView extends ConsumerWidget {
         ],
         const SizedBox(height: 18),
         _Section(
-          icon: FluentIcons.compass_northwest_20_regular,
-          title: 'Direction',
-          child: Text(system.direction),
-        ),
-        _Section(
           icon: FluentIcons.person_heart_20_regular,
           title: 'Identité',
           child: Text(system.identity),
         ),
-        if (system.nextAction.isNotEmpty)
-          _Section(
-            icon: FluentIcons.arrow_step_in_right_20_regular,
-            title: 'Prochaine action',
-            child: Text(system.nextAction),
-          ),
         _VictoriesSection(system: system),
         _MinimumSection(system: system),
         if (system.rules.isNotEmpty) _RulesSection(system: system),
@@ -198,6 +187,12 @@ class _SystemView extends ConsumerWidget {
                 : system.accountabilityName,
           ),
         ),
+        if (system.notes.trim().isNotEmpty)
+          _Section(
+            icon: FluentIcons.note_20_regular,
+            title: 'Notes',
+            child: Text(system.notes),
+          ),
         _Section(
           icon: FluentIcons.arrow_reset_20_regular,
           title: 'Règle de reprise',
@@ -267,7 +262,7 @@ class _IdentityHeader extends StatelessWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      '${system.completedThisWeek}/${system.targetThisWeek} preuves prévues cette semaine',
+                      '${system.completedThisWeek}/${system.targetThisWeek} preuves prévues',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: colors.onSurfaceVariant,
                           ),
@@ -315,7 +310,7 @@ class _VictoriesSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) => _Section(
         icon: FluentIcons.trophy_20_regular,
-        title: 'Victoires de la semaine',
+        title: 'Victoires',
         child: system.victories.isEmpty
             ? const Text('Aucune victoire définie.')
             : Column(
@@ -356,7 +351,9 @@ class _VictoryRow extends ConsumerWidget {
               children: [
                 Text(victory.title),
                 Text(
-                  '${victory.completedCount} sur ${victory.targetCount}${victory.isImportant ? ' · importante' : ''}',
+                  '${victory.completedCount} sur ${victory.targetCount} cette semaine'
+                  '${victory.frequency == SystemVictoryFrequency.daily ? ' · ${victory.perPeriodTarget}/jour' : ''}'
+                  '${victory.isImportant ? ' · importante' : ''}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),

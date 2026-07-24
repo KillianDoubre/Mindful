@@ -44,4 +44,6 @@
     <string name="app_screen_time_usage_info" formatted="true">Utilisé pendant %s</string>
     <string name="focus_session_completed_notification_info">Session de concentration terminée.</string>
     <string name="focus_session_stopped_notification_info">Session de concentration arrêtée.</string>
+    <string name="systems_daily_reminder_notification_info">C\'est le moment d\'avancer sur tes systèmes du jour. Ouvre Systèmes et fais une petite preuve d\'identité.</string>
+    <string name="systems_weekly_reminder_notification_info">C\'est l\'heure de ta revue hebdomadaire. Ouvre Systèmes pour faire le bilan de la semaine.</string>
 </resources>

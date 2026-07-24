@@ -238,11 +238,11 @@ class _SystemReviewScreenState extends ConsumerState<SystemReviewScreen> {
       if (!_express) 'Source : $_resistanceSource',
       if (!_express && _friction.text.trim().isNotEmpty)
         'Friction à tester : ${_friction.text.trim()}',
+      'Prochain engagement : ${_commitment.text.trim()}',
     ].join('\n');
     await ref.read(systemsProvider.notifier).recordReview(
           systemId: system.id,
           reflection: reflection,
-          nextCommitment: _commitment.text,
           isExpress: _express,
         );
     if (!_express && _decision != system.status) {

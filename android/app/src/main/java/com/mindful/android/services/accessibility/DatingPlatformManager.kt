@@ -31,6 +31,11 @@ class DatingPlatformManager(
     /** Package name to accumulated milliseconds spent during this daily period. */
     private val dailyMsByPackage: MutableMap<String, Long> = HashMap()
     private val retainedBlockedSectionByPackage: MutableMap<String, Boolean> = HashMap()
+
+    // The tick queries the accessibility tree (rootInActiveWindow, node lookups),
+    // which must run on the service's main looper — the same looper the system
+    // delivers accessibility events on. Using a background thread here crashes
+    // the service on some devices.
     private val timerHandler = Handler(Looper.getMainLooper())
 
     private var resetTimeMinutes = initialResetTimeMinutes.coerceIn(0, 24 * 60 - 1)
@@ -99,7 +104,8 @@ class DatingPlatformManager(
             accumulateUntil(nowElapsedMs)
         }
 
-        activeAllowedMs = config.allowedMs.coerceAtLeast(MIN_ALLOWED_MS)
+        // A 0-minute budget is valid and means "always redirect to messages".
+        activeAllowedMs = config.allowedMs.coerceAtLeast(0L)
 
         if ((dailyMsByPackage[packageName] ?: 0L) >= activeAllowedMs) {
             Log.d(TAG, "onAccessibilityEvent: $packageName dating budget exhausted")
@@ -126,7 +132,8 @@ class DatingPlatformManager(
             return
         }
 
-        activeAllowedMs = config.allowedMs.coerceAtLeast(MIN_ALLOWED_MS)
+        // A 0-minute budget is valid and means "always redirect to messages".
+        activeAllowedMs = config.allowedMs.coerceAtLeast(0L)
         if ((dailyMsByPackage[packageName] ?: 0L) >= activeAllowedMs) {
             redirectToMessages(packageName, getForegroundRoot(packageName))
         }
@@ -368,7 +375,6 @@ class DatingPlatformManager(
         private const val TAG = "Mindful.DatingPlatformManager"
         private const val TIMER_INTERVAL_MS = 1000L
         private const val SAVE_INTERVAL_MS = 5000L
-        private const val MIN_ALLOWED_MS = 60 * 1000L
         private const val REDIRECT_COOLDOWN_MS = 1500L
 
         /**

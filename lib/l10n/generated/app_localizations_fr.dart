@@ -97,7 +97,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get permission_accessibility_required =>
-      'Mindful a besoin des permissions d\'accessibilité pour mieux bloquer les sites internet et les formats courts.';
+      'Mindful a besoin des permissions d\'accessibilité pour mieux bloquer les sites internet, les dating apps et les formats courts.';
 
   @override
   String get permission_accessibility_device_tile_label => 'Utiliser Mindful';

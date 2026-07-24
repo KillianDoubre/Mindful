@@ -74,6 +74,24 @@ enum SystemEventType {
       );
 }
 
+enum SystemVictoryFrequency {
+  weekly('weekly', 'Hebdomadaire', 'semaine'),
+  daily('daily', 'Quotidienne', 'jour');
+
+  const SystemVictoryFrequency(this.databaseValue, this.label, this.unit);
+
+  final String databaseValue;
+  final String label;
+
+  /// Unit used for the per-period target ("jour" or "semaine").
+  final String unit;
+
+  static SystemVictoryFrequency fromDatabase(String? value) => values.firstWhere(
+        (frequency) => frequency.databaseValue == value,
+        orElse: () => SystemVictoryFrequency.weekly,
+      );
+}
+
 @immutable
 class SystemVictory {
   const SystemVictory({
@@ -83,16 +101,26 @@ class SystemVictory {
     required this.completedCount,
     required this.isImportant,
     required this.sortOrder,
+    required this.frequency,
   });
 
   final int id;
   final String title;
+
+  /// Weekly total target. For a daily victory this is the per-day target × 7,
+  /// so daily victories still accumulate and reset weekly like weekly ones.
   final int targetCount;
   final int completedCount;
   final bool isImportant;
   final int sortOrder;
+  final SystemVictoryFrequency frequency;
 
   bool get isCompleted => completedCount >= targetCount;
+
+  /// Target expressed in the victory's own unit (per day when daily).
+  int get perPeriodTarget => frequency == SystemVictoryFrequency.daily
+      ? (targetCount / 7).round().clamp(1, 999)
+      : targetCount;
 }
 
 @immutable
@@ -186,14 +214,13 @@ class LifeSystem {
   const LifeSystem({
     required this.id,
     required this.name,
-    required this.direction,
     required this.identity,
     required this.status,
     required this.priority,
     required this.minimumVersion,
     required this.accountabilityName,
     required this.comebackRule,
-    required this.nextAction,
+    required this.notes,
     required this.reviewEveryDays,
     required this.totalXp,
     required this.sortOrder,
@@ -211,14 +238,13 @@ class LifeSystem {
 
   final int id;
   final String name;
-  final String direction;
   final String identity;
   final LifeSystemStatus status;
   final int priority;
   final String minimumVersion;
   final String accountabilityName;
   final String comebackRule;
-  final String nextAction;
+  final String notes;
   final int reviewEveryDays;
   final int totalXp;
   final int sortOrder;
@@ -277,12 +303,17 @@ class SystemVictoryDraft {
     required this.title,
     this.targetCount = 1,
     this.isImportant = false,
+    this.frequency = SystemVictoryFrequency.weekly,
   });
 
   final int? id;
   final String title;
+
+  /// Target in the chosen unit: per day when [frequency] is daily, per week
+  /// otherwise. The repository converts it to a weekly total for storage.
   final int targetCount;
   final bool isImportant;
+  final SystemVictoryFrequency frequency;
 }
 
 @immutable
@@ -313,14 +344,13 @@ class SystemFrictionDraft {
 class LifeSystemDraft {
   const LifeSystemDraft({
     required this.name,
-    required this.direction,
     required this.identity,
     required this.status,
     required this.priority,
     required this.minimumVersion,
     required this.accountabilityName,
     required this.comebackRule,
-    required this.nextAction,
+    required this.notes,
     required this.reviewEveryDays,
     required this.victories,
     required this.rules,
@@ -328,14 +358,13 @@ class LifeSystemDraft {
   });
 
   final String name;
-  final String direction;
   final String identity;
   final LifeSystemStatus status;
   final int priority;
   final String minimumVersion;
   final String accountabilityName;
   final String comebackRule;
-  final String nextAction;
+  final String notes;
   final int reviewEveryDays;
   final List<SystemVictoryDraft> victories;
   final List<SystemRuleDraft> rules;

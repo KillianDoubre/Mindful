@@ -9,7 +9,6 @@ import 'package:mindful/ui/common/default_fab_button.dart';
 import 'package:mindful/ui/common/glass_surface.dart';
 import 'package:mindful/ui/common/scaffold_shell.dart';
 import 'package:mindful/ui/common/sliver_tabs_bottom_padding.dart';
-import 'package:mindful/ui/screens/productivity/note_edit_icon.dart';
 import 'package:mindful/ui/screens/productivity/note_editor_screen.dart';
 
 class NotesScreen extends ConsumerStatefulWidget {
@@ -160,10 +159,6 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
               note: visibleNotes[index],
               showDragHandle: false,
               onTap: () => _openEditor(visibleNotes[index]),
-              onEdit: () => _openEditor(
-                visibleNotes[index],
-                startInEditMode: true,
-              ),
             ),
           ),
         ),
@@ -188,7 +183,6 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
                 note: note,
                 showDragHandle: true,
                 onTap: () => _openEditor(note),
-                onEdit: () => _openEditor(note, startInEditMode: true),
               ),
             ),
           );
@@ -197,16 +191,10 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
     ];
   }
 
-  Future<void> _openEditor(
-    ProductivityItem? note, {
-    bool startInEditMode = false,
-  }) async {
+  Future<void> _openEditor(ProductivityItem? note) async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (context) => NoteEditorScreen(
-          note: note,
-          startInEditMode: startInEditMode,
-        ),
+        builder: (context) => NoteEditorScreen(note: note),
       ),
     );
   }
@@ -228,13 +216,11 @@ class _NoteCard extends StatelessWidget {
     required this.note,
     required this.showDragHandle,
     required this.onTap,
-    required this.onEdit,
   });
 
   final ProductivityItem note;
   final bool showDragHandle;
   final VoidCallback onTap;
-  final VoidCallback onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -290,29 +276,14 @@ class _NoteCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      tooltip: 'Modifier la note',
-                      onPressed: onEdit,
-                      visualDensity: VisualDensity.compact,
-                      icon: NoteEditIcon(
-                        size: 20,
-                        color: colors.onSurfaceVariant,
-                      ),
+                if (showDragHandle)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 6, top: 2),
+                    child: Icon(
+                      FluentIcons.re_order_dots_vertical_20_regular,
+                      color: colors.onSurfaceVariant.withValues(alpha: 0.65),
                     ),
-                    if (showDragHandle)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 2, right: 2),
-                        child: Icon(
-                          FluentIcons.re_order_dots_vertical_20_regular,
-                          color:
-                              colors.onSurfaceVariant.withValues(alpha: 0.65),
-                        ),
-                      ),
-                  ],
-                ),
+                  ),
               ],
             ),
           ),

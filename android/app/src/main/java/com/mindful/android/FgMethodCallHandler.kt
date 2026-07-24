@@ -13,6 +13,7 @@ import com.mindful.android.helpers.AlarmTasksSchedulingHelper.cancelBedtimeRouti
 import com.mindful.android.helpers.AlarmTasksSchedulingHelper.cancelNotificationBatchTask
 import com.mindful.android.helpers.AlarmTasksSchedulingHelper.scheduleBedtimeRoutineTasks
 import com.mindful.android.helpers.AlarmTasksSchedulingHelper.scheduleNotificationBatchTask
+import com.mindful.android.helpers.AlarmTasksSchedulingHelper.scheduleSystemsReminders
 import com.mindful.android.helpers.device.DeviceAppsHelper.getDeviceAppInfos
 import com.mindful.android.helpers.device.NewActivitiesLaunchHelper
 import com.mindful.android.helpers.device.NotificationHelper
@@ -254,6 +255,11 @@ class FgMethodCallHandler(
                     focusServiceConn.service?.giveUpOrStopFocusSession(call.arguments() ?: false)
                     focusServiceConn.unBindService()
                 }
+                result.success(true)
+            }
+
+            "updateSystemsReminders" -> {
+                scheduleSystemsReminders(context, call.arguments() ?: "")
                 result.success(true)
             }
 

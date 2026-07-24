@@ -53,7 +53,8 @@ class DatingTimerChart extends ConsumerWidget {
     );
 
     if (newTimerSec == null || newTimerSec == allowedTimeSec) return;
-    final newAllowedMinutes = max(1, newTimerSec ~/ 60);
+    // 0 is allowed: it means the discovery pages are always redirected.
+    final newAllowedMinutes = max(0, newTimerSec ~/ 60);
     ref.read(wellBeingProvider.notifier).setDatingAppBlock(
           appPackage,
           allowedMinutes: newAllowedMinutes,
@@ -63,9 +64,11 @@ class DatingTimerChart extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     const dimension = 176.0;
-    final allowedTimeSec = max(1, allowedMinutes) * 60;
+    final allowedTimeSec = allowedMinutes * 60;
     final remainingTimeSec = max(0, allowedTimeSec - usedTimeSec);
-    final progress = (remainingTimeSec / allowedTimeSec).clamp(0.0, 1.0);
+    final progress = allowedTimeSec == 0
+        ? 0.0
+        : (remainingTimeSec / allowedTimeSec).clamp(0.0, 1.0);
     final progressColor = Color.lerp(
       Theme.of(context).colorScheme.errorContainer,
       Theme.of(context).colorScheme.primaryContainer,

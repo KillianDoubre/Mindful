@@ -30,6 +30,7 @@ import 'package:mindful/ui/common/default_dropdown_tile.dart';
 import 'package:mindful/ui/common/sliver_tabs_bottom_padding.dart';
 import 'package:mindful/ui/common/styled_text.dart';
 import 'package:mindful/ui/permissions/battery_permission_tile.dart';
+import 'package:mindful/ui/screens/settings/general/systems_reminders_section.dart';
 
 class TabGeneral extends ConsumerWidget {
   const TabGeneral({super.key});
@@ -225,6 +226,11 @@ class TabGeneral extends ConsumerWidget {
             ),
           ],
         ).sliver,
+
+        /// Notifications (Systems reminders)
+        12.vSliverBox,
+        const ContentSectionHeader(title: 'Notifications').sliver,
+        const SystemsRemindersSection().sliver,
 
         /// Service
         ContentSectionHeader(title: context.locale.service_heading).sliver,

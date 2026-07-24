@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:drift/drift.dart';
+import 'package:mindful/core/database/adapters/time_of_day_adapter.dart';
 import 'package:mindful/core/services/drift_db_service.dart';
 import 'package:mindful/models/life_system.dart';
+import 'package:mindful/models/systems_reminder.dart';
 
 class SystemsLimitException implements Exception {
   const SystemsLimitException();
@@ -42,6 +44,7 @@ class SystemsRepository {
         accountability_name TEXT NOT NULL DEFAULT '',
         comeback_rule TEXT NOT NULL DEFAULT '',
         next_action TEXT NOT NULL DEFAULT '',
+        notes TEXT NOT NULL DEFAULT '',
         review_every_days INTEGER NOT NULL DEFAULT 7,
         total_xp INTEGER NOT NULL DEFAULT 0,
         sort_order INTEGER NOT NULL DEFAULT 0,
@@ -57,7 +60,8 @@ class SystemsRepository {
         title TEXT NOT NULL,
         target_count INTEGER NOT NULL DEFAULT 1,
         is_important INTEGER NOT NULL DEFAULT 0,
-        sort_order INTEGER NOT NULL DEFAULT 0
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        frequency TEXT NOT NULL DEFAULT 'weekly'
       )
     ''');
     await _db.customStatement('''
@@ -145,7 +149,13 @@ class SystemsRepository {
     await _db.customStatement('''
       CREATE TABLE IF NOT EXISTS systems_settings (
         id INTEGER PRIMARY KEY CHECK (id = 0),
-        selected_focus_system_id INTEGER
+        selected_focus_system_id INTEGER,
+        daily_reminder_enabled INTEGER NOT NULL DEFAULT 0,
+        daily_reminder_minutes INTEGER NOT NULL DEFAULT 480,
+        daily_reminder_days TEXT NOT NULL DEFAULT '1,1,1,1,1,1,1',
+        weekly_reminder_enabled INTEGER NOT NULL DEFAULT 0,
+        weekly_reminder_minutes INTEGER NOT NULL DEFAULT 1080,
+        weekly_reminder_days TEXT NOT NULL DEFAULT '0,0,0,0,0,0,1'
       )
     ''');
     await _db.customStatement(
@@ -159,6 +169,61 @@ class SystemsRepository {
       CREATE INDEX IF NOT EXISTS system_events_system_date
       ON system_events(system_id, occurred_at DESC)
     ''');
+
+    /// Migrations for databases created before these columns existed.
+    await _ensureColumn('life_systems', 'notes', "TEXT NOT NULL DEFAULT ''");
+    await _ensureColumn(
+      'system_victories',
+      'frequency',
+      "TEXT NOT NULL DEFAULT 'weekly'",
+    );
+    await _ensureColumn(
+      'systems_settings',
+      'daily_reminder_enabled',
+      'INTEGER NOT NULL DEFAULT 0',
+    );
+    await _ensureColumn(
+      'systems_settings',
+      'daily_reminder_minutes',
+      'INTEGER NOT NULL DEFAULT 480',
+    );
+    await _ensureColumn(
+      'systems_settings',
+      'daily_reminder_days',
+      "TEXT NOT NULL DEFAULT '1,1,1,1,1,1,1'",
+    );
+    await _ensureColumn(
+      'systems_settings',
+      'weekly_reminder_enabled',
+      'INTEGER NOT NULL DEFAULT 0',
+    );
+    await _ensureColumn(
+      'systems_settings',
+      'weekly_reminder_minutes',
+      'INTEGER NOT NULL DEFAULT 1080',
+    );
+    await _ensureColumn(
+      'systems_settings',
+      'weekly_reminder_days',
+      "TEXT NOT NULL DEFAULT '0,0,0,0,0,0,1'",
+    );
+  }
+
+  /// Adds [column] to [table] if it is not present yet. SQLite's
+  /// `CREATE TABLE IF NOT EXISTS` never adds new columns to an existing table,
+  /// so this keeps personal databases from earlier releases compatible.
+  Future<void> _ensureColumn(
+    String table,
+    String column,
+    String definition,
+  ) async {
+    final info = await _db.customSelect('PRAGMA table_info($table)').get();
+    final exists = info.any((row) => row.read<String>('name') == column);
+    if (!exists) {
+      await _db.customStatement(
+        'ALTER TABLE $table ADD COLUMN $column $definition',
+      );
+    }
   }
 
   Future<List<LifeSystem>> loadSystems() async {
@@ -214,20 +279,19 @@ class SystemsRepository {
             .getSingle();
         await _db.customStatement('''
           INSERT INTO life_systems (
-            name, direction, identity_text, status, priority,
-            minimum_version, accountability_name, comeback_rule, next_action,
+            name, identity_text, status, priority,
+            minimum_version, accountability_name, comeback_rule, notes,
             review_every_days, sort_order, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', [
           draft.name.trim(),
-          draft.direction.trim(),
           draft.identity.trim(),
           draft.status.databaseValue,
           draft.priority,
           draft.minimumVersion.trim(),
           draft.accountabilityName.trim(),
           draft.comebackRule.trim(),
-          draft.nextAction.trim(),
+          draft.notes.trim(),
           draft.reviewEveryDays,
           orderRow.read<int>('next_order'),
           now,
@@ -243,21 +307,20 @@ class SystemsRepository {
         systemId = id;
         await _db.customStatement('''
           UPDATE life_systems SET
-            name = ?, direction = ?, identity_text = ?, status = ?,
+            name = ?, identity_text = ?, status = ?,
             priority = ?, minimum_version = ?, accountability_name = ?,
-            comeback_rule = ?, next_action = ?, review_every_days = ?,
+            comeback_rule = ?, notes = ?, review_every_days = ?,
             updated_at = ?
           WHERE id = ?
         ''', [
           draft.name.trim(),
-          draft.direction.trim(),
           draft.identity.trim(),
           draft.status.databaseValue,
           draft.priority,
           draft.minimumVersion.trim(),
           draft.accountabilityName.trim(),
           draft.comebackRule.trim(),
-          draft.nextAction.trim(),
+          draft.notes.trim(),
           draft.reviewEveryDays,
           now,
           systemId,
@@ -304,28 +367,36 @@ class SystemsRepository {
     }
     for (var index = 0; index < victories.length; index++) {
       final item = victories[index];
+      // Store a weekly total so daily victories accumulate/reset weekly like
+      // weekly ones (daily target × 7).
+      final weeklyTarget = (item.frequency == SystemVictoryFrequency.daily
+              ? item.targetCount * 7
+              : item.targetCount)
+          .clamp(1, 999);
       if (item.id == null) {
         await _db.customStatement('''
           INSERT INTO system_victories
-            (system_id, title, target_count, is_important, sort_order)
-          VALUES (?, ?, ?, ?, ?)
+            (system_id, title, target_count, is_important, sort_order, frequency)
+          VALUES (?, ?, ?, ?, ?, ?)
         ''', [
           systemId,
           item.title.trim(),
-          item.targetCount.clamp(1, 99),
+          weeklyTarget,
           item.isImportant ? 1 : 0,
           index,
+          item.frequency.databaseValue,
         ]);
       } else {
         await _db.customStatement('''
           UPDATE system_victories SET title = ?, target_count = ?,
-            is_important = ?, sort_order = ?
+            is_important = ?, sort_order = ?, frequency = ?
           WHERE id = ? AND system_id = ?
         ''', [
           item.title.trim(),
-          item.targetCount.clamp(1, 99),
+          weeklyTarget,
           item.isImportant ? 1 : 0,
           index,
+          item.frequency.databaseValue,
           item.id,
           systemId,
         ]);
@@ -593,7 +664,6 @@ class SystemsRepository {
   Future<void> recordReview({
     required int systemId,
     required String reflection,
-    required String nextCommitment,
     required bool isExpress,
   }) async {
     await _ensureInitialized();
@@ -605,12 +675,6 @@ class SystemsRepository {
         UPDATE system_weeks SET reflection = ?, updated_at = ?
         WHERE system_id = ? AND week_start = ?
       ''', [reflection.trim(), now.millisecondsSinceEpoch, systemId, week]);
-      if (nextCommitment.trim().isNotEmpty) {
-        await _db.customStatement(
-          'UPDATE life_systems SET next_action = ?, updated_at = ? WHERE id = ?',
-          [nextCommitment.trim(), now.millisecondsSinceEpoch, systemId],
-        );
-      }
       await _insertEvent(
         systemId: systemId,
         type: SystemEventType.review,
@@ -670,6 +734,54 @@ class SystemsRepository {
     );
     _changes.add(null);
   }
+
+  Future<SystemsRemindersConfig> loadRemindersConfig() async {
+    await _ensureInitialized();
+    final row = await _db.customSelect('''
+      SELECT daily_reminder_enabled, daily_reminder_minutes, daily_reminder_days,
+             weekly_reminder_enabled, weekly_reminder_minutes, weekly_reminder_days
+      FROM systems_settings WHERE id = 0
+    ''').getSingle();
+
+    SystemReminder reminderFrom(String prefix) => SystemReminder(
+          isEnabled: row.read<int>('${prefix}_enabled') == 1,
+          time: TimeOfDayAdapter.fromMinutes(row.read<int>('${prefix}_minutes')),
+          days: _parseDays(row.read<String>('${prefix}_days')),
+        );
+
+    return SystemsRemindersConfig(
+      daily: reminderFrom('daily_reminder'),
+      weekly: reminderFrom('weekly_reminder'),
+    );
+  }
+
+  Future<void> saveRemindersConfig(SystemsRemindersConfig config) async {
+    await _ensureInitialized();
+    await _db.customStatement('''
+      UPDATE systems_settings SET
+        daily_reminder_enabled = ?, daily_reminder_minutes = ?, daily_reminder_days = ?,
+        weekly_reminder_enabled = ?, weekly_reminder_minutes = ?, weekly_reminder_days = ?
+      WHERE id = 0
+    ''', [
+      config.daily.isEnabled ? 1 : 0,
+      config.daily.time.toMinutes,
+      _daysToText(config.daily.days),
+      config.weekly.isEnabled ? 1 : 0,
+      config.weekly.time.toMinutes,
+      _daysToText(config.weekly.days),
+    ]);
+  }
+
+  List<bool> _parseDays(String raw) {
+    final parts = raw.split(',');
+    return List<bool>.generate(
+      7,
+      (i) => i < parts.length ? parts[i].trim() == '1' : true,
+    );
+  }
+
+  String _daysToText(List<bool> days) =>
+      days.map((day) => day ? '1' : '0').join(',');
 
   Future<void> linkFocusSession(int focusSessionId, int? systemId) async {
     await _ensureInitialized();
@@ -739,6 +851,9 @@ class SystemsRepository {
           completedCount: row.read<int>('completed_count'),
           isImportant: row.read<int>('is_important') == 1,
           sortOrder: row.read<int>('sort_order'),
+          frequency: SystemVictoryFrequency.fromDatabase(
+            row.readNullable<String>('frequency'),
+          ),
         ),
     ];
 
@@ -819,14 +934,13 @@ class SystemsRepository {
     return LifeSystem(
       id: id,
       name: data['name'] as String? ?? '',
-      direction: data['direction'] as String? ?? '',
       identity: data['identity_text'] as String? ?? '',
       status: status,
       priority: data['priority'] as int? ?? 3,
       minimumVersion: data['minimum_version'] as String? ?? '',
       accountabilityName: data['accountability_name'] as String? ?? '',
       comebackRule: data['comeback_rule'] as String? ?? '',
-      nextAction: data['next_action'] as String? ?? '',
+      notes: data['notes'] as String? ?? '',
       reviewEveryDays: data['review_every_days'] as int? ?? 7,
       totalXp: data['total_xp'] as int? ?? 0,
       sortOrder: data['sort_order'] as int? ?? 0,

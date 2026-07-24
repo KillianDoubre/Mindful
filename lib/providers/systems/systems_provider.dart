@@ -101,13 +101,11 @@ class SystemsNotifier extends StateNotifier<AsyncValue<List<LifeSystem>>> {
   Future<void> recordReview({
     required int systemId,
     required String reflection,
-    required String nextCommitment,
     required bool isExpress,
   }) =>
       _repository.recordReview(
         systemId: systemId,
         reflection: reflection,
-        nextCommitment: nextCommitment,
         isExpress: isExpress,
       );
 

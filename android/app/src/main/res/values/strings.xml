@@ -78,6 +78,8 @@
     <string name="bedtime_upcoming_notification_info">Bedtime starts in 30 minutes. Use this time to wrap up and get ready for a fresh start tomorrow</string>
     <string name="bedtime_started_notification_info">It\'s time to wind down. Bedtime routine has started, helping you relax and prepare for a restful night\'s sleep.</string>
     <string name="bedtime_ended_notification_info">Rise and shine! Bedtime routine has ended, get ready to start the day energized and refreshed.</string>
+    <string name="systems_daily_reminder_notification_info">Time to work on your systems for today. Open Systems and log a small proof of identity.</string>
+    <string name="systems_weekly_reminder_notification_info">Time for your weekly review. Open Systems to reflect on your week.</string>
     <string name="emergency_pause_notification_title">Emergency Pause</string>
     <string name="emergency_pause_notification_info" comment="Time string as placeholder. ex: 'App blocker will resume after 3m 15s'" formatted="true">App blocker will resume after %s</string>
     <string name="emergency_pause_ended_notification_info">Emergency pause is over, and app blocker is back in action. Distractions are now blocked again, stay focused!</string>

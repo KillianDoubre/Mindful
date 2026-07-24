@@ -18,12 +18,11 @@ class SystemEditorScreen extends ConsumerStatefulWidget {
 
 class _SystemEditorScreenState extends ConsumerState<SystemEditorScreen> {
   late final TextEditingController _name;
-  late final TextEditingController _direction;
   late final TextEditingController _identity;
   late final TextEditingController _minimum;
   late final TextEditingController _accountability;
   late final TextEditingController _comeback;
-  late final TextEditingController _nextAction;
+  late final TextEditingController _notes;
   late LifeSystemStatus _status;
   late int _priority;
   late int _reviewEveryDays;
@@ -40,12 +39,11 @@ class _SystemEditorScreenState extends ConsumerState<SystemEditorScreen> {
     super.initState();
     final system = widget.system;
     _name = TextEditingController(text: system?.name);
-    _direction = TextEditingController(text: system?.direction);
     _identity = TextEditingController(text: system?.identity);
     _minimum = TextEditingController(text: system?.minimumVersion);
     _accountability = TextEditingController(text: system?.accountabilityName);
     _comeback = TextEditingController(text: system?.comebackRule);
-    _nextAction = TextEditingController(text: system?.nextAction);
+    _notes = TextEditingController(text: system?.notes);
     _status = system?.status ?? LifeSystemStatus.active;
     _priority = system?.priority ?? 3;
     _reviewEveryDays = system?.reviewEveryDays ?? 7;
@@ -54,8 +52,9 @@ class _SystemEditorScreenState extends ConsumerState<SystemEditorScreen> {
               (item) => _VictoryInput(
                 id: item.id,
                 title: item.title,
-                target: item.targetCount,
+                target: item.perPeriodTarget,
                 important: item.isImportant,
+                frequency: item.frequency,
               ),
             )
             .toList() ??
@@ -87,12 +86,11 @@ class _SystemEditorScreenState extends ConsumerState<SystemEditorScreen> {
   void dispose() {
     for (final controller in [
       _name,
-      _direction,
       _identity,
       _minimum,
       _accountability,
       _comeback,
-      _nextAction,
+      _notes,
     ]) {
       controller.dispose();
     }
@@ -121,7 +119,7 @@ class _SystemEditorScreenState extends ConsumerState<SystemEditorScreen> {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8),
-            child: Text('${_step + 1}/10'),
+            child: Text('${_step + 1}/11'),
           ),
         ],
       ),
@@ -144,7 +142,7 @@ class _SystemEditorScreenState extends ConsumerState<SystemEditorScreen> {
                     FilledButton.icon(
                       onPressed: _saving
                           ? null
-                          : _step == 9
+                          : _step == 10
                               ? _save
                               : _next,
                       icon: _saving
@@ -153,12 +151,12 @@ class _SystemEditorScreenState extends ConsumerState<SystemEditorScreen> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : Icon(
-                              _step == 9
+                              _step == 10
                                   ? FluentIcons.checkmark_20_filled
                                   : FluentIcons.arrow_right_20_filled,
                             ),
                       label: Text(
-                        _step == 9
+                        _step == 10
                             ? (_editing ? 'Enregistrer' : 'Créer le système')
                             : 'Continuer',
                       ),
@@ -176,9 +174,8 @@ class _SystemEditorScreenState extends ConsumerState<SystemEditorScreen> {
               ),
               steps: [
                 Step(
-                  title: const Text('Nom et direction'),
-                  subtitle:
-                      const Text('La destination, sans en faire un score'),
+                  title: const Text('Nom'),
+                  subtitle: const Text('L’essentiel du système'),
                   isActive: _step >= 0,
                   content: Column(
                     children: [
@@ -186,14 +183,6 @@ class _SystemEditorScreenState extends ConsumerState<SystemEditorScreen> {
                         controller: _name,
                         label: 'Nom du système',
                         hint: 'Ex. Activité entrepreneuriale',
-                      ),
-                      const SizedBox(height: 12),
-                      _field(
-                        controller: _direction,
-                        label: 'Direction à long terme',
-                        hint:
-                            'Ex. Construire une activité rentable qui augmente progressivement ma liberté.',
-                        lines: 4,
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<LifeSystemStatus>(
@@ -244,9 +233,9 @@ class _SystemEditorScreenState extends ConsumerState<SystemEditorScreen> {
                   ),
                 ),
                 Step(
-                  title: const Text('Victoires hebdomadaires'),
+                  title: const Text('Victoires'),
                   subtitle: const Text(
-                      'Des actions contrôlables, jamais des résultats'),
+                      'Quotidiennes ou hebdomadaires, jamais des résultats'),
                   isActive: _step >= 2,
                   content: _victoriesEditor(),
                 ),
@@ -255,24 +244,11 @@ class _SystemEditorScreenState extends ConsumerState<SystemEditorScreen> {
                   subtitle: const Text(
                       'Ce qui reste possible lors d’une semaine difficile'),
                   isActive: _step >= 3,
-                  content: Column(
-                    children: [
-                      _field(
-                        controller: _minimum,
-                        label: 'Version minimale',
-                        hint:
-                            'Ex. travailler cinq minutes sur la prochaine action.',
-                        lines: 3,
-                      ),
-                      const SizedBox(height: 12),
-                      _field(
-                        controller: _nextAction,
-                        label: 'Prochaine action concrète',
-                        hint:
-                            'Ex. envoyer le brouillon de l’offre à trois prospects.',
-                        lines: 3,
-                      ),
-                    ],
+                  content: _field(
+                    controller: _minimum,
+                    label: 'Version minimale',
+                    hint: 'Ex. travailler cinq minutes sur une victoire.',
+                    lines: 3,
                   ),
                 ),
                 Step(
@@ -300,10 +276,21 @@ class _SystemEditorScreenState extends ConsumerState<SystemEditorScreen> {
                   ),
                 ),
                 Step(
+                  title: const Text('Notes'),
+                  subtitle: const Text('Notes libres, facultatives'),
+                  isActive: _step >= 7,
+                  content: _field(
+                    controller: _notes,
+                    label: 'Notes',
+                    hint: 'Tout ce que tu veux garder à l’esprit…',
+                    lines: 5,
+                  ),
+                ),
+                Step(
                   title: const Text('Règle de reprise'),
                   subtitle: const Text(
                       'La reprise compte davantage que la perfection'),
-                  isActive: _step >= 7,
+                  isActive: _step >= 8,
                   content: _field(
                     controller: _comeback,
                     label: 'Après une interruption…',
@@ -315,7 +302,7 @@ class _SystemEditorScreenState extends ConsumerState<SystemEditorScreen> {
                 Step(
                   title: const Text('Fréquence de révision'),
                   subtitle: const Text('Un système doit pouvoir évoluer'),
-                  isActive: _step >= 8,
+                  isActive: _step >= 9,
                   content: DropdownButtonFormField<int>(
                     initialValue: _reviewEveryDays,
                     decoration: _decoration('Rythme de revue'),
@@ -334,7 +321,7 @@ class _SystemEditorScreenState extends ConsumerState<SystemEditorScreen> {
                   title: const Text('Résumé'),
                   subtitle: const Text(
                       'Le système doit rester au service de la vie réelle'),
-                  isActive: _step >= 9,
+                  isActive: _step >= 10,
                   content: _summary(),
                 ),
               ],
@@ -371,9 +358,26 @@ class _SystemEditorScreenState extends ConsumerState<SystemEditorScreen> {
                       ],
                     ),
                     const SizedBox(height: 10),
+                    SegmentedButton<SystemVictoryFrequency>(
+                      segments: const [
+                        ButtonSegment(
+                          value: SystemVictoryFrequency.weekly,
+                          label: Text('Hebdomadaire'),
+                        ),
+                        ButtonSegment(
+                          value: SystemVictoryFrequency.daily,
+                          label: Text('Quotidienne'),
+                        ),
+                      ],
+                      selected: {_victories[index].frequency},
+                      onSelectionChanged: (value) => setState(
+                        () => _victories[index].frequency = value.first,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
                     Row(
                       children: [
-                        const Text('Cible par semaine'),
+                        Text('Cible par ${_victories[index].frequency.unit}'),
                         const Spacer(),
                         IconButton.filledTonal(
                           onPressed: _victories[index].target <= 1
@@ -612,28 +616,27 @@ class _SystemEditorScreenState extends ConsumerState<SystemEditorScreen> {
   }
 
   String? _stepError(int step) {
-    if (step == 0 &&
-        (_name.text.trim().isEmpty || _direction.text.trim().isEmpty)) {
-      return 'Ajoute un nom et une direction claire.';
+    if (step == 0 && _name.text.trim().isEmpty) {
+      return 'Ajoute un nom au système.';
     }
     if (step == 1 && _identity.text.trim().isEmpty) {
       return 'Décris une identité observable et atteignable.';
     }
     if (step == 2 &&
         !_victories.any((victory) => victory.title.text.trim().isNotEmpty)) {
-      return 'Ajoute au moins une victoire hebdomadaire.';
+      return 'Ajoute au moins une victoire.';
     }
     if (step == 3 && _minimum.text.trim().isEmpty) {
       return 'Prévois une version minimale pour les jours difficiles.';
     }
-    if (step == 7 && _comeback.text.trim().isEmpty) {
+    if (step == 8 && _comeback.text.trim().isEmpty) {
       return 'Définis une règle de reprise explicite.';
     }
     return null;
   }
 
   Future<void> _save() async {
-    for (var step = 0; step < 9; step++) {
+    for (var step = 0; step < 10; step++) {
       final error = _stepError(step);
       if (error != null) {
         setState(() => _step = step);
@@ -649,14 +652,13 @@ class _SystemEditorScreenState extends ConsumerState<SystemEditorScreen> {
       final id = await ref.read(systemsProvider.notifier).save(
             LifeSystemDraft(
               name: _name.text,
-              direction: _direction.text,
               identity: _identity.text,
               status: _status,
               priority: _priority,
               minimumVersion: _minimum.text,
               accountabilityName: _accountability.text,
               comebackRule: _comeback.text,
-              nextAction: _nextAction.text,
+              notes: _notes.text,
               reviewEveryDays: _reviewEveryDays,
               victories: _victories
                   .where((item) => item.title.text.trim().isNotEmpty)
@@ -666,6 +668,7 @@ class _SystemEditorScreenState extends ConsumerState<SystemEditorScreen> {
                       title: item.title.text,
                       targetCount: item.target,
                       isImportant: item.important,
+                      frequency: item.frequency,
                     ),
                   )
                   .toList(),
@@ -722,14 +725,21 @@ class _SystemEditorScreenState extends ConsumerState<SystemEditorScreen> {
 }
 
 class _VictoryInput {
-  _VictoryInput(
-      {this.id, String title = '', this.target = 1, this.important = false})
-      : title = TextEditingController(text: title);
+  _VictoryInput({
+    this.id,
+    String title = '',
+    this.target = 1,
+    this.important = false,
+    this.frequency = SystemVictoryFrequency.weekly,
+  }) : title = TextEditingController(text: title);
 
   final int? id;
   final TextEditingController title;
+
+  /// Target in the chosen unit (per day when [frequency] is daily).
   int target;
   bool important;
+  SystemVictoryFrequency frequency;
 
   void dispose() => title.dispose();
 }

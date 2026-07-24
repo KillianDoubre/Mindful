@@ -19,6 +19,7 @@ import 'package:mindful/models/usage_model.dart';
 import 'package:mindful/models/app_info.dart';
 import 'package:mindful/models/device_info_model.dart';
 import 'package:mindful/models/opening_intent_record.dart';
+import 'package:mindful/models/systems_reminder.dart';
 
 /// This class handles the Flutter method channel and is responsible for invoking native Android Java code.
 ///
@@ -274,6 +275,16 @@ class MethodChannelService {
       await _methodChannel.invokeMethod(
         'updateBedtimeSchedule',
         jsonEncode(bedtimeSettings),
+      );
+
+  /// Updates the Systems reminders (daily systems nudge + weekly review nudge).
+  ///
+  /// Sends the reminder configuration to the native side which (re)schedules or
+  /// cancels the corresponding exact alarms.
+  Future<bool> updateSystemsReminders(SystemsRemindersConfig config) async =>
+      await _methodChannel.invokeMethod(
+        'updateSystemsReminders',
+        config.toJson(),
       );
 
   /// Uses an emergency pass and pause the tracking service.

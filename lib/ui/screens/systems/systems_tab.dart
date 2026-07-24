@@ -116,196 +116,6 @@ Future<void> openSystemEditor(
   }
 }
 
-class SystemsNextActionCard extends ConsumerWidget {
-  const SystemsNextActionCard({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(systemsProvider);
-    return state.when(
-      loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
-      data: (systems) {
-        if (systems.isEmpty) {
-          return _CreateFirstSystemCard(
-            onTap: () => openSystemEditor(context, ref),
-          );
-        }
-        LifeSystem? selected;
-        for (final system in systems) {
-          final canAct = system.status == LifeSystemStatus.active ||
-              system.status == LifeSystemStatus.maintenance;
-          if (canAct && system.nextAction.trim().isNotEmpty) {
-            selected = system;
-            break;
-          }
-        }
-        if (selected == null) {
-          for (final system in systems) {
-            final canAct = system.status == LifeSystemStatus.active ||
-                system.status == LifeSystemStatus.maintenance;
-            if (canAct && system.minimumVersion.trim().isNotEmpty) {
-              selected = system;
-              break;
-            }
-          }
-        }
-        if (selected == null) return const SizedBox.shrink();
-        final system = selected;
-        final action = system.nextAction.trim().isNotEmpty
-            ? system.nextAction
-            : system.minimumVersion;
-        final colors = Theme.of(context).colorScheme;
-        return GlassSurface(
-          showShadow: false,
-          color: colors.primaryContainer,
-          borderRadius: BorderRadius.circular(24),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(24),
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => SystemDetailScreen(systemId: system.id),
-                ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(17),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 42,
-                      height: 42,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: colors.primary.withValues(alpha: .12),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: const Icon(
-                        FluentIcons.arrow_step_in_right_20_filled,
-                        size: 21,
-                      ),
-                    ),
-                    const SizedBox(width: 13),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Prochaine action réelle',
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelLarge
-                                ?.copyWith(color: colors.primary),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            action,
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w700),
-                          ),
-                          const SizedBox(height: 5),
-                          Text(
-                            system.name,
-                            style:
-                                Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: colors.onSurfaceVariant,
-                                    ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Padding(
-                      padding: EdgeInsets.only(top: 10),
-                      child: Icon(FluentIcons.chevron_right_20_regular),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _CreateFirstSystemCard extends StatelessWidget {
-  const _CreateFirstSystemCard({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return GlassSurface(
-      showShadow: false,
-      color: colors.primaryContainer,
-      borderRadius: BorderRadius.circular(24),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(24),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(17),
-            child: Row(
-              children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: colors.primary.withValues(alpha: .12),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: SvgPicture.asset(
-                    'assets/vectors/systems.svg',
-                    width: 21,
-                    height: 21,
-                    colorFilter: ColorFilter.mode(
-                      colors.primary,
-                      BlendMode.srcIn,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 13),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Systèmes',
-                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                              color: colors.primary,
-                            ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Créer mon premier système',
-                        style:
-                            Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                      ),
-                    ],
-                  ),
-                ),
-                const Icon(FluentIcons.chevron_right_20_regular),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class SystemCard extends StatelessWidget {
   const SystemCard({super.key, required this.system, required this.onTap});
 
@@ -366,18 +176,6 @@ class SystemCard extends StatelessWidget {
                     const Icon(FluentIcons.chevron_right_20_regular),
                   ],
                 ),
-                if (system.nextAction.isNotEmpty) ...[
-                  const SizedBox(height: 14),
-                  Text(
-                    'Prochaine action',
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          color: colors.onSurfaceVariant,
-                        ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(system.nextAction,
-                      maxLines: 2, overflow: TextOverflow.ellipsis),
-                ],
                 const SizedBox(height: 15),
                 Row(
                   children: [
@@ -494,7 +292,7 @@ class _SoftPill extends StatelessWidget {
       );
 }
 
-/// Systems summary card ("Des preuves, pas des séries.") used on the home
+/// Systems summary card ("Mes systèmes") used on the home
 /// dashboard. Watches [systemsProvider] and, when [onTap] is provided, becomes
 /// a tappable shortcut (e.g. to switch to the Systems tab).
 class SystemsSummaryCard extends ConsumerWidget {
@@ -528,7 +326,7 @@ class _SystemsSummary extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                'Des preuves, pas des séries.',
+                'Mes systèmes',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                     ),
@@ -545,7 +343,7 @@ class _SystemsSummary extends StatelessWidget {
         Text(
           systems.isEmpty
               ? 'Construisez un environnement qui rend l’action réelle plus simple.'
-              : '${systems.length}/5 systèmes · chacun conserve son propre rythme.',
+              : '${systems.length} systèmes',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
