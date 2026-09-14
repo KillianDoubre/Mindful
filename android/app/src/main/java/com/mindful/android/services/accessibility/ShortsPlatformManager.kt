@@ -17,7 +17,7 @@ import org.jetbrains.annotations.Contract
 
 class ShortsPlatformManager(
     private val context: Context,
-    private val blockedContentGoBack: () -> Unit,
+    private val blockedContentGoBack: (targetPackage: String) -> Unit,
     private val blockedInstagramOpenInbox: () -> Unit,
 ) {
 
@@ -65,6 +65,7 @@ class ShortsPlatformManager(
                     allowedShortContentTimeMs = wellbeing.allowedShortsTimeMs,
                     maxAllowedDuration = it,
                     blockedPackageName = resolvedPackage,
+                    foregroundPackage = packageName,
                 )
             }
         }
@@ -77,7 +78,11 @@ class ShortsPlatformManager(
      * @param url      The URL text from the browser.
      * @return True if a blocked short-form content website is open, false otherwise.
      */
-    fun checkAndBlockShortsOnBrowser(wellbeing: Wellbeing, url: String): Boolean {
+    fun checkAndBlockShortsOnBrowser(
+        browserPackage: String,
+        wellbeing: Wellbeing,
+        url: String,
+    ): Boolean {
         when {
             PlatformFeatures.INSTAGRAM_REELS in wellbeing.blockedFeatures
                     && doesUrlContainsAnyElement(mInstaReelUrls, url) -> true
@@ -100,7 +105,10 @@ class ShortsPlatformManager(
             else -> false
         }.let {
             if (it) {
-                updateShortsScreenTime(wellbeing.allowedShortsTimeMs)
+                updateShortsScreenTime(
+                    allowedShortContentTimeMs = wellbeing.allowedShortsTimeMs,
+                    blockedPackageName = browserPackage,
+                )
                 return true
             }
         }
@@ -118,13 +126,17 @@ class ShortsPlatformManager(
         allowedShortContentTimeMs: Long,
         maxAllowedDuration: Long = 30 * 1000L,
         blockedPackageName: String? = null,
+        /// The app actually in front, which can differ from [blockedPackageName]
+        /// for unofficial YouTube clients. Used to confirm the block still
+        /// applies to what the user is looking at.
+        foregroundPackage: String? = blockedPackageName,
     ) {
         // Check if limit is exhausted
         if (allowedShortContentTimeMs < 0 || shortContentScreenTime > (allowedShortContentTimeMs + SAVING_INTERVAL_MS)) {
             if (blockedPackageName == INSTAGRAM_PACKAGE) {
                 blockedInstagramOpenInbox.invoke()
-            } else {
-                blockedContentGoBack.invoke()
+            } else if (foregroundPackage != null) {
+                blockedContentGoBack.invoke(foregroundPackage)
             }
             return
         }

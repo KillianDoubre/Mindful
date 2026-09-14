@@ -25,6 +25,7 @@ import com.mindful.android.services.accessibility.MindfulAccessibilityService.Co
 import com.mindful.android.services.tracking.OverlayBuilder.getAppLabelAndIcon
 import com.mindful.android.utils.AppUtils
 import com.mindful.android.utils.DateTimeUtils
+import com.mindful.android.utils.BlockingOverlayState
 import com.mindful.android.utils.ThreadUtils
 import com.mindful.android.utils.Utils
 import java.util.concurrent.ConcurrentLinkedDeque
@@ -42,10 +43,22 @@ class OverlayManager(
     val hasSheetOverlay: Boolean
         get() = sheetReserved.get()
 
+    /// Reserves the single sheet slot, publishing the state the accessibility
+    /// service reads to stand down while an app is covered by the overlay.
+    private fun reserveSheet(): Boolean =
+        sheetReserved.compareAndSet(false, true).also {
+            if (it) BlockingOverlayState.setVisible(true)
+        }
+
+    private fun releaseSheet() {
+        sheetReserved.set(false)
+        BlockingOverlayState.setVisible(false)
+    }
+
 
     /// Animate out the overlay
     fun dismissSheetOverlay() {
-        sheetReserved.set(false)
+        releaseSheet()
         overlays.pollFirst()?.let { sheetOverlay ->
             ThreadUtils.runOnMainThread {
                 // Get views
@@ -71,14 +84,15 @@ class OverlayManager(
         restrictionState: RestrictionState,
         addReminderWithDelay: ((futureMinutes: Int) -> Unit)? = null,
     ) {
-        if (!sheetReserved.compareAndSet(false, true)) return
+        if (!reserveSheet()) return
 
         ThreadUtils.runOnMainThread {
             runCatching {
 
                 // Notify, stop and return if don't have overlay permission
-                if (!haveOverlayPermission(context)) {
-                    sheetReserved.set(false)
+                if (!Settings.canDrawOverlays(context)) {
+                    releaseSheet()
+                    onOverlayPermissionMissing(context)
                     return@runOnMainThread
                 }
                 if (!sheetReserved.get()) return@runOnMainThread
@@ -121,7 +135,7 @@ class OverlayManager(
                         .start()
                 }
             }.getOrElse {
-                sheetReserved.set(false)
+                releaseSheet()
                 SharedPrefsHelper.insertCrashLogToPrefs(context, it)
             }
         }
@@ -132,12 +146,13 @@ class OverlayManager(
         isLimitExhausted: Boolean,
         isLimitCheckPending: Boolean = false,
     ) {
-        if (!sheetReserved.compareAndSet(false, true)) return
+        if (!reserveSheet()) return
 
         ThreadUtils.runOnMainThread {
             runCatching {
-                if (!haveOverlayPermission(context)) {
-                    sheetReserved.set(false)
+                if (!Settings.canDrawOverlays(context)) {
+                    releaseSheet()
+                    onOverlayPermissionMissing(context)
                     return@runOnMainThread
                 }
                 if (!sheetReserved.get()) return@runOnMainThread
@@ -168,7 +183,7 @@ class OverlayManager(
                     .setDuration(220)
                     .start()
             }.getOrElse {
-                sheetReserved.set(false)
+                releaseSheet()
                 SharedPrefsHelper.insertCrashLogToPrefs(context, it)
             }
         }
@@ -245,29 +260,23 @@ class OverlayManager(
             gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
         }
 
-        private fun haveOverlayPermission(context: Context): Boolean {
-            if (!Settings.canDrawOverlays(context)) {
-                // Show notification
-                NotificationHelper.pushAskOverlayPermissionNotification(context)
+        /// Asks for the missing overlay permission and falls back to a home
+        /// press, since without the overlay nothing else covers the app.
+        private fun onOverlayPermissionMissing(context: Context) {
+            // Show notification
+            NotificationHelper.pushAskOverlayPermissionNotification(context)
 
-                // Go home if accessibility is running
-                if (Utils.isServiceRunning(context, MindfulAccessibilityService::class.java)) {
-                    val serviceIntent = Intent(
-                        context.applicationContext,
-                        MindfulAccessibilityService::class.java
-                    ).setAction(ACTION_PERFORM_HOME_PRESS)
+            // Go home if accessibility is running
+            if (Utils.isServiceRunning(context, MindfulAccessibilityService::class.java)) {
+                val serviceIntent = Intent(
+                    context.applicationContext,
+                    MindfulAccessibilityService::class.java
+                ).setAction(ACTION_PERFORM_HOME_PRESS)
 
-                    context.startService(serviceIntent)
-                }
-
-                Log.d(
-                    TAG,
-                    "checkOverlayPermission: Display overlay permission denied, returning"
-                )
-                return false
-            } else {
-                return true
+                context.startService(serviceIntent)
             }
+
+            Log.d(TAG, "onOverlayPermissionMissing: Display overlay permission denied, returning")
         }
     }
 }

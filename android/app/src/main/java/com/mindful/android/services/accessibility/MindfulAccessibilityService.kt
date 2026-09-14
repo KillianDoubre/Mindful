@@ -44,6 +44,7 @@ import com.mindful.android.helpers.device.PermissionsHelper
 import com.mindful.android.helpers.storage.SharedPrefsHelper
 import com.mindful.android.models.Wellbeing
 import com.mindful.android.receivers.DeviceAppsChangedReceiver
+import com.mindful.android.utils.BlockingOverlayState
 import com.mindful.android.utils.ThreadUtils
 import com.mindful.android.utils.executors.Throttler
 import java.util.concurrent.ConcurrentHashMap
@@ -179,11 +180,11 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
         trackingManager = TrackingManager(context = this)
         deviceFeaturesManager = DeviceFeaturesManager(
             context = this,
-            blockedContentGoBack = this::goBackWithToast
+            blockedContentGoBack = { targetPackage -> goBackWithToast(targetPackage) }
         )
         shortsPlatformManager = ShortsPlatformManager(
             context = this,
-            blockedContentGoBack = this::goBackWithToast,
+            blockedContentGoBack = { targetPackage -> goBackWithToast(targetPackage) },
             blockedInstagramOpenInbox = this::openInstagramInbox,
         )
         datingPlatformManager = DatingPlatformManager(
@@ -199,7 +200,7 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
         browserManager = BrowserManager(
             context = this,
             shortsPlatformManager = shortsPlatformManager,
-            blockedContentGoBack = this::goBackWithToast
+            blockedContentGoBack = { targetPackage -> goBackWithToast(targetPackage) }
         )
 
         // Register shared prefs listener and load data
@@ -224,7 +225,7 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
 
             ACTION_PERFORM_HOME_PRESS -> {
                 Log.d(TAG, "onStartCommand: Pressing home button")
-                goBackWithToast(GLOBAL_ACTION_HOME)
+                goBackWithToast(customAction = GLOBAL_ACTION_HOME)
             }
         }
         return super.onStartCommand(intent, flags, startId)
@@ -360,10 +361,19 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
 
     /**
      * Performs the back action and shows a toast message indicating that the content is blocked.
+     *
+     * [targetPackage] is the app the blocked content belongs to. The action is
+     * throttled, so by the time it runs the user may have left that app or the
+     * tracker may have covered it with its own blocking overlay: firing Back
+     * then would hit whatever is in front instead, which is how an exhausted
+     * app ended up flipping between closed and reopened. A null package means
+     * the caller has no specific target (the home press fallback).
      */
-    private fun goBackWithToast(customAction: Int? = null) {
+    private fun goBackWithToast(targetPackage: String? = null, customAction: Int? = null) {
         throttler.submit {
             ThreadUtils.runOnMainThread {
+                if (targetPackage != null && !shouldActOn(targetPackage)) return@runOnMainThread
+
                 // Perform the back action (can be done on background thread)
                 performGlobalAction(customAction ?: GLOBAL_ACTION_BACK)
 
@@ -377,10 +387,43 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
         }
     }
 
+    /**
+     * Whether a blocking action still makes sense for [targetPackage].
+     *
+     * Rejects it once the tracker's overlay already covers the app, or once
+     * another app owns the foreground. An unknown foreground (null root, the
+     * app is still drawing its first frames) stays permitted so a genuine block
+     * is never missed; [relaunchesApp] flips that default for actions that
+     * bring an app back to the front, where doing nothing is the safe outcome.
+     */
+    private fun shouldActOn(targetPackage: String, relaunchesApp: Boolean = false): Boolean {
+        if (BlockingOverlayState.isVisible) {
+            Log.d(TAG, "shouldActOn: $targetPackage is already covered by the blocking overlay")
+            return false
+        }
+
+        val activePackage = rootInActiveWindow?.packageName?.toString()
+            ?: return !relaunchesApp
+
+        if (activePackage != targetPackage) {
+            Log.d(TAG, "shouldActOn: $targetPackage left for $activePackage, skipping")
+            return false
+        }
+
+        return true
+    }
+
     /** Opens Instagram's messaging page when its Shorts budget is exhausted. */
     private fun openInstagramInbox() {
         throttler.submit {
             ThreadUtils.runOnMainThread {
+                // Never bring Instagram back to the front once it is blocked or
+                // gone: this deep link is what used to re-open the app the
+                // tracker had just closed.
+                if (!shouldActOn(INSTAGRAM_PACKAGE, relaunchesApp = true)) {
+                    return@runOnMainThread
+                }
+
                 runCatching {
                     startActivity(
                         Intent(Intent.ACTION_VIEW, Uri.parse(INSTAGRAM_INBOX_URI))

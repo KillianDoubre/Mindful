@@ -132,7 +132,10 @@ class LaunchTrackingManager(
             }
         }
 
-        activeApps.firstOrNull()?.let {
+        // The most recently resumed app owns the foreground. Picking the first
+        // entry used to hand back a stale one whenever a PAUSED/STOPPED event
+        // was missed and its package stayed stuck at the head of the list.
+        activeApps.lastOrNull()?.let {
             if (lastLaunchedApp == it) return
             invokeNewAppLaunched(it)
         }

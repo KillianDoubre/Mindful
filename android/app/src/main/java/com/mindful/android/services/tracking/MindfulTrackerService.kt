@@ -12,6 +12,7 @@ import com.mindful.android.generics.ServiceBinder
 import com.mindful.android.helpers.device.NotificationHelper
 import com.mindful.android.helpers.storage.SharedPrefsHelper
 import com.mindful.android.enums.RestrictionType
+import com.mindful.android.utils.ForegroundAppResolver
 
 class MindfulTrackerService : Service() {
     companion object {
@@ -116,7 +117,20 @@ class MindfulTrackerService : Service() {
 
             // Skip the intention prompt on a background return; enforcement
             // (block overlay + reminders) still runs via the normal path below.
-            if (isIntentPromptEnabled && !isReturningFromBackground) {
+            var isFreshOpen = isIntentPromptEnabled && !isReturningFromBackground
+
+            // A launch event does not prove the app reached the foreground, so
+            // confirm against the usage events before interrupting the user.
+            // Phantom events leave the bookkeeping untouched, otherwise the real
+            // open that follows would look like a background return and skip the
+            // prompt. Enforcement is deliberately left on its normal path below.
+            if (isFreshOpen && !ForegroundAppResolver.isForegroundConfirmed(this, packageName)) {
+                Log.d(TAG, "onNewAppLaunch: Ignoring phantom launch event of $packageName")
+                lastForegroundPkg = previousPkg
+                isFreshOpen = false
+            }
+
+            if (isFreshOpen) {
                 // Resolve inexpensive restrictions first, then cover the target app
                 // before querying the heavier UsageEvents history.
                 val immediateState = restrictionManager.isAppRestricted(
@@ -211,6 +225,9 @@ class MindfulTrackerService : Service() {
     }
 
     override fun onDestroy() {
+        // Also clears the shared blocking-overlay state, which the accessibility
+        // service reads: leaving it set would mute the content blockers for good.
+        overlayManager.dismissSheetOverlay()
         Log.d(TAG, "onDestroy: TRACKER service destroyed successfully")
         super.onDestroy()
     }

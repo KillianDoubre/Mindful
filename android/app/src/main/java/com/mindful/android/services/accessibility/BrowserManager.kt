@@ -21,7 +21,7 @@ import com.mindful.android.utils.executors.Throttler
 class BrowserManager(
     private val context: Context,
     private val shortsPlatformManager: ShortsPlatformManager,
-    private val blockedContentGoBack: () -> Unit,
+    private val blockedContentGoBack: (targetPackage: String) -> Unit,
 ) {
     private var mLastRedirectedUrl = ""
     private val throttler: Throttler = Throttler(1000L)
@@ -55,11 +55,11 @@ class BrowserManager(
         when {
             isHostBlocked(host, wellbeing) -> {
                 Log.d(TAG, "blockDistraction: Blocked website $host opened in $packageName")
-                blockedContentGoBack.invoke()
+                blockedContentGoBack.invoke(packageName)
             }
 
             // Block short form content
-            shortsPlatformManager.checkAndBlockShortsOnBrowser(wellbeing, url) -> return
+            shortsPlatformManager.checkAndBlockShortsOnBrowser(packageName, wellbeing, url) -> return
 
             // Activate safe search if NSFW is blocked
             wellbeing.blockNsfwSites -> applySafeSearch(packageName, url, host)

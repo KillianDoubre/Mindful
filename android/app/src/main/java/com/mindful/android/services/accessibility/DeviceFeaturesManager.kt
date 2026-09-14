@@ -9,7 +9,7 @@ import com.mindful.android.models.Wellbeing
 
 class DeviceFeaturesManager(
     private val context: Context,
-    private val blockedContentGoBack: () -> Unit,
+    private val blockedContentGoBack: (targetPackage: String) -> Unit,
 ) {
 
     /**
@@ -33,7 +33,7 @@ class DeviceFeaturesManager(
         }
 
         if (isFeatureOpen) {
-            blockedContentGoBack.invoke()
+            blockedContentGoBack.invoke(packageName)
         }
     }
 
