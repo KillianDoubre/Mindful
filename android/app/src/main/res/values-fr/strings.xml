@@ -30,14 +30,8 @@
     <string name="app_paused_overlay_button_twenty_minutes">20 minutes</string>
     <string name="app_paused_overlay_button_close_app" formatted="true">Fermer %s</string>
     <string name="opening_intent_overlay_title">Ouverture consciente</string>
-    <string name="opening_intent_overlay_question" formatted="true">Pourquoi ouvrez-vous %s ?</string>
-    <string name="opening_intent_overlay_helper">Choisissez l’intention la plus proche de ce que vous ressentez.</string>
-    <string name="opening_intent_reason_boredom">Me divertir</string>
-    <string name="opening_intent_reason_stress">Anti-stress</string>
-    <string name="opening_intent_reason_information">Rechercher une info</string>
-    <string name="opening_intent_reason_reply">Intéraction sociale</string>
-    <string name="opening_intent_reason_habit">Par habitude</string>
-    <string name="opening_intent_reason_work">Pour travailler</string>
+    <string name="opening_intent_overlay_question" formatted="true">Prenez un instant avant d’ouvrir %s.</string>
+    <string name="opening_intent_overlay_helper">Le bouton Continuer se débloque à la fin du compte à rebours.</string>
     <string name="opening_intent_button_cancel">Annuler</string>
     <string name="opening_intent_button_continue">Continuer</string>
 

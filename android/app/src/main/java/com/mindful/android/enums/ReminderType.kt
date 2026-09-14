@@ -2,7 +2,6 @@ package com.mindful.android.enums
 
 enum class ReminderType {
     NONE,
-    TOAST,
     NOTIFICATION,
     MODAL_SHEET;
 
@@ -10,7 +9,8 @@ enum class ReminderType {
         fun fromName(name: String): ReminderType {
             return when (name) {
                 "none" -> NONE
-                "toast" -> TOAST
+                // Legacy value: the toast reminder was removed, it now shows nothing
+                "toast" -> NONE
                 "notification" -> NOTIFICATION
                 "modalSheet" -> MODAL_SHEET
                 else -> NONE

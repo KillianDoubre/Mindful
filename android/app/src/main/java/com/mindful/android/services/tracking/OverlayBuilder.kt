@@ -4,13 +4,13 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
+import android.os.CountDownTimer
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
-import android.widget.RadioGroup
 import android.widget.TextView
 import androidx.annotation.MainThread
 import com.mindful.android.R
@@ -21,48 +21,9 @@ import com.mindful.android.utils.DateTimeUtils
 import com.mindful.android.utils.ThreadUtils
 
 object OverlayBuilder {
-    @MainThread
-    fun buildToastOverlay(
-        context: Context,
-        packageName: String,
-        screenTimeUsedInMins: Int,
-    ): View {
-        // Inflate the custom layout for the dialog
-        val inflater = LayoutInflater.from(context)
-        val toastView = inflater.inflate(R.layout.overlay_toast_layout, null)
-
-        // Resolve app icon and label
-        val (appName, appIcon) = getAppLabelAndIcon(context, packageName)
-
-        // App infos
-        val appNameTxt = toastView.findViewById<TextView>(R.id.overlay_toast_app_name)
-        val appIconImg = toastView.findViewById<ImageView>(R.id.overlay_toast_app_icon)
-        appNameTxt.text = appName
-        appIconImg.setImageDrawable(appIcon)
-
-        // limit spent text
-        val limitSpentTxt = toastView.findViewById<TextView>(R.id.overlay_toast_screen_time)
-        limitSpentTxt.text = context.getString(
-            R.string.app_screen_time_usage_info,
-            DateTimeUtils.minutesToTimeStr(screenTimeUsedInMins)
-        )
-
-        // Set initial state
-        toastView.alpha = 0f
-
-        // Set click listener
-        toastView.setOnClickListener {
-            // Open mindful
-            context.applicationContext.startActivity(
-                AppUtils.getIntentForMindfulUri(
-                    context,
-                    "com.mindful.android://open/appDashboard?package=$packageName"
-                )
-            )
-        }
-
-        return toastView
-    }
+    /// Seconds the user must wait before the conscious-opening
+    /// "Continue" button becomes tappable.
+    private const val UNLOCK_DELAY_SECONDS = 10
 
     @MainThread
     fun buildFullScreenOverlay(
@@ -203,7 +164,6 @@ object OverlayBuilder {
         packageName: String,
         isLimitExhausted: Boolean,
         isLimitCheckPending: Boolean,
-        onDecision: (reason: String?, outcome: String) -> Unit,
         dismissOverlay: () -> Unit,
     ): View {
         val sheetView = LayoutInflater.from(context)
@@ -229,28 +189,41 @@ object OverlayBuilder {
         if (isLimitExhausted && !isLimitCheckPending) {
             continueButton.text = context.getString(R.string.app_paused_overlay_button_emergency)
         }
-        var selectedReason: String? = null
-        val reasonButtons = mapOf(
-            "boredom" to R.id.overlay_intent_reason_boredom,
-            "stress" to R.id.overlay_intent_reason_stress,
-            "information" to R.id.overlay_intent_reason_information,
-            "reply" to R.id.overlay_intent_reason_reply,
-            "habit" to R.id.overlay_intent_reason_habit,
-            "work" to R.id.overlay_intent_reason_work,
-        )
 
-        sheetView.findViewById<RadioGroup>(R.id.overlay_intent_reason_group)
-            .setOnCheckedChangeListener { _, checkedId ->
-                selectedReason = reasonButtons.entries
-                    .firstOrNull { it.value == checkedId }
-                    ?.key
-                continueButton.isEnabled =
-                    selectedReason != null && continueButton.tag is Boolean
+        // The continue button only unlocks once the countdown has elapsed AND the
+        // restriction check has resolved (see [resolveIntentionLimit]). Seconds left
+        // are kept on the countdown view's tag so both paths can read the state.
+        val countdownTxt =
+            sheetView.findViewById<TextView>(R.id.overlay_sheet_intention_countdown)
+        countdownTxt.tag = UNLOCK_DELAY_SECONDS
+        countdownTxt.text = UNLOCK_DELAY_SECONDS.toString()
+
+        val countDownTimer = object : CountDownTimer(UNLOCK_DELAY_SECONDS * 1000L, 1000L) {
+            override fun onTick(millisUntilFinished: Long) {
+                val secondsLeft = ((millisUntilFinished + 999L) / 1000L).toInt()
+                countdownTxt.tag = secondsLeft
+                countdownTxt.text = secondsLeft.toString()
+                refreshContinueButton(sheetView)
             }
+
+            override fun onFinish() {
+                countdownTxt.tag = 0
+                countdownTxt.text = 0.toString()
+                refreshContinueButton(sheetView)
+            }
+        }
+
+        // Do not keep ticking after the overlay is removed from the window
+        sheetView.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: View) {}
+            override fun onViewDetachedFromWindow(v: View) = countDownTimer.cancel()
+        })
+
+        refreshContinueButton(sheetView)
+        countDownTimer.start()
 
         sheetView.findViewById<Button>(R.id.overlay_sheet_btn_intention_cancel)
             .setOnClickListener {
-                onDecision(selectedReason, "cancelled")
                 val homeIntent = Intent(Intent.ACTION_MAIN).apply {
                     addCategory(Intent.CATEGORY_HOME)
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -260,23 +233,16 @@ object OverlayBuilder {
             }
 
         continueButton.setOnClickListener {
-            selectedReason?.let { reason ->
-                val resolvedLimitExhausted = continueButton.tag as? Boolean
-                    ?: return@setOnClickListener
-                onDecision(
-                    reason,
-                    if (resolvedLimitExhausted) "emergency" else "continued"
-                )
-                if (resolvedLimitExhausted) {
-                    context.applicationContext.startActivity(
-                        AppUtils.getIntentForMindfulUri(
-                            context,
-                            "com.mindful.android://open/appDashboard?package=$packageName"
-                        )
+            val resolvedLimitExhausted = continueButton.tag as? Boolean ?: return@setOnClickListener
+            if (resolvedLimitExhausted) {
+                context.applicationContext.startActivity(
+                    AppUtils.getIntentForMindfulUri(
+                        context,
+                        "com.mindful.android://open/appDashboard?package=$packageName"
                     )
-                }
-                dismissOverlay.invoke()
+                )
             }
+            dismissOverlay.invoke()
         }
 
         return sheetView
@@ -291,10 +257,19 @@ object OverlayBuilder {
             if (isLimitExhausted) R.string.app_paused_overlay_button_emergency
             else R.string.opening_intent_button_continue
         )
-        val checkedReason = sheetView
-            .findViewById<RadioGroup>(R.id.overlay_intent_reason_group)
-            .checkedRadioButtonId
-        continueButton.isEnabled = checkedReason != -1
+        refreshContinueButton(sheetView)
+    }
+
+    @MainThread
+    private fun refreshContinueButton(sheetView: View) {
+        val continueButton =
+            sheetView.findViewById<Button>(R.id.overlay_sheet_btn_intention_continue)
+        val secondsLeft = sheetView
+            .findViewById<TextView>(R.id.overlay_sheet_intention_countdown)
+            .tag as? Int ?: UNLOCK_DELAY_SECONDS
+
+        continueButton.isEnabled = secondsLeft <= 0 && continueButton.tag is Boolean
+        continueButton.alpha = if (continueButton.isEnabled) 1f else 0.5f
     }
 
 

@@ -6,8 +6,6 @@ import android.content.Context
 import android.content.Context.WINDOW_SERVICE
 import android.content.Intent
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
 import android.provider.Settings
 import android.util.Log
 import android.view.Gravity
@@ -133,7 +131,6 @@ class OverlayManager(
         packageName: String,
         isLimitExhausted: Boolean,
         isLimitCheckPending: Boolean = false,
-        onDecision: (reason: String?, outcome: String) -> Unit,
     ) {
         if (!sheetReserved.compareAndSet(false, true)) return
 
@@ -150,7 +147,6 @@ class OverlayManager(
                     packageName = packageName,
                     isLimitExhausted = isLimitExhausted,
                     isLimitCheckPending = isLimitCheckPending,
-                    onDecision = onDecision,
                     dismissOverlay = ::dismissSheetOverlay,
                 ).apply {
                     systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
@@ -186,50 +182,6 @@ class OverlayManager(
         }
     }
 
-
-    fun showToastOverlay(
-        packageName: String,
-        screenTimeUsedInMins: Int,
-    ) {
-        ThreadUtils.runOnMainThread {
-            runCatching {
-                // Notify, stop and return if don't have overlay permission
-                if (!haveOverlayPermission(context)) return@runOnMainThread
-
-                // Build view
-                val toastView = OverlayBuilder.buildToastOverlay(
-                    context,
-                    packageName,
-                    screenTimeUsedInMins
-                )
-
-                Log.d(TAG, "Showing toast overlay for $packageName")
-                windowManager.addView(toastView, toastLayoutParams)
-
-                // Fade-in
-                toastView.animate()
-                    .alpha(1f)
-                    .setDuration(500)
-                    .start()
-
-                // Fade-out and remove after delay
-                Handler(Looper.getMainLooper()).let {
-                    it.postDelayed({
-                        toastView.animate()
-                            .alpha(0f)
-                            .setDuration(500)
-                            .withEndAction {
-                                it.postDelayed({ windowManager.removeView(toastView) }, 100L)
-                            }
-                            .start()
-                    }, 5000)
-                }
-            }.getOrElse { e ->
-                Log.e(TAG, "showToastOverlay: Failed to show toast overlay", e)
-                SharedPrefsHelper.insertCrashLogToPrefs(context, e)
-            }
-        }
-    }
 
     fun showNotification(
         packageName: String,
@@ -292,22 +244,6 @@ class OverlayManager(
         ).apply {
             gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
         }
-
-        private val toastLayoutParams = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-            } else {
-                WindowManager.LayoutParams.TYPE_PHONE
-            },
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-            android.graphics.PixelFormat.TRANSLUCENT
-        ).apply {
-            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            verticalMargin = 0.05f
-        }
-
 
         private fun haveOverlayPermission(context: Context): Boolean {
             if (!Settings.canDrawOverlays(context)) {

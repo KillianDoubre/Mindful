@@ -53,7 +53,6 @@ class ReminderManager(
 
                 when (state.reminderType) {
                     ReminderType.NONE -> return@PreciseCountDownExecutor
-                    ReminderType.TOAST -> onToastReminder(packageName, elapsedMinutes, state)
                     ReminderType.NOTIFICATION -> onNotificationReminder(
                         packageName,
                         elapsedMinutes,
@@ -104,19 +103,6 @@ class ReminderManager(
         )
     }
 
-    private fun onToastReminder(
-        packageName: String,
-        elapsedMinutes: Int,
-        state: RestrictionState,
-    ) {
-        /// Return if not the desired trigger
-        val totalElapsedMinutes = ((state.screenTimeUsed / 60) + elapsedMinutes).toInt()
-        if (!reminderTriggers.remove(totalElapsedMinutes)) return
-
-        Log.d(TAG, "onToastReminder: Showing toast at $totalElapsedMinutes")
-        overlayManager.showToastOverlay(packageName, totalElapsedMinutes)
-    }
-
     private fun onNotificationReminder(
         packageName: String,
         elapsedMinutes: Int,
@@ -141,9 +127,7 @@ class ReminderManager(
                 }
             }
 
-            ReminderType.TOAST,
-            ReminderType.NOTIFICATION,
-                -> {
+            ReminderType.NOTIFICATION -> {
                 // Add all multiples of [trigger interval] minutes after current usage
                 val usedMinutes = state.screenTimeUsed / 60
                 val limitMinutes = state.screenTimeLimit / 60

@@ -233,60 +233,37 @@
                         </LinearLayout>
                     </LinearLayout>
 
-                    <!-- Conscious opening reasons -->
+                    <!-- Conscious opening countdown -->
                     <LinearLayout
                         android:id="@+id/overlay_sheet_intention_container"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
+                        android:background="@drawable/shape_rounded_md"
+                        android:backgroundTint="@color/secondaryContainer"
+                        android:gravity="center_horizontal"
                         android:orientation="vertical"
+                        android:paddingVertical="20dp"
                         android:visibility="gone">
+
+                        <TextView
+                            android:id="@+id/overlay_sheet_intention_countdown"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="10"
+                            android:textColor="@color/textPrimary"
+                            android:textSize="44sp"
+                            android:textStyle="bold"
+                            tools:ignore="HardcodedText" />
 
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginBottom="8dp"
+                            android:layout_marginTop="6dp"
                             android:gravity="center"
                             android:text="@string/opening_intent_overlay_helper"
                             android:textColor="@color/textSecondary"
                             android:textSize="13sp" />
-
-                        <RadioGroup
-                            android:id="@+id/overlay_intent_reason_group"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="vertical">
-
-                            <RadioButton
-                                android:id="@+id/overlay_intent_reason_boredom"
-                                style="@style/OpeningIntentRadioButton"
-                                android:text="@string/opening_intent_reason_boredom" />
-
-                            <RadioButton
-                                android:id="@+id/overlay_intent_reason_stress"
-                                style="@style/OpeningIntentRadioButton"
-                                android:text="@string/opening_intent_reason_stress" />
-
-                            <RadioButton
-                                android:id="@+id/overlay_intent_reason_information"
-                                style="@style/OpeningIntentRadioButton"
-                                android:text="@string/opening_intent_reason_information" />
-
-                            <RadioButton
-                                android:id="@+id/overlay_intent_reason_reply"
-                                style="@style/OpeningIntentRadioButton"
-                                android:text="@string/opening_intent_reason_reply" />
-
-                            <RadioButton
-                                android:id="@+id/overlay_intent_reason_habit"
-                                style="@style/OpeningIntentRadioButton"
-                                android:text="@string/opening_intent_reason_habit" />
-
-                            <RadioButton
-                                android:id="@+id/overlay_intent_reason_work"
-                                style="@style/OpeningIntentRadioButton"
-                                android:text="@string/opening_intent_reason_work" />
-                        </RadioGroup>
                     </LinearLayout>
 
                     <!-- Reminder options -->

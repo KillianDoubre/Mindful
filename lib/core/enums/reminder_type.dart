@@ -11,6 +11,9 @@
 /// Type of reminders to show when using timed app
 enum ReminderType {
   none,
+
+  /// Legacy: the toast reminder was removed, rows still holding it behave
+  /// like [ReminderType.none]. Kept so stored values keep parsing.
   toast,
   notification,
   modalSheet,

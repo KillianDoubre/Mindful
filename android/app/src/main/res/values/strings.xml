@@ -62,14 +62,8 @@
     <string name="app_paused_overlay_button_twenty_minutes">20 minutes</string>
     <string name="app_paused_overlay_button_close_app" comment="App name as placeholder. ex: 'Close Instagram'" formatted="true">Close %s</string>
     <string name="opening_intent_overlay_title">Conscious opening</string>
-    <string name="opening_intent_overlay_question" formatted="true">Why are you opening %s?</string>
-    <string name="opening_intent_overlay_helper">Choose the intention closest to what you feel.</string>
-    <string name="opening_intent_reason_boredom">Boredom</string>
-    <string name="opening_intent_reason_stress">Stress</string>
-    <string name="opening_intent_reason_information">Find information</string>
-    <string name="opening_intent_reason_reply">Reply to someone</string>
-    <string name="opening_intent_reason_habit">Habit</string>
-    <string name="opening_intent_reason_work">Work / study</string>
+    <string name="opening_intent_overlay_question" formatted="true">Take a moment before opening %s.</string>
+    <string name="opening_intent_overlay_helper">Continue unlocks once the countdown ends.</string>
     <string name="opening_intent_button_cancel">Cancel</string>
     <string name="opening_intent_button_continue">Continue</string>
 

@@ -106,7 +106,10 @@ class AppDashboardRestrictions extends ConsumerWidget {
           child: SliverVisibility(
             visible: restriction.timerSec > 0,
             sliver: DefaultDropdownTile<ReminderType>(
-              value: restriction.reminderType,
+              /// Legacy rows may still hold the removed toast type, show them as none
+              value: restriction.reminderType == ReminderType.toast
+                  ? ReminderType.none
+                  : restriction.reminderType,
               position: ItemPosition.mid,
               leadingIcon: FluentIcons.dual_screen_closed_alert_20_regular,
               titleText: context.locale.usage_reminders_tile_title,
@@ -119,7 +122,6 @@ class AppDashboardRestrictions extends ConsumerWidget {
                       ),
               items: {
                 "None": ReminderType.none,
-                "Toast": ReminderType.toast,
                 "Notification": ReminderType.notification,
                 "Overlay": ReminderType.modalSheet,
               }

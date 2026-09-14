@@ -12,7 +12,6 @@ import com.mindful.android.generics.ServiceBinder
 import com.mindful.android.helpers.device.NotificationHelper
 import com.mindful.android.helpers.storage.SharedPrefsHelper
 import com.mindful.android.enums.RestrictionType
-import com.mindful.android.models.RestrictionGroup
 
 class MindfulTrackerService : Service() {
     companion object {
@@ -112,11 +111,12 @@ class MindfulTrackerService : Service() {
 
             reminderManager.cancelReminders()
 
-            val promptGroup = restrictionManager.getIntentPromptGroup(packageName)
+            val isIntentPromptEnabled =
+                restrictionManager.getIntentPromptGroup(packageName) != null
 
             // Skip the intention prompt on a background return; enforcement
             // (block overlay + reminders) still runs via the normal path below.
-            if (promptGroup != null && !isReturningFromBackground) {
+            if (isIntentPromptEnabled && !isReturningFromBackground) {
                 // Resolve inexpensive restrictions first, then cover the target app
                 // before querying the heavier UsageEvents history.
                 val immediateState = restrictionManager.isAppRestricted(
@@ -127,7 +127,7 @@ class MindfulTrackerService : Service() {
                     if (immediateState.type == RestrictionType.APP_TIMER ||
                         immediateState.type == RestrictionType.GROUP_TIMER
                     ) {
-                        showIntentionPrompt(packageName, promptGroup, true)
+                        showIntentionPrompt(packageName, true)
                     } else {
                         overlayManager.showSheetOverlay(packageName, immediateState)
                     }
@@ -136,7 +136,6 @@ class MindfulTrackerService : Service() {
 
                 showIntentionPrompt(
                     packageName = packageName,
-                    group = promptGroup,
                     isLimitExhausted = false,
                     isLimitCheckPending = true,
                 )
@@ -190,7 +189,6 @@ class MindfulTrackerService : Service() {
 
     private fun showIntentionPrompt(
         packageName: String,
-        group: RestrictionGroup,
         isLimitExhausted: Boolean,
         isLimitCheckPending: Boolean = false,
     ) {
@@ -198,18 +196,7 @@ class MindfulTrackerService : Service() {
             packageName = packageName,
             isLimitExhausted = isLimitExhausted,
             isLimitCheckPending = isLimitCheckPending,
-        ) { reason, outcome ->
-            reason?.let {
-                SharedPrefsHelper.insertOpeningIntent(
-                    context = this,
-                    groupId = group.id,
-                    groupName = group.groupName,
-                    packageName = packageName,
-                    reason = it,
-                    outcome = outcome,
-                )
-            }
-        }
+        )
     }
 
     private fun stopIfNoUsage() {

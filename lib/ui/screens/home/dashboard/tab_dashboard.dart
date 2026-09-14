@@ -21,13 +21,11 @@ import 'package:mindful/core/extensions/ext_num.dart';
 import 'package:mindful/models/productivity_item.dart';
 import 'package:mindful/providers/productivity/productivity_items_provider.dart';
 import 'package:mindful/providers/usage/todays_apps_usage_provider.dart';
-import 'package:mindful/providers/usage/opening_intent_history_provider.dart';
 import 'package:mindful/ui/common/content_section_header.dart';
 import 'package:mindful/ui/common/default_list_tile.dart';
 import 'package:mindful/ui/common/sliver_active_session_alert.dart';
 import 'package:mindful/ui/common/default_refresh_indicator.dart';
 import 'package:mindful/ui/common/sliver_tabs_bottom_padding.dart';
-import 'package:mindful/ui/common/opening_intent_history_card.dart';
 import 'package:mindful/ui/controllers/tab_controller_provider.dart';
 import 'package:mindful/ui/screens/home/dashboard/glance_cards/focus_daily_glance.dart';
 import 'package:mindful/ui/screens/home/dashboard/glance_cards/screen_time_glance.dart';
@@ -54,13 +52,9 @@ class TabDashboard extends ConsumerWidget {
 
     return DefaultRefreshIndicator(
       onRefresh: () async {
-        ref.invalidate(openingIntentHistoryProvider);
-        await Future.wait([
-          ref
-              .read(todaysAppsUsageProvider.notifier)
-              .refreshTodaysUsage(resetState: true),
-          ref.read(openingIntentHistoryProvider.future),
-        ]);
+        await ref
+            .read(todaysAppsUsageProvider.notifier)
+            .refreshTodaysUsage(resetState: true);
       },
       child: CustomScrollView(
         physics: const BouncingScrollPhysics(),
@@ -87,9 +81,6 @@ class TabDashboard extends ConsumerWidget {
                   ),
                 ),
               ),
-
-              12.vBox,
-              const OpeningIntentHistoryCard(),
 
               12.vBox,
               SystemsSummaryCard(

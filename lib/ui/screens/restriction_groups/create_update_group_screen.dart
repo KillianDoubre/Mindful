@@ -33,7 +33,6 @@ import 'package:mindful/ui/common/scaffold_shell.dart';
 import 'package:mindful/ui/common/sliver_distracting_apps_list.dart';
 import 'package:mindful/ui/common/sliver_tabs_bottom_padding.dart';
 import 'package:mindful/ui/common/usage_glance_card.dart';
-import 'package:mindful/ui/common/opening_intent_history_card.dart';
 import 'package:mindful/ui/dialogs/confirmation_dialog.dart';
 import 'package:mindful/ui/dialogs/input_field_dialog.dart';
 import 'package:mindful/ui/dialogs/timer_picker_dialog.dart';
@@ -251,8 +250,8 @@ class _CreateUpdateRestrictionGroupState
                     leadingIcon: FluentIcons.brain_circuit_20_regular,
                     titleText: "Pause consciente à l’ouverture",
                     subtitleText: _group.isIntentPromptEnabled
-                        ? "Une intention sera demandée avant chaque ouverture"
-                        : "Demander pourquoi vous ouvrez une application",
+                        ? "Une pause de 10 secondes avant chaque ouverture"
+                        : "Imposer une pause avant d’ouvrir une application",
                     switchValue: _group.isIntentPromptEnabled,
                     onPressed: () {
                       _group = _group.copyWith(
@@ -261,14 +260,6 @@ class _CreateUpdateRestrictionGroupState
                       setState(() {});
                     },
                   ).sliver,
-
-                  if (widget.group != null) ...[
-                    24.vSliverBox,
-                    OpeningIntentHistoryCard(
-                      groupId: _group.id,
-                      expanded: true,
-                    ).sliver,
-                  ],
 
                   /// Distracting apps
                   36.vSliverBox,
