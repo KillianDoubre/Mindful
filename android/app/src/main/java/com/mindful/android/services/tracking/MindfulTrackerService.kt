@@ -11,6 +11,7 @@ import com.mindful.android.R
 import com.mindful.android.generics.ServiceBinder
 import com.mindful.android.helpers.device.NotificationHelper
 import com.mindful.android.helpers.storage.SharedPrefsHelper
+import com.mindful.android.services.notification.MindfulNotificationListenerService
 import com.mindful.android.enums.RestrictionType
 import com.mindful.android.utils.ForegroundAppResolver
 
@@ -118,6 +119,17 @@ class MindfulTrackerService : Service() {
             // Skip the intention prompt on a background return; enforcement
             // (block overlay + reminders) still runs via the normal path below.
             var isFreshOpen = isIntentPromptEnabled && !isReturningFromBackground
+
+            // Opening an app that has a notification waiting is a reply, not a
+            // browse: taxing it with the conscious-opening delay only punishes
+            // the legitimate use. Checked before the foreground confirmation
+            // below, which is the expensive one.
+            if (isFreshOpen &&
+                MindfulNotificationListenerService.hasPendingNotification(packageName)
+            ) {
+                Log.d(TAG, "onNewAppLaunch: $packageName has a pending notification, no delay")
+                isFreshOpen = false
+            }
 
             // A launch event does not prove the app reached the foreground, so
             // confirm against the usage events before interrupting the user.

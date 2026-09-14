@@ -224,12 +224,30 @@ object NotificationHelper {
                     return
                 }
 
+                /// Never take over a DND the user turned on themselves.
+                /// Taking the lock here would mean releasing it at the end of the
+                /// session, and releasing it means calling INTERRUPTION_FILTER_ALL
+                /// which switches off a setting Mindful never turned on. Leaving it
+                /// untouched also leaves it on afterwards, which is the point.
+                val currentFilter = notificationManager.currentInterruptionFilter
+                val isDndAlreadyOn =
+                    currentFilter != NotificationManager.INTERRUPTION_FILTER_ALL &&
+                            currentFilter != NotificationManager.INTERRUPTION_FILTER_UNKNOWN
+
+                if (currentLock == DndWakeLock.NONE && isDndAlreadyOn) {
+                    Log.d(TAG, "toggleDnd: DND already on by the user, $featureLock leaves it as is")
+                    return
+                }
+
                 /// Otherwise start DND
                 notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_PRIORITY)
                 SharedPrefsHelper.getSetDndWakeLock(context, featureLock)
                 Log.d(TAG, "toggleDnd: DND mode started by $featureLock")
             } else {
-                /// Return if dnd is being utilized by another feature but requested by another feature
+                /// Return if dnd is being utilized by another feature but requested by another feature.
+                /// A free lock means Mindful never turned DND on (the user did, or
+                /// it was never on), so there is nothing to release: showDndLockToast
+                /// stays silent for NONE.
                 val currentLock = SharedPrefsHelper.getSetDndWakeLock(context, null)
                 if (currentLock != featureLock) {
                     showDndLockToast(context, currentLock)

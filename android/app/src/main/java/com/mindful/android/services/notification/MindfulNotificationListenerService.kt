@@ -32,6 +32,36 @@ import java.util.concurrent.Executors
 class MindfulNotificationListenerService : NotificationListenerService() {
     companion object {
         private const val TAG = "Mindful.MindfulNotificationService"
+
+        /// The connected listener, needed to read the notification shade from
+        /// outside the service. Only the system may instantiate it, so this is
+        /// the sole way to reach the live one.
+        @Volatile
+        private var connectedListener: MindfulNotificationListenerService? = null
+
+        /**
+         * Whether [packageName] currently has a notification sitting in the
+         * shade, ignoring ongoing ones (sync, uploads, media players) which the
+         * user never "answers".
+         *
+         * Used to tell a reply from a browse: opening an app that is waiting for
+         * an answer must not be taxed by the conscious-opening delay.
+         *
+         * Returns FALSE whenever the shade cannot be read (notification access
+         * revoked, listener not connected yet), so the delay stays the default.
+         */
+        fun hasPendingNotification(packageName: String): Boolean = runCatching {
+            val listener = connectedListener ?: return false
+
+            listener.activeNotifications?.any {
+                it.packageName == packageName &&
+                        (it.notification.flags and
+                                android.app.Notification.FLAG_ONGOING_EVENT) == 0
+            } ?: false
+        }.getOrElse {
+            Log.e(TAG, "hasPendingNotification: Unable to read active notifications", it)
+            false
+        }
     }
 
     private val binder = ServiceBinder(this@MindfulNotificationListenerService)
@@ -55,12 +85,14 @@ class MindfulNotificationListenerService : NotificationListenerService() {
 
     override fun onListenerConnected() {
         isListenerActive = true
+        connectedListener = this
         Log.d(TAG, "onListenerConnected: Notifications listener CONNECTED")
         super.onListenerConnected()
     }
 
     override fun onListenerDisconnected() {
         isListenerActive = false
+        connectedListener = null
         Log.d(TAG, "onListenerConnected: Notifications listener DIS-CONNECTED")
 
         super.onListenerDisconnected()
@@ -146,6 +178,7 @@ class MindfulNotificationListenerService : NotificationListenerService() {
     }
 
     override fun onDestroy() {
+        if (connectedListener === this) connectedListener = null
         insertNotificationsToDb()
         executorService.shutdown()
         Log.d(TAG, "onDestroy: Notifications listener DESTROYED")
