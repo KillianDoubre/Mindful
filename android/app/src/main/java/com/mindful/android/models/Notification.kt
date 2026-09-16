@@ -1,9 +1,15 @@
 package com.mindful.android.models
 
 import android.app.Notification.EXTRA_BIG_TEXT
+import android.app.Notification.EXTRA_CONVERSATION_TITLE
+import android.app.Notification.EXTRA_MESSAGES
+import android.app.Notification.EXTRA_SUB_TEXT
+import android.app.Notification.EXTRA_SUMMARY_TEXT
 import android.app.Notification.EXTRA_TEXT
+import android.app.Notification.EXTRA_TEXT_LINES
 import android.app.Notification.EXTRA_TITLE
 import android.app.Notification.EXTRA_TITLE_BIG
+import android.os.Bundle
 import android.database.Cursor
 import android.service.notification.StatusBarNotification
 import com.mindful.android.utils.Extensions.getIntOrDefault
@@ -36,16 +42,43 @@ data class Notification(
                 key = sbn.key,
                 packageName = sbn.packageName,
                 timeStamp = sbn.postTime,
-                title = (extras?.getCharSequence(EXTRA_TITLE)?.toString()
-                    ?: extras?.getCharSequence(EXTRA_TITLE_BIG)?.toString()
-                    ?: "").trim(),
-                content = (extras?.getCharSequence(EXTRA_TEXT)?.toString()
-                    ?: extras?.getCharSequence(EXTRA_BIG_TEXT)?.toString()
-                    ?: "").trim(),
+                title = firstText(
+                    extras,
+                    EXTRA_TITLE,
+                    EXTRA_TITLE_BIG,
+                    EXTRA_CONVERSATION_TITLE,
+                ),
+                content = firstText(extras, EXTRA_TEXT, EXTRA_BIG_TEXT)
+                    .ifEmpty { lastMessageText(extras) }
+                    .ifEmpty { lastTextLine(extras) }
+                    .ifEmpty { firstText(extras, EXTRA_SUB_TEXT, EXTRA_SUMMARY_TEXT) },
                 category = parseNotificationCategory(sbn.notification.category),
                 isRead = false,
             )
         }
+
+        private fun firstText(extras: Bundle?, vararg keys: String): String {
+            for (key in keys) {
+                val value = runCatching { extras?.getCharSequence(key) }.getOrNull()
+                    ?.toString()?.trim()
+                if (!value.isNullOrEmpty()) return value
+            }
+            return ""
+        }
+
+        /** Newest message of a MessagingStyle notification. */
+        @Suppress("DEPRECATION")
+        private fun lastMessageText(extras: Bundle?): String = runCatching {
+            val messages = extras?.getParcelableArray(EXTRA_MESSAGES) ?: return ""
+            (messages.lastOrNull() as? Bundle)?.getCharSequence("text")?.toString()?.trim()
+                ?: ""
+        }.getOrDefault("")
+
+        /** Newest line of an InboxStyle notification. */
+        private fun lastTextLine(extras: Bundle?): String = runCatching {
+            extras?.getCharSequenceArray(EXTRA_TEXT_LINES)?.lastOrNull()?.toString()?.trim()
+                ?: ""
+        }.getOrDefault("")
 
         /**
          * Parses [Notification] from a JSON string.

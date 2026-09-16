@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:mindful/core/services/drift_db_service.dart';
 import 'package:mindful/core/services/method_channel_service.dart';
+import 'package:mindful/core/services/productivity_repository.dart';
 import 'package:mindful/core/services/systems_repository.dart';
+import 'package:mindful/core/services/task_reminders_service.dart';
+import 'package:mindful/models/productivity_item.dart';
 
 /// Initializer to initialize necessary things.
 class Initializer {
@@ -58,7 +61,13 @@ class Initializer {
     /// Fetch and (re)schedule Systems reminders
     final systemsReminders =
         await SystemsRepository.instance.loadRemindersConfig();
-    await MethodChannelService.instance.updateSystemsReminders(systemsReminders);
+    await MethodChannelService.instance
+        .updateSystemsReminders(systemsReminders);
+
+    // Alarms are lost on reboot: schedule the task reminders again
+    await TaskRemindersService.sync(
+      await ProductivityRepository.instance.load(ProductivityItemType.task),
+    );
 
     debugPrint(
       "All necessary services and schedules are initialized and it took ${DateTime.now().difference(startTimeStamp).inMilliseconds}ms.",

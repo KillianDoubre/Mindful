@@ -24,14 +24,19 @@ import com.mindful.android.helpers.storage.DriftDbHelper
 import com.mindful.android.helpers.storage.SharedPrefsHelper
 import com.mindful.android.models.Notification
 import com.mindful.android.models.NotificationSettings
-import com.mindful.android.utils.executors.Throttler
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 
 class MindfulNotificationListenerService : NotificationListenerService() {
     companion object {
         private const val TAG = "Mindful.MindfulNotificationService"
+
+        /// History-only notifications are written in small groups, at most this
+        /// long after they arrive. Batched ones are written right away since
+        /// they have already been removed from the shade.
+        private const val HISTORY_FLUSH_DELAY_SEC = 5L
 
         /// The connected listener, needed to read the notification shade from
         /// outside the service. Only the system may instantiate it, so this is
@@ -62,19 +67,42 @@ class MindfulNotificationListenerService : NotificationListenerService() {
             Log.e(TAG, "hasPendingNotification: Unable to read active notifications", it)
             false
         }
+
+        /** Applies new settings to the running listener, if any. */
+        fun applySettings(settings: NotificationSettings) {
+            connectedListener?.updateNotificationSettings(settings)
+        }
+
+        /** Writes every notification still held in memory, synchronously. */
+        fun flushPendingNotifications() {
+            connectedListener?.insertNotificationsToDb()
+        }
+
+        /** The original tap action of a batched notification, when still cached. */
+        fun pendingIntentFor(key: String): PendingIntent? =
+            connectedListener?.getPendingIntentForKey(key)
     }
 
     private val binder = ServiceBinder(this@MindfulNotificationListenerService)
-    private val executorService: ExecutorService = Executors.newFixedThreadPool(4)
+    private val executorService: ExecutorService = Executors.newSingleThreadExecutor()
+    private val flushScheduler = Executors.newSingleThreadScheduledExecutor()
 
+    private val pendingLock = Any()
+
+    /// Only one write at a time, so a batch is never inserted twice.
+    private val flushLock = Any()
     private val pendingNotifications: MutableList<Notification> = mutableListOf()
+    private var isFlushScheduled = false
+
     private val cachedPendingIntents: SmartCacheBox<String, PendingIntent> = SmartCacheBox(
         maxSize = 100,
         maxAgeMs = 24 * 60 * 60 * 1000L // 24 hours
     )
 
-    private val throttler: Throttler = Throttler(5 * 1000L) // Every 5 seconds
+    @Volatile
     private var settings: NotificationSettings = NotificationSettings()
+
+    @Volatile
     private var isListenerActive = false
 
     /**
@@ -82,6 +110,16 @@ class MindfulNotificationListenerService : NotificationListenerService() {
      */
     fun getPendingIntentForKey(key: String): PendingIntent? = cachedPendingIntents.get(key)
 
+    override fun onCreate() {
+        super.onCreate()
+        // The system may restart the listener without the app: recover the
+        // last settings instead of silently batching nothing.
+        settings = runCatching {
+            NotificationSettings.fromJson(
+                SharedPrefsHelper.getSetNotificationSettingsJson(this, null)
+            )
+        }.getOrElse { NotificationSettings() }
+    }
 
     override fun onListenerConnected() {
         isListenerActive = true
@@ -92,7 +130,7 @@ class MindfulNotificationListenerService : NotificationListenerService() {
 
     override fun onListenerDisconnected() {
         isListenerActive = false
-        connectedListener = null
+        if (connectedListener === this) connectedListener = null
         Log.d(TAG, "onListenerConnected: Notifications listener DIS-CONNECTED")
 
         super.onListenerDisconnected()
@@ -112,21 +150,27 @@ class MindfulNotificationListenerService : NotificationListenerService() {
                 sbn.notification.flags and android.app.Notification.FLAG_GROUP_SUMMARY != 0
             if (packageName == this.packageName || !sbn.isClearable || isGroupSummary || sbn.isOngoing) return
 
+            val current = settings
+            val isFromBatchedApp = current.batchedApps.contains(packageName)
+
+            // Process only if keeping history or it is from batched app
+            if (current.storeNonBatchedToo || isFromBatchedApp) {
+                // Read everything before the notification is cancelled
+                val notification = Notification.fromSbn(sbn)
+                val contentIntent = sbn.notification.contentIntent
+                executorService.submit {
+                    processNotificationInBg(
+                        notification,
+                        contentIntent,
+                        isFromBatchedApp,
+                    )
+                }
+            }
+
             // Dismiss notification if it is from distracting apps
-            val isFromBatchedApp = settings.batchedApps.contains(packageName)
             if (isFromBatchedApp) {
                 cancelNotification(sbn.key)
                 Log.d(TAG, "onNotificationPosted: Distracting notification dismissed")
-            }
-
-            // Process only if keeping history or it is from batched app
-            if (settings.storeNonBatchedToo || isFromBatchedApp) {
-                executorService.submit {
-                    processNotificationInBg(
-                        sbn,
-                        isFromBatchedApp
-                    )
-                }
             }
         } catch (e: Exception) {
             SharedPrefsHelper.insertCrashLogToPrefs(this, e)
@@ -144,31 +188,70 @@ class MindfulNotificationListenerService : NotificationListenerService() {
         )
     }
 
-    private fun processNotificationInBg(sbn: StatusBarNotification, isFromBatchedApp: Boolean) {
+    private fun processNotificationInBg(
+        parsed: Notification,
+        contentIntent: PendingIntent?,
+        isFromBatchedApp: Boolean,
+    ) {
         try {
-            Log.d(TAG, "processNotificationInBg: Processing notification")
+            var notification = parsed.copy(isRead = !isFromBatchedApp)
+            if (notification.title.isEmpty() || notification.content.isEmpty()) {
+                // A batched notification is already gone from the shade: never
+                // drop it, give it a readable fallback instead
+                if (!isFromBatchedApp) return
+                notification = notification.copy(
+                    title = notification.title.ifEmpty { appLabel(notification.packageName) },
+                    content = notification.content.ifEmpty { "Nouvelle notification" },
+                )
+            }
 
-            // Create notification and cache
-            val notification = Notification.fromSbn(sbn).copy(isRead = !isFromBatchedApp)
-            if (notification.title.isEmpty() || notification.content.isEmpty()) return
+            contentIntent?.let { cachedPendingIntents.put(notification.key, it) }
+            synchronized(pendingLock) { pendingNotifications.add(notification) }
 
-            sbn.notification.contentIntent?.let { cachedPendingIntents.put(notification.key, it) }
-            pendingNotifications.add(notification)
-
-            // Insert notifications to db if the difference between last insertion is more than 1 minute
-            throttler.submit { insertNotificationsToDb() }
+            if (isFromBatchedApp) insertNotificationsToDb() else scheduleHistoryFlush()
         } catch (e: Exception) {
             SharedPrefsHelper.insertCrashLogToPrefs(this, e)
             Log.e(TAG, "processNotificationInBg: Failed to process notification", e)
         }
     }
 
-    private fun insertNotificationsToDb() {
-        if (pendingNotifications.isEmpty()) return
-        val isSuccess = DriftDbHelper.insertNotifications(this, pendingNotifications)
+    private fun appLabel(packageName: String): String = runCatching {
+        packageManager.getApplicationLabel(
+            packageManager.getApplicationInfo(packageName, 0)
+        ).toString()
+    }.getOrDefault(packageName)
 
-        // Clear list if inserted successfully
-        if (isSuccess) pendingNotifications.clear()
+    private fun scheduleHistoryFlush() {
+        synchronized(pendingLock) {
+            if (isFlushScheduled) return
+            isFlushScheduled = true
+        }
+        runCatching {
+            flushScheduler.schedule(
+                { executorService.submit { insertNotificationsToDb() } },
+                HISTORY_FLUSH_DELAY_SEC,
+                TimeUnit.SECONDS,
+            )
+        }
+    }
+
+    /**
+     * Writes the notifications held in memory. Only the ones actually written
+     * are removed, so anything arriving meanwhile waits for the next write.
+     */
+    fun insertNotificationsToDb() = synchronized(flushLock) {
+        val batch = synchronized(pendingLock) {
+            isFlushScheduled = false
+            pendingNotifications.toList()
+        }
+        if (batch.isEmpty()) return@synchronized
+
+        val isSuccess = DriftDbHelper.insertNotifications(this, batch)
+        if (isSuccess) {
+            synchronized(pendingLock) { pendingNotifications.removeAll(batch) }
+        } else {
+            scheduleHistoryFlush()
+        }
     }
 
 
@@ -180,6 +263,7 @@ class MindfulNotificationListenerService : NotificationListenerService() {
     override fun onDestroy() {
         if (connectedListener === this) connectedListener = null
         insertNotificationsToDb()
+        flushScheduler.shutdownNow()
         executorService.shutdown()
         Log.d(TAG, "onDestroy: Notifications listener DESTROYED")
         super.onDestroy()

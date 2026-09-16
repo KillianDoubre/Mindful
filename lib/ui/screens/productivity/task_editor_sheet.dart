@@ -17,7 +17,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mindful/models/productivity_item.dart';
 import 'package:mindful/providers/productivity/productivity_items_provider.dart';
 import 'package:mindful/ui/common/glass_surface.dart';
+import 'package:mindful/core/services/task_reminders_service.dart';
 import 'package:mindful/ui/screens/productivity/task_due.dart';
+import 'package:mindful/ui/screens/productivity/task_reminder_picker.dart';
 
 /// Opens the task sheet. Returns the id of the task to delete when the user
 /// chose "Supprimer", so the list can offer to undo it.
@@ -52,6 +54,7 @@ class _TaskEditorSheetState extends ConsumerState<_TaskEditorSheet> {
   late final TextEditingController _detailsController;
   late bool _isCompleted;
   DateTime? _dueAt;
+  late List<int> _reminders;
   int? _taskId;
 
   Timer? _saveTimer;
@@ -69,6 +72,7 @@ class _TaskEditorSheetState extends ConsumerState<_TaskEditorSheet> {
     _detailsController = TextEditingController(text: widget.task?.details);
     _isCompleted = widget.task?.isCompleted ?? false;
     _dueAt = widget.task?.dueAt;
+    _reminders = [...?widget.task?.reminderOffsets];
     _taskId = widget.task?.id;
     _lastTitle = _titleController.text;
     _lastDetails = _detailsController.text;
@@ -122,6 +126,7 @@ class _TaskEditorSheetState extends ConsumerState<_TaskEditorSheet> {
         details: _lastDetails,
         isCompleted: _isCompleted,
         dueAt: _dueAt,
+        reminderOffsets: _reminders,
       ),
       id: _taskId,
     );
@@ -129,6 +134,11 @@ class _TaskEditorSheetState extends ConsumerState<_TaskEditorSheet> {
 
   void _setDue(DateTime? value) {
     setState(() => _dueAt = value);
+    _markChanged();
+  }
+
+  void _setReminders(List<int> reminders) {
+    setState(() => _reminders = [...reminders]..sort());
     _markChanged();
   }
 
@@ -254,7 +264,12 @@ class _TaskEditorSheetState extends ConsumerState<_TaskEditorSheet> {
                     ),
                   ),
                   const SizedBox(height: 14),
-                  _DueSection(dueAt: _dueAt, onChanged: _setDue),
+                  _DueSection(
+                    dueAt: _dueAt,
+                    onChanged: _setDue,
+                    reminders: _reminders,
+                    onRemindersChanged: _setReminders,
+                  ),
                 ],
               ),
             ),
@@ -266,10 +281,17 @@ class _TaskEditorSheetState extends ConsumerState<_TaskEditorSheet> {
 }
 
 class _DueSection extends StatelessWidget {
-  const _DueSection({required this.dueAt, required this.onChanged});
+  const _DueSection({
+    required this.dueAt,
+    required this.onChanged,
+    required this.reminders,
+    required this.onRemindersChanged,
+  });
 
   final DateTime? dueAt;
   final ValueChanged<DateTime?> onChanged;
+  final List<int> reminders;
+  final ValueChanged<List<int>> onRemindersChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -337,6 +359,12 @@ class _DueSection extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 16),
+          _RemindersSection(
+            dueAt: current,
+            reminders: reminders,
+            onChanged: onRemindersChanged,
+          ),
         ],
       ],
     );
@@ -377,6 +405,74 @@ class _DueSection extends StatelessWidget {
       picked.hour,
       picked.minute,
     ));
+  }
+}
+
+/// Notification reminders before the due time.
+class _RemindersSection extends StatelessWidget {
+  const _RemindersSection({
+    required this.dueAt,
+    required this.reminders,
+    required this.onChanged,
+  });
+
+  final DateTime dueAt;
+  final List<int> reminders;
+  final ValueChanged<List<int>> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final now = DateTime.now();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            'RAPPELS',
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: colors.onSurfaceVariant,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.8,
+                ),
+          ),
+        ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final offset in reminders)
+              Opacity(
+                // A reminder whose time has already passed will not ring
+                opacity: dueAt.subtract(Duration(minutes: offset)).isAfter(now)
+                    ? 1
+                    : 0.45,
+                child: InputChip(
+                  avatar: const Icon(FluentIcons.alert_20_regular, size: 18),
+                  label: Text(formatReminderOffset(offset)),
+                  onDeleted: () => onChanged(
+                    reminders.where((value) => value != offset).toList(),
+                  ),
+                ),
+              ),
+            ActionChip(
+              avatar: const Icon(FluentIcons.add_20_regular, size: 18),
+              label: Text(reminders.isEmpty ? 'Ajouter un rappel' : 'Rappel'),
+              onPressed: () async {
+                final picked = await showTaskReminderPicker(
+                  context,
+                  existing: reminders,
+                );
+                if (picked != null && !reminders.contains(picked)) {
+                  onChanged([...reminders, picked]);
+                }
+              },
+            ),
+          ],
+        ),
+      ],
+    );
   }
 }
 

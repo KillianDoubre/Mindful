@@ -42,7 +42,8 @@ class WebsiteTile extends ConsumerWidget {
             .read(wellBeingProvider.notifier)
             .insertRemoveBlockedSite(websitehost, false),
         child: DefaultListTile(
-          position: ItemPosition.fit,
+          // Same corners as the slide-to-remove clip around it
+          position: position ?? ItemPosition.none,
           margin: const EdgeInsets.all(0),
           leading: RoundedContainer(
             width: 14,

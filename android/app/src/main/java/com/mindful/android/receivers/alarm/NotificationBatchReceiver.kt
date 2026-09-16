@@ -65,11 +65,22 @@ class NotificationBatchReceiver : BroadcastReceiver() {
                     params.inputData.getString(EXTRA_NOTIFICATION_SETTINGS_JSON) ?: ""
                 )
 
+                // Make sure nothing the listener still holds in memory is missed
+                MindfulNotificationListenerService.flushPendingNotifications()
+
                 // Fetch unread notifications
                 val notifications = DriftDbHelper.fetchLast24HourUnreadNotifications(context)
                 if (notifications.isNotEmpty()) {
-                    if (settings.recapSummeryOnly) pushSummeryNotification(notifications.size)
-                    else pushAllUnreadNotifications(notifications)
+                    if (settings.recapSummeryOnly) {
+                        pushSummeryNotification(notifications.size)
+                        // Otherwise the next recap would count them again
+                        DriftDbHelper.markNotificationsAsRead(
+                            context,
+                            notifications.mapNotNull { it.id },
+                        )
+                    } else {
+                        pushAllUnreadNotifications(notifications)
+                    }
                 }
 
                 Log.d(TAG, "doWork: Notification batch work completed successfully")
@@ -137,10 +148,17 @@ class NotificationBatchReceiver : BroadcastReceiver() {
                 // Group notifications by app package
                 val appGroupedNotifications = notifications.groupBy { it.packageName }
                 for ((packageName, appNotifications) in appGroupedNotifications) {
-
-                    val appInfo = packageManager.getApplicationInfo(packageName, 0)
-                    val appName = packageManager.getApplicationLabel(appInfo).toString()
-                    val appIcon = packageManager.getApplicationIcon(appInfo).toBitmap()
+                    // An uninstalled app must not abort the whole batch
+                    val appInfo = runCatching {
+                        packageManager.getApplicationInfo(packageName, 0)
+                    }.getOrNull()
+                    val appName = appInfo?.let {
+                        packageManager.getApplicationLabel(it).toString()
+                    } ?: packageName
+                    val appIcon = appInfo?.let {
+                        runCatching { packageManager.getApplicationIcon(it).toBitmap() }
+                            .getOrNull()
+                    }
                     val appIntent = runCatching {
                         PendingIntent.getActivity(
                             context,
@@ -167,7 +185,8 @@ class NotificationBatchReceiver : BroadcastReceiver() {
                             }
 
                         val pendingIntent =
-                            notificationServiceConn.service?.getPendingIntentForKey(threadKey)
+                            MindfulNotificationListenerService.pendingIntentFor(threadKey)
+                                ?: notificationServiceConn.service?.getPendingIntentForKey(threadKey)
                                 ?: appIntent
                                 ?: mindfulIntent
 

@@ -23,8 +23,6 @@ class TasksScreen extends ConsumerStatefulWidget {
 }
 
 class _TasksScreenState extends ConsumerState<TasksScreen> {
-  final _quickAddController = TextEditingController();
-  final _quickAddFocus = FocusNode();
   bool _showCompleted = false;
 
   /// Tasks swiped away, hidden until the database catches up.
@@ -33,13 +31,6 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
   ProductivityItemsNotifier get _notifier => ref.read(
         productivityItemsProvider(ProductivityItemType.task).notifier,
       );
-
-  @override
-  void dispose() {
-    _quickAddController.dispose();
-    _quickAddFocus.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -63,7 +54,9 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             physics: const BouncingScrollPhysics(),
             slivers: [
-              SliverToBoxAdapter(child: _buildQuickAdd()),
+              SliverToBoxAdapter(
+                child: _QuickAddField(onSubmitted: _quickAdd),
+              ),
               const SliverToBoxAdapter(child: SizedBox(height: 14)),
               ...tasks.when(
                 loading: () => [
@@ -89,48 +82,6 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildQuickAdd() {
-    final colors = Theme.of(context).colorScheme;
-    return GlassSurface(
-      showShadow: false,
-      borderRadius: BorderRadius.circular(28),
-      padding: const EdgeInsets.only(left: 16, right: 6),
-      child: Row(
-        children: [
-          Icon(FluentIcons.add_circle_20_regular, color: colors.primary),
-          const SizedBox(width: 10),
-          Expanded(
-            child: TextField(
-              controller: _quickAddController,
-              focusNode: _quickAddFocus,
-              textCapitalization: TextCapitalization.sentences,
-              textInputAction: TextInputAction.done,
-              onSubmitted: (_) => _quickAdd(),
-              onChanged: (_) => setState(() {}),
-              decoration: const InputDecoration(
-                hintText: 'Ajouter une tâche',
-                filled: false,
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(vertical: 16),
-              ),
-            ),
-          ),
-          AnimatedScale(
-            scale: _quickAddController.text.trim().isEmpty ? 0 : 1,
-            duration: const Duration(milliseconds: 160),
-            child: IconButton.filled(
-              tooltip: 'Ajouter',
-              onPressed: _quickAdd,
-              icon: const Icon(FluentIcons.arrow_up_20_filled),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -264,14 +215,8 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
   // Actions
   // ---------------------------------------------------------------------------
 
-  Future<void> _quickAdd() async {
-    final title = _quickAddController.text.trim();
-    if (title.isEmpty) return;
+  Future<void> _quickAdd(String title) async {
     HapticFeedback.lightImpact();
-    _quickAddController.clear();
-    setState(() {});
-    // Keep the keyboard up to chain several tasks
-    _quickAddFocus.requestFocus();
     await _notifier.save(ProductivityItemDraft(title: title));
   }
 
@@ -305,6 +250,8 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
+          persist: false,
+          duration: const Duration(seconds: 5),
           content: Text('« ${task.title} » terminée'),
           action: SnackBarAction(
             label: 'Annuler',
@@ -390,6 +337,8 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
+          persist: false,
+          duration: const Duration(seconds: 5),
           content: Text(
             tasks.length == 1
                 ? 'Tâche supprimée'
@@ -405,6 +354,85 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
           ),
         ),
       );
+  }
+}
+
+/// Quick capture field. Kept apart from the page so typing only rebuilds
+/// this row, not the whole scroll view.
+class _QuickAddField extends StatefulWidget {
+  const _QuickAddField({required this.onSubmitted});
+
+  final ValueChanged<String> onSubmitted;
+
+  @override
+  State<_QuickAddField> createState() => _QuickAddFieldState();
+}
+
+class _QuickAddFieldState extends State<_QuickAddField> {
+  final _controller = TextEditingController();
+  final _focusNode = FocusNode();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final title = _controller.text.trim();
+    if (title.isEmpty) return;
+    _controller.clear();
+    // Keep the keyboard up to chain several tasks
+    _focusNode.requestFocus();
+    widget.onSubmitted(title);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return GlassSurface(
+      showShadow: false,
+      borderRadius: BorderRadius.circular(28),
+      padding: const EdgeInsets.only(left: 16, right: 6),
+      child: Row(
+        children: [
+          Icon(FluentIcons.add_circle_20_regular, color: colors.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextField(
+              controller: _controller,
+              focusNode: _focusNode,
+              textCapitalization: TextCapitalization.sentences,
+              textInputAction: TextInputAction.done,
+              // The field sits at the top: never scroll the page to reveal it
+              scrollPadding: EdgeInsets.zero,
+              onSubmitted: (_) => _submit(),
+              decoration: const InputDecoration(
+                hintText: 'Ajouter une tâche',
+                filled: false,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(vertical: 16),
+              ),
+            ),
+          ),
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: _controller,
+            builder: (context, value, _) => AnimatedScale(
+              scale: value.text.trim().isEmpty ? 0 : 1,
+              duration: const Duration(milliseconds: 160),
+              child: IconButton.filled(
+                tooltip: 'Ajouter',
+                onPressed: _submit,
+                icon: const Icon(FluentIcons.arrow_up_20_filled),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -556,9 +584,31 @@ class _TaskCard extends StatelessWidget {
                         ],
                         if (due != null) ...[
                           const SizedBox(height: 8),
-                          _DueChip(
-                            due: due,
-                            isCompleted: task.isCompleted,
+                          Row(
+                            children: [
+                              Flexible(
+                                child: _DueChip(
+                                  due: due,
+                                  isCompleted: task.isCompleted,
+                                ),
+                              ),
+                              if (task.reminderOffsets.isNotEmpty &&
+                                  !task.isCompleted) ...[
+                                const SizedBox(width: 8),
+                                Icon(
+                                  FluentIcons.alert_16_regular,
+                                  size: 15,
+                                  color: colors.onSurfaceVariant,
+                                ),
+                                if (task.reminderOffsets.length > 1)
+                                  Text(
+                                    ' ${task.reminderOffsets.length}',
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: colors.onSurfaceVariant,
+                                    ),
+                                  ),
+                              ],
+                            ],
                           ),
                         ],
                       ],

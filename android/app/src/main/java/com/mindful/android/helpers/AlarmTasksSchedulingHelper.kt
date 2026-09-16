@@ -28,6 +28,9 @@ import com.mindful.android.receivers.alarm.NotificationBatchReceiver
 import com.mindful.android.receivers.alarm.NotificationBatchReceiver.Companion.EXTRA_NOTIFICATION_SETTINGS_JSON
 import com.mindful.android.receivers.alarm.NotificationBatchReceiver.NotificationBatchWorker
 import com.mindful.android.receivers.alarm.SystemsReminderReceiver
+import com.mindful.android.receivers.alarm.TaskReminderReceiver
+import com.mindful.android.helpers.storage.SharedPrefsHelper
+import org.json.JSONArray
 import com.mindful.android.receivers.alarm.SystemsReminderReceiver.Companion.EXTRA_SYSTEMS_REMINDERS_JSON
 import com.mindful.android.models.SystemsReminders
 import com.mindful.android.services.tracking.MindfulTrackerService
@@ -46,6 +49,7 @@ object AlarmTasksSchedulingHelper {
     private const val NOTIFICATION_BATCH_ALARM_ID = 103
     private const val SYSTEMS_DAILY_REMINDER_ALARM_ID = 104
     private const val SYSTEMS_WEEKLY_REMINDER_ALARM_ID = 105
+    private const val TASK_REMINDER_ALARM_ID_BASE = 200_000
 
 
     /**
@@ -351,6 +355,69 @@ object AlarmTasksSchedulingHelper {
      * @param epochTimeMs   The time at which the alarm should go off, in milliseconds since epoch.
      * @param extraMap         An optional map of key-value pairs to be passed as extras in the `Intent`. Value should be serialized json.  Default is `null`.
      */
+    /**
+     * Replaces every scheduled task reminder with the ones in [json], a JSON
+     * array of `{id, taskId, title, body, atMs}` objects.
+     */
+    fun scheduleTaskReminders(context: Context, json: String) {
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+
+        fun intentFor() = Intent(context.applicationContext, TaskReminderReceiver::class.java)
+            .setAction(TaskReminderReceiver.ACTION_TASK_REMINDER)
+
+        // Cancel what was scheduled before
+        for (code in SharedPrefsHelper.getSetTaskReminderCodes(context, null)) {
+            PendingIntent.getBroadcast(
+                context,
+                code,
+                intentFor(),
+                PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+            )?.let {
+                alarmManager.cancel(it)
+                it.cancel()
+            }
+        }
+
+        val scheduled = mutableSetOf<Int>()
+        val now = System.currentTimeMillis()
+        val reminders = runCatching { JSONArray(json) }.getOrElse { JSONArray() }
+        for (index in 0 until reminders.length()) {
+            val item = reminders.optJSONObject(index) ?: continue
+            val atMs = item.optLong("atMs")
+            if (atMs <= now) continue
+
+            val code = TASK_REMINDER_ALARM_ID_BASE + item.optInt("id")
+            val intent = intentFor()
+                .putExtra(TaskReminderReceiver.EXTRA_REMINDER_ID, item.optInt("id"))
+                .putExtra(TaskReminderReceiver.EXTRA_TASK_ID, item.optInt("taskId"))
+                .putExtra(TaskReminderReceiver.EXTRA_TITLE, item.optString("title"))
+                .putExtra(TaskReminderReceiver.EXTRA_BODY, item.optString("body"))
+            val pendingIntent = PendingIntent.getBroadcast(
+                context,
+                code,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
+            val canBeExact = Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
+                    alarmManager.canScheduleExactAlarms()
+            if (canBeExact) {
+                alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    atMs,
+                    pendingIntent
+                )
+            } else {
+                // Still remind, a few minutes late at worst
+                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMs, pendingIntent)
+            }
+            scheduled.add(code)
+        }
+
+        SharedPrefsHelper.getSetTaskReminderCodes(context, scheduled)
+        Log.d(TAG, "scheduleTaskReminders: ${scheduled.size} task reminders scheduled")
+    }
+
     private fun scheduleOrUpdateExactAlarmTask(
         context: Context,
         receiverClass: Class<*>,

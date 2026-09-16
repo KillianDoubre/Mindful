@@ -173,6 +173,10 @@
             android:name=".receivers.alarm.SystemsReminderReceiver"
             android:enabled="true"
             android:exported="false" />
+        <receiver
+            android:name=".receivers.alarm.TaskReminderReceiver"
+            android:enabled="true"
+            android:exported="false" />
         <!-- _________________________________________________________________________________ -->
         <!-- ________________________ SYSTEM BOUND SERVICES __________________________________ -->
         <!-- _________________________________________________________________________________ -->

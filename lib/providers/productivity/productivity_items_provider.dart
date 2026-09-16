@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mindful/core/services/task_reminders_service.dart';
 import 'package:mindful/core/services/productivity_repository.dart';
 import 'package:mindful/models/productivity_item.dart';
 
@@ -18,6 +21,10 @@ class ProductivityItemsNotifier
 
   Future<void> refresh() async {
     state = await AsyncValue.guard(() => _repository.load(type));
+    if (type == ProductivityItemType.task) {
+      final tasks = state.valueOrNull;
+      if (tasks != null) unawaited(TaskRemindersService.sync(tasks));
+    }
   }
 
   /// Creates or updates an item and returns its id.

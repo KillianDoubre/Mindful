@@ -255,6 +255,15 @@ class MethodChannelService {
         jsonEncode(bedtimeSettings),
       );
 
+  /// Replaces every scheduled task reminder on the native side.
+  ///
+  /// Each entry is `{id, taskId, title, body, atMs}`.
+  Future<bool> updateTaskReminders(List<Map<String, Object>> reminders) async =>
+      await _methodChannel.invokeMethod(
+        'updateTaskReminders',
+        jsonEncode(reminders),
+      );
+
   /// Updates the Systems reminders (daily systems nudge + weekly review nudge).
   ///
   /// Sends the reminder configuration to the native side which (re)schedules or

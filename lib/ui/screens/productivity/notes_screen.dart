@@ -231,6 +231,8 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
+          persist: false,
+          duration: const Duration(seconds: 5),
           content: const Text('Note supprimée'),
           action: SnackBarAction(
             label: 'Annuler',

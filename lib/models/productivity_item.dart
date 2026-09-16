@@ -18,6 +18,7 @@ class ProductivityItem {
     required this.dueAt,
     required this.sortOrder,
     this.isPinned = false,
+    this.reminderOffsets = const [],
     required this.createdAt,
     required this.updatedAt,
   });
@@ -31,6 +32,9 @@ class ProductivityItem {
   final DateTime? dueAt;
   final int sortOrder;
   final bool isPinned;
+
+  /// Reminders before [dueAt], in minutes (0 = at the due time).
+  final List<int> reminderOffsets;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -53,6 +57,7 @@ class ProductivityItem {
       },
       sortOrder: data['sort_order'] as int? ?? 0,
       isPinned: (data['is_pinned'] as int? ?? 0) == 1,
+      reminderOffsets: parseReminderOffsets(data['reminders'] as String?),
       createdAt: DateTime.fromMillisecondsSinceEpoch(
         data['created_at'] as int? ?? 0,
       ),
@@ -71,6 +76,7 @@ class ProductivityItem {
     bool clearDueAt = false,
     int? sortOrder,
     bool? isPinned,
+    List<int>? reminderOffsets,
     DateTime? updatedAt,
   }) =>
       ProductivityItem(
@@ -83,6 +89,7 @@ class ProductivityItem {
         dueAt: clearDueAt ? null : dueAt ?? this.dueAt,
         sortOrder: sortOrder ?? this.sortOrder,
         isPinned: isPinned ?? this.isPinned,
+        reminderOffsets: reminderOffsets ?? this.reminderOffsets,
         createdAt: createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -96,6 +103,7 @@ class ProductivityItemDraft {
     this.isCompleted = false,
     this.dueAt,
     this.isPinned,
+    this.reminderOffsets,
   });
 
   final String title;
@@ -106,4 +114,22 @@ class ProductivityItemDraft {
 
   /// `null` keeps the stored value when updating an existing item.
   final bool? isPinned;
+
+  /// `null` keeps the stored value when updating an existing item.
+  final List<int>? reminderOffsets;
 }
+
+List<int> parseReminderOffsets(String? raw) {
+  final offsets = (raw ?? '')
+      .split(',')
+      .map((part) => int.tryParse(part.trim()))
+      .whereType<int>()
+      .where((offset) => offset >= 0)
+      .toSet()
+      .toList()
+    ..sort();
+  return offsets;
+}
+
+String encodeReminderOffsets(List<int> offsets) =>
+    (offsets.toSet().toList()..sort()).join(',');

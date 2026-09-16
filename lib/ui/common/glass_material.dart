@@ -67,15 +67,33 @@ class GlassLayer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // A fully transparent layer sits inside another glass surface: stay plain
+    if (tint != null && tint!.a == 0) {
+      return Padding(
+        padding: margin,
+        child: ClipRRect(
+          borderRadius: borderRadius,
+          child: Container(
+            width: width,
+            height: height,
+            padding: padding,
+            child: child,
+          ),
+        ),
+      );
+    }
+
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final fill = fillFor(theme, tint);
+    // Square layers are always clipped by a rounded parent, which would cut a
+    // square rim at the corners
+    final hasRim = borderRadius != BorderRadius.zero;
 
     final surface = CustomPaint(
-      foregroundPainter: GlassRimPainter(
-        borderRadius: borderRadius,
-        isDark: isDark,
-      ),
+      foregroundPainter: hasRim
+          ? GlassRimPainter(borderRadius: borderRadius, isDark: isDark)
+          : null,
       child: Container(
         width: width,
         height: height,

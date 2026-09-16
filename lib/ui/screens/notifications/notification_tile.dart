@@ -13,6 +13,7 @@ import 'package:mindful/core/database/app_database.dart' as db;
 import 'package:mindful/core/enums/item_position.dart';
 import 'package:mindful/core/extensions/ext_date_time.dart';
 import 'package:mindful/core/services/method_channel_service.dart';
+import 'package:mindful/core/utils/widget_utils.dart';
 import 'package:mindful/ui/common/default_list_tile.dart';
 import 'package:mindful/ui/common/default_slide_to_remove.dart';
 import 'package:mindful/ui/common/rounded_container.dart';
@@ -49,7 +50,8 @@ class NotificationTile extends StatelessWidget {
       onDismiss: () => onDismissed?.call(notification),
       child: RoundedContainer(
         onPressed: _onPressed,
-        circularRadius: 0,
+        // Same corners as the slide-to-remove clip around it
+        borderRadius: getBorderRadiusFromPosition(position),
         color: color,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

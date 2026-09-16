@@ -84,7 +84,8 @@ class _ScheduleCard extends StatelessWidget {
       key: Key("${schedule.label}:${schedule.time.toMinutes}"),
       onDismiss: () => onRemove(schedule),
       child: DefaultListTile(
-        position: ItemPosition.fit,
+        // Same corners as the slide-to-remove clip around it
+        position: position,
         margin: const EdgeInsets.all(0),
 
         /// Time

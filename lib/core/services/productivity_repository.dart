@@ -41,6 +41,12 @@ class ProductivityRepository {
         .customSelect('PRAGMA table_info(productivity_items)')
         .map((row) => row.read<String>('name'))
         .get();
+    if (!columns.contains('reminders')) {
+      await db.customStatement(
+        'ALTER TABLE productivity_items '
+        "ADD COLUMN reminders TEXT NOT NULL DEFAULT ''",
+      );
+    }
     if (!columns.contains('is_pinned')) {
       await db.customStatement(
         'ALTER TABLE productivity_items '
@@ -79,7 +85,8 @@ class ProductivityRepository {
         '''
           UPDATE productivity_items
           SET title = ?, details = ?, color_value = ?, is_completed = ?,
-              due_at = ?, is_pinned = COALESCE(?, is_pinned), updated_at = ?
+              due_at = ?, is_pinned = COALESCE(?, is_pinned),
+              reminders = COALESCE(?, reminders), updated_at = ?
           WHERE id = ? AND item_type = ?
         ''',
         [
@@ -91,6 +98,10 @@ class ProductivityRepository {
           switch (draft.isPinned) {
             null => null,
             final pinned => pinned ? 1 : 0,
+          },
+          switch (draft.reminderOffsets) {
+            null => null,
+            final offsets => encodeReminderOffsets(offsets),
           },
           now,
           id,
@@ -119,8 +130,8 @@ class ProductivityRepository {
       '''
         INSERT INTO productivity_items (
           item_type, title, details, color_value, is_completed, due_at,
-          sort_order, is_pinned, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          sort_order, is_pinned, created_at, updated_at, reminders
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ''',
       variables: [
         Variable.withString(type.databaseValue),
@@ -133,6 +144,9 @@ class ProductivityRepository {
         Variable.withInt((draft.isPinned ?? false) ? 1 : 0),
         Variable.withInt(now),
         Variable.withInt(now),
+        Variable.withString(
+          encodeReminderOffsets(draft.reminderOffsets ?? const []),
+        ),
       ],
     );
   }
@@ -152,8 +166,8 @@ class ProductivityRepository {
       '''
         INSERT OR REPLACE INTO productivity_items (
           id, item_type, title, details, color_value, is_completed, due_at,
-          sort_order, is_pinned, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          sort_order, is_pinned, created_at, updated_at, reminders
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ''',
       variables: [
         Variable.withInt(item.id),
@@ -167,6 +181,7 @@ class ProductivityRepository {
         Variable.withInt(item.isPinned ? 1 : 0),
         Variable.withInt(item.createdAt.millisecondsSinceEpoch),
         Variable.withInt(item.updatedAt.millisecondsSinceEpoch),
+        Variable.withString(encodeReminderOffsets(item.reminderOffsets)),
       ],
     );
   }

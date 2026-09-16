@@ -35,6 +35,8 @@ object SharedPrefsHelper {
     private const val PREF_KEY_DATING_SCREEN_TIMES = "datingScreenTimes"
     private const val PREF_KEY_DND_WAKE_LOCK = "dndWakeLock"
     private const val PREF_KEY_EXCLUDED_APPS = "excludedApps"
+    private const val PREF_KEY_NOTIFICATION_SETTINGS = "notificationSettings"
+    private const val PREF_KEY_TASK_REMINDER_CODES = "taskReminderCodes"
 
     private var mListenablePrefs: SharedPreferences? = null
     private const val LISTENABLE_PREFS_BOX = "UniquePrefs"
@@ -112,6 +114,41 @@ object SharedPrefsHelper {
                 .apply()
             return Wellbeing.fromJson(jsonWellBeing)
         }
+    }
+
+
+    /**
+     * Returns the stored notification settings JSON, storing [json] first when
+     * it is not null. Lets the notification listener recover its settings
+     * after the system restarts it without the app running.
+     */
+    fun getSetNotificationSettingsJson(context: Context, json: String?): String {
+        checkAndInitializeUniquePrefs(context)
+        if (json != null) {
+            mUniquePrefs!!.edit().putString(PREF_KEY_NOTIFICATION_SETTINGS, json).apply()
+            return json
+        }
+        return mUniquePrefs!!.getString(PREF_KEY_NOTIFICATION_SETTINGS, "{}") ?: "{}"
+    }
+
+
+    /**
+     * Request codes of the task reminder alarms currently scheduled. Stores
+     * [codes] first when it is not null.
+     */
+    fun getSetTaskReminderCodes(context: Context, codes: Set<Int>?): Set<Int> {
+        checkAndInitializeUniquePrefs(context)
+        if (codes != null) {
+            mUniquePrefs!!.edit()
+                .putString(PREF_KEY_TASK_REMINDER_CODES, codes.joinToString(","))
+                .apply()
+            return codes
+        }
+        return mUniquePrefs!!.getString(PREF_KEY_TASK_REMINDER_CODES, "")
+            .orEmpty()
+            .split(",")
+            .mapNotNull { it.trim().toIntOrNull() }
+            .toSet()
     }
 
 

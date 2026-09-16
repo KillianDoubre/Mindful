@@ -14,6 +14,7 @@ import com.mindful.android.helpers.AlarmTasksSchedulingHelper.cancelNotification
 import com.mindful.android.helpers.AlarmTasksSchedulingHelper.scheduleBedtimeRoutineTasks
 import com.mindful.android.helpers.AlarmTasksSchedulingHelper.scheduleNotificationBatchTask
 import com.mindful.android.helpers.AlarmTasksSchedulingHelper.scheduleSystemsReminders
+import com.mindful.android.helpers.AlarmTasksSchedulingHelper.scheduleTaskReminders
 import com.mindful.android.helpers.device.DeviceAppsHelper.getDeviceAppInfos
 import com.mindful.android.helpers.device.NewActivitiesLaunchHelper
 import com.mindful.android.helpers.device.NotificationHelper
@@ -254,6 +255,14 @@ class FgMethodCallHandler(
                 result.success(true)
             }
 
+            "updateTaskReminders" -> {
+                scheduleTaskReminders(
+                    context,
+                    call.arguments() ?: "[]",
+                )
+                result.success(true)
+            }
+
             "updateSystemsReminders" -> {
                 scheduleSystemsReminders(context, call.arguments() ?: "")
                 result.success(true)
@@ -262,8 +271,10 @@ class FgMethodCallHandler(
             "updateNotificationSettings" -> {
                 val settingsJson = call.arguments() ?: ""
                 val settings = NotificationSettings.fromJson(settingsJson)
+                SharedPrefsHelper.getSetNotificationSettingsJson(context, settingsJson)
 
-                /// Update service
+                /// Update service (also when everything was just turned off)
+                MindfulNotificationListenerService.applySettings(settings)
                 if (notificationServiceConn.isActive) {
                     notificationServiceConn.service?.updateNotificationSettings(settings)
                 } else if (settings.batchedApps.isNotEmpty() || settings.storeNonBatchedToo) {
