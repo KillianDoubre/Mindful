@@ -20,13 +20,34 @@ class ProductivityItemsNotifier
     state = await AsyncValue.guard(() => _repository.load(type));
   }
 
-  Future<void> save(ProductivityItemDraft draft, {int? id}) async {
-    await _repository.save(type: type, draft: draft, id: id);
+  /// Creates or updates an item and returns its id.
+  Future<int> save(ProductivityItemDraft draft, {int? id}) async {
+    final savedId = await _repository.save(type: type, draft: draft, id: id);
     await refresh();
+    return savedId;
   }
 
   Future<void> delete(ProductivityItem item) async {
     await _repository.delete(item);
+    await refresh();
+  }
+
+  /// Deletes the item with [id] and returns it as it was, so it can be restored.
+  Future<ProductivityItem?> deleteById(int id) async {
+    await refresh();
+    final item = state.valueOrNull?.where((item) => item.id == id).firstOrNull;
+    if (item == null) return null;
+    await delete(item);
+    return item;
+  }
+
+  Future<void> restore(ProductivityItem item) async {
+    await _repository.restore(item);
+    await refresh();
+  }
+
+  Future<void> togglePinned(ProductivityItem item) async {
+    await _repository.setPinned(item, !item.isPinned);
     await refresh();
   }
 

@@ -9,6 +9,8 @@
  */
 
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -90,21 +92,35 @@ class _ScaffoldShellState extends State<ScaffoldShell>
     _tabController = TabController(
       length: widget.items.length,
       initialIndex: _selectedTabIndex,
+      animationDuration: AppConstants.defaultAnimDuration,
       vsync: this,
     );
 
-    _tabController.addListener(() {
-      if (mounted) {
-        setState(() {
-          _selectedTabIndex = _tabController.index;
-          _isBottomNavVisible.value = true;
-        });
-      }
+    _tabController.addListener(() => _selectTab(_tabController.index));
+    // A swipe only commits the controller index once the settle animation has
+    // fully finished; follow the page position instead so the active icon and
+    // FAB switch as soon as the new page fills the screen.
+    _tabController.animation?.addListener(_onTabAnimationTick);
+  }
+
+  void _onTabAnimationTick() {
+    if (_tabController.indexIsChanging) return;
+    final value = _tabController.animation!.value;
+    final nearest = value.round();
+    if ((value - nearest).abs() < 0.02) _selectTab(nearest);
+  }
+
+  void _selectTab(int index) {
+    if (!mounted || index == _selectedTabIndex) return;
+    setState(() {
+      _selectedTabIndex = index;
+      _isBottomNavVisible.value = true;
     });
   }
 
   @override
   void dispose() {
+    _tabController.animation?.removeListener(_onTabAnimationTick);
     _tabController.dispose();
     super.dispose();
   }
@@ -119,68 +135,72 @@ class _ScaffoldShellState extends State<ScaffoldShell>
       extendBody: true,
       extendBodyBehindAppBar: true,
       bottomNavigationBar: _haveMultiTabs ? _bottomNavBar() : null,
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          const MindfulBackground(),
-          TabBarView(
-            controller: _tabController,
-            physics: const BouncingScrollPhysics(),
-            children: List.generate(
-              widget.items.length,
-              (i) => NotificationListener<ScrollNotification>(
-                onNotification: (notification) {
-                  // Always restore the expanded header when the outer scroll
-                  // position reaches the top, including after an overscroll.
-                  if (notification.depth == 0 &&
-                      notification.metrics.pixels <= 0) {
-                    _appBarScrollOffSet.value = 0;
-                  }
-
-                  if (notification is ScrollUpdateNotification) {
-                    /// Add app bar offset if current scroll offset is from body
-                    final currentOffset = notification.metrics.pixels +
-                        (notification.depth == 1
-                            ? _appBarScrollOffSet.value
-                            : 0);
-
-                    /// Show/Hide bottom bar
-                    if (currentOffset >= widget.appBarExpandedHeight &&
-                        (currentOffset >= _wholeScreenScrollOffSet + 1)) {
-                      _isBottomNavVisible.value = false;
-                    } else if (currentOffset <= _wholeScreenScrollOffSet - 1) {
-                      _isBottomNavVisible.value = true;
+      // One shared backdrop pass for every glass tile of the page
+      body: BackdropGroup(
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            const MindfulBackground(),
+            TabBarView(
+              controller: _tabController,
+              physics: const _SnappyTabSwipePhysics(),
+              children: List.generate(
+                widget.items.length,
+                (i) => NotificationListener<ScrollNotification>(
+                  onNotification: (notification) {
+                    // Always restore the expanded header when the outer scroll
+                    // position reaches the top, including after an overscroll.
+                    if (notification.depth == 0 &&
+                        notification.metrics.pixels <= 0) {
+                      _appBarScrollOffSet.value = 0;
                     }
 
-                    final normalizedOffset =
-                        currentOffset < 0 ? 0.0 : currentOffset;
+                    if (notification is ScrollUpdateNotification) {
+                      /// Add app bar offset if current scroll offset is from body
+                      final currentOffset = notification.metrics.pixels +
+                          (notification.depth == 1
+                              ? _appBarScrollOffSet.value
+                              : 0);
 
-                    /// Cache offset for whole screen
-                    _wholeScreenScrollOffSet = normalizedOffset;
+                      /// Show/Hide bottom bar
+                      if (currentOffset >= widget.appBarExpandedHeight &&
+                          (currentOffset >= _wholeScreenScrollOffSet + 1)) {
+                        _isBottomNavVisible.value = false;
+                      } else if (currentOffset <=
+                          _wholeScreenScrollOffSet - 1) {
+                        _isBottomNavVisible.value = true;
+                      }
 
-                    /// Cache offset for just the app bar only
-                    if (notification.depth == 0) {
-                      _appBarScrollOffSet.value = normalizedOffset;
+                      final normalizedOffset =
+                          currentOffset < 0 ? 0.0 : currentOffset;
+
+                      /// Cache offset for whole screen
+                      _wholeScreenScrollOffSet = normalizedOffset;
+
+                      /// Cache offset for just the app bar only
+                      if (notification.depth == 0) {
+                        _appBarScrollOffSet.value = normalizedOffset;
+                      }
                     }
-                  }
-                  return false;
-                },
-                child: NestedScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  headerSliverBuilder: (_, innerBoxIsScrolled) =>
-                      [_sliverAppBar(i, innerBoxIsScrolled)],
-                  body: TabControllerProvider(
-                    controller: _tabController,
-                    child: Padding(
-                      padding: widget.bodyPadding,
-                      child: widget.items[i].sliverBody,
+                    return false;
+                  },
+                  child: NestedScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    headerSliverBuilder: (_, innerBoxIsScrolled) =>
+                        [_sliverAppBar(i, innerBoxIsScrolled)],
+                    body: TabControllerProvider(
+                      controller: _tabController,
+                      child: Padding(
+                        padding: widget.bodyPadding,
+                        child: widget.items[i].sliverBody,
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -202,10 +222,11 @@ class _ScaffoldShellState extends State<ScaffoldShell>
 
         final colors = Theme.of(context).colorScheme;
 
-        // Keep the expanded bar airy and progressively strengthen its surface.
+        // Keep the expanded bar airy and turn it into frosted glass as it
+        // collapses over the content.
         final appBarColor = Color.lerp(
           Colors.transparent,
-          colors.surface.withValues(alpha: 0.94),
+          colors.surface.withValues(alpha: 0.55),
           percentage,
         );
 
@@ -235,17 +256,32 @@ class _ScaffoldShellState extends State<ScaffoldShell>
                   onPressed: () => context.popOrPushReplace(AppRoutes.homePath),
                 )
               : null,
-          flexibleSpace: FlexibleSpaceBar(
-            expandedTitleScale: 1.55,
-            background: innerBoxIsScrolled ? null : navItem.appBarBg,
-            collapseMode: CollapseMode.parallax,
-            titlePadding: EdgeInsets.only(
-              bottom: 16,
-              left: isRtl ? 0 : widget.bodyPadding.left + leftPadding,
-              right: isRtl ? widget.bodyPadding.right + leftPadding : 0,
-            ),
-            title: navItem.titleBuilder?.call(1 - percentage) ??
-                AppBarTitle(titleText: navItem.titleText!),
+          flexibleSpace: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (percentage > 0)
+                ClipRect(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(
+                      sigmaX: 22 * percentage,
+                      sigmaY: 22 * percentage,
+                    ),
+                    child: const SizedBox.expand(),
+                  ),
+                ),
+              FlexibleSpaceBar(
+                expandedTitleScale: 1.55,
+                background: innerBoxIsScrolled ? null : navItem.appBarBg,
+                collapseMode: CollapseMode.parallax,
+                titlePadding: EdgeInsets.only(
+                  bottom: 16,
+                  left: isRtl ? 0 : widget.bodyPadding.left + leftPadding,
+                  right: isRtl ? widget.bodyPadding.right + leftPadding : 0,
+                ),
+                title: navItem.titleBuilder?.call(1 - percentage) ??
+                    AppBarTitle(titleText: navItem.titleText!),
+              ),
+            ],
           ),
         );
       },
@@ -266,7 +302,9 @@ class _ScaffoldShellState extends State<ScaffoldShell>
         );
       },
       child: GlassSurface(
-        blur: 18,
+        blur: 24,
+        // Must blur the tiles scrolling underneath, so not the page group
+        groupBlur: false,
         height: 54,
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
         margin: EdgeInsets.fromLTRB(
@@ -374,4 +412,24 @@ class AppBarTitle extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Tab swipe physics that settle on the next tab faster than the default
+/// spring and switch tabs on lighter flings.
+class _SnappyTabSwipePhysics extends BouncingScrollPhysics {
+  const _SnappyTabSwipePhysics({super.parent});
+
+  @override
+  _SnappyTabSwipePhysics applyTo(ScrollPhysics? ancestor) =>
+      _SnappyTabSwipePhysics(parent: buildParent(ancestor));
+
+  @override
+  SpringDescription get spring => SpringDescription.withDampingRatio(
+        mass: 0.5,
+        stiffness: 260.0,
+        ratio: 1.0,
+      );
+
+  @override
+  double get minFlingVelocity => 40.0;
 }

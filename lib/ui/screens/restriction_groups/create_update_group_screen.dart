@@ -250,7 +250,7 @@ class _CreateUpdateRestrictionGroupState
                     leadingIcon: FluentIcons.brain_circuit_20_regular,
                     titleText: "Pause consciente à l’ouverture",
                     subtitleText: _group.isIntentPromptEnabled
-                        ? "Une pause de 10 secondes avant chaque ouverture"
+                        ? "Une pause de 15 secondes avant chaque ouverture"
                         : "Imposer une pause avant d’ouvrir une application",
                     switchValue: _group.isIntentPromptEnabled,
                     onPressed: () {

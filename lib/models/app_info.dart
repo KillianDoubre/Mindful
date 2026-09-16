@@ -39,7 +39,11 @@ class AppInfo {
     return AppInfo(
       name: map['appName'] as String,
       packageName: map['packageName'] as String,
-      icon: base64Decode(map['appIcon'] as String),
+      icon: switch (map['appIcon']) {
+        Uint8List bytes => bytes,
+        String encoded => base64Decode(encoded),
+        _ => Uint8List(0),
+      },
       isImpSysApp: map['isImpSysApp'] as bool,
     );
   }

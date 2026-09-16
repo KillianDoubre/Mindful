@@ -1,6 +1,9 @@
 package com.mindful.android.services.accessibility
 
 import android.content.Context
+import android.content.Intent
+import android.graphics.Rect
+import android.os.SystemClock
 import android.util.Log
 import android.view.accessibility.AccessibilityNodeInfo
 import com.mindful.android.AppConstants.FACEBOOK_PACKAGE
@@ -25,6 +28,49 @@ class ShortsPlatformManager(
     private var lastTimeSaved = 0L
     private var shortContentScreenTime = SharedPrefsHelper.getSetShortsScreenTimeMs(context, null)
 
+    // -- Shared short pass ---------------------------------------------------
+    // A short opened from a conversation (or a link sent from another app) may
+    // be watched even when the budget is spent. The pass ends as soon as the
+    // user pages to the next short or leaves the player.
+
+    @Volatile
+    private var foregroundPackage = ""
+
+    @Volatile
+    private var previousForegroundPackage = ""
+
+    @Volatile
+    private var foregroundSinceMs = 0L
+
+    /** Package whose short player is currently open, if any. */
+    private var playerPackage: String? = null
+
+    /** First time the player was seen missing, to ignore one-off glitches. */
+    private var playerMissingSinceMs = 0L
+
+    /** Whether the last non-player screen seen was a conversation, per package. */
+    private val lastScreenWasConversation = HashMap<String, Boolean>()
+    private val lastScreenSeenAtMs = HashMap<String, Long>()
+    private val lastComposerCheckAtMs = HashMap<String, Long>()
+
+    private var sharedPassPackage: String? = null
+
+    private val homePackages: Set<String> by lazy {
+        context.packageManager
+            .queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0)
+            .map { it.activityInfo.packageName }
+            .toSet() + SYSTEM_UI_PACKAGE
+    }
+
+    /** Called for every app that genuinely comes to the foreground. */
+    fun onForegroundPackageChanged(packageName: String) {
+        // The notification shade is not the user leaving the app
+        if (packageName == foregroundPackage || packageName == SYSTEM_UI_PACKAGE) return
+        previousForegroundPackage = foregroundPackage
+        foregroundPackage = packageName
+        foregroundSinceMs = SystemClock.elapsedRealtime()
+    }
+
     fun resetShortsScreenTime() {
         shortContentScreenTime = 0L
         SharedPrefsHelper.getSetShortsScreenTimeMs(context, 0L)
@@ -41,6 +87,7 @@ class ShortsPlatformManager(
         packageName: String,
         node: AccessibilityNodeInfo,
         wellbeing: Wellbeing,
+        isPagingScroll: Boolean = false,
     ) {
         // Use default youtube package for unofficial clients too
         val resolvedPackage =
@@ -59,7 +106,14 @@ class ShortsPlatformManager(
             else -> false
         }
 
-        if (isFeatureOpen) {
+        val hasSharedPass = updateSharedPass(
+            resolvedPackage = resolvedPackage,
+            node = node,
+            isPlayerOpen = isFeatureOpen,
+            isPagingScroll = isPagingScroll,
+        )
+
+        if (isFeatureOpen && !hasSharedPass) {
             maxAllowedDuration[resolvedPackage]?.let {
                 updateShortsScreenTime(
                     allowedShortContentTimeMs = wellbeing.allowedShortsTimeMs,
@@ -69,6 +123,100 @@ class ShortsPlatformManager(
                 )
             }
         }
+    }
+
+    /**
+     * Tracks how the short player was opened and returns true while the short
+     * the user was sent may keep playing regardless of the budget.
+     */
+    private fun updateSharedPass(
+        resolvedPackage: String,
+        node: AccessibilityNodeInfo,
+        isPlayerOpen: Boolean,
+        isPagingScroll: Boolean,
+    ): Boolean {
+        val now = SystemClock.elapsedRealtime()
+
+        // Leaving the app ends everything
+        if (playerPackage != null && foregroundPackage.isNotEmpty() &&
+            foregroundPackage != playerPackage &&
+            !foregroundPackage.contains(YOUTUBE_CLIENT_PACKAGE_SUFFIX)
+        ) {
+            closePlayer()
+        }
+
+        if (!isPlayerOpen) {
+            // The tree walk is not free: sample the screen a few times a second
+            if (now - (lastComposerCheckAtMs[resolvedPackage] ?: 0L) >= COMPOSER_CHECK_INTERVAL_MS) {
+                lastComposerCheckAtMs[resolvedPackage] = now
+                lastScreenWasConversation[resolvedPackage] = hasMessageComposer(node)
+            }
+            lastScreenSeenAtMs[resolvedPackage] = now
+            if (playerPackage == resolvedPackage) {
+                if (playerMissingSinceMs == 0L) {
+                    playerMissingSinceMs = now
+                } else if (now - playerMissingSinceMs > PLAYER_CLOSE_DEBOUNCE_MS) {
+                    closePlayer()
+                }
+            }
+            return false
+        }
+
+        playerMissingSinceMs = 0L
+        if (playerPackage != resolvedPackage) {
+            // The player just opened: was it from something the user was sent?
+            playerPackage = resolvedPackage
+            val fromConversation =
+                lastScreenWasConversation[resolvedPackage] == true &&
+                        now - (lastScreenSeenAtMs[resolvedPackage] ?: 0L) < CONVERSATION_WINDOW_MS
+            val fromOtherApp = now - foregroundSinceMs < ENTRY_WINDOW_MS &&
+                    previousForegroundPackage.isNotEmpty() &&
+                    previousForegroundPackage != context.packageName &&
+                    previousForegroundPackage !in homePackages
+            sharedPassPackage =
+                if (fromConversation || fromOtherApp) resolvedPackage else null
+            if (sharedPassPackage != null) {
+                Log.d(TAG, "Shared short opened in $resolvedPackage, not blocking it")
+            }
+        } else if (isPagingScroll && sharedPassPackage == resolvedPackage) {
+            Log.d(TAG, "Moved past the shared short in $resolvedPackage")
+            sharedPassPackage = null
+        }
+
+        return sharedPassPackage == resolvedPackage
+    }
+
+    private fun closePlayer() {
+        playerPackage = null
+        playerMissingSinceMs = 0L
+        sharedPassPackage = null
+    }
+
+    /**
+     * A conversation screen has a message field near the bottom of the screen
+     * (search bars sit at the top).
+     */
+    private fun hasMessageComposer(root: AccessibilityNodeInfo): Boolean {
+        val rootBounds = Rect().also(root::getBoundsInScreen)
+        if (rootBounds.isEmpty) return false
+        val bottomBand = rootBounds.bottom - rootBounds.height() / 3
+
+        fun visit(node: AccessibilityNodeInfo, depth: Int): Boolean {
+            if (depth > 30) return false
+            if (node.className?.toString() == "android.widget.EditText" &&
+                node.viewIdResourceName?.contains("search") != true
+            ) {
+                val bounds = Rect().also(node::getBoundsInScreen)
+                if (bounds.top >= bottomBand) return true
+            }
+            for (index in 0 until node.childCount) {
+                val child = node.getChild(index) ?: continue
+                if (visit(child, depth + 1)) return true
+            }
+            return false
+        }
+
+        return runCatching { visit(root, 0) }.getOrDefault(false)
     }
 
     /**
@@ -166,6 +314,20 @@ class ShortsPlatformManager(
 
         // The minimum interval between saving short content's screen time in shared preferences
         private const val SAVING_INTERVAL_MS = (30 * 1000L)
+
+        /// How recently the other app must have been left for the player
+        /// opening to count as a shared link.
+        private const val ENTRY_WINDOW_MS = 4_000L
+
+        /// The conversation must be the screen shown right before the player.
+        private const val CONVERSATION_WINDOW_MS = 60_000L
+
+        private const val COMPOSER_CHECK_INTERVAL_MS = 300L
+
+        /// The player must be missing this long before it counts as closed.
+        private const val PLAYER_CLOSE_DEBOUNCE_MS = 1_200L
+
+        private const val SYSTEM_UI_PACKAGE = "com.android.systemui"
 
         /**
          * Max allowed duration for each short content platform (based on the highest short length or duration)

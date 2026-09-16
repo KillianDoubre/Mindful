@@ -101,9 +101,9 @@ class TabDashboard extends ConsumerWidget {
             ].animateListOnce(
               ref: ref,
               uniqueKey: "home.dashboard",
-              delay: 100.ms,
+              delay: Duration.zero,
               effects: DefaultEffects.transitionIn,
-              interval: 100.ms,
+              interval: 25.ms,
             ),
           ),
 

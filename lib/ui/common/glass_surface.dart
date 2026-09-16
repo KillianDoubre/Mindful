@@ -1,16 +1,16 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
+import 'package:mindful/ui/common/glass_material.dart';
 
-/// A translucent surface with an optional backdrop blur.
+/// A frosted glass card (see [GlassLayer]).
 ///
-/// Blur is opt-in so frequently repeated cards can keep the glass appearance
-/// without creating an expensive compositing layer for every list item.
+/// Blurs by default; inside a page's [BackdropGroup] every surface shares one
+/// backdrop pass.
 class GlassSurface extends StatelessWidget {
   const GlassSurface({
     super.key,
     required this.child,
-    this.blur = 0,
+    this.blur = GlassLayer.defaultBlur,
+    this.groupBlur = true,
     this.color,
     this.borderRadius = const BorderRadius.all(Radius.circular(24)),
     this.padding = EdgeInsets.zero,
@@ -18,10 +18,12 @@ class GlassSurface extends StatelessWidget {
     this.width,
     this.height,
     this.showShadow = true,
+    this.glow,
   });
 
   final Widget child;
   final double blur;
+  final bool groupBlur;
   final Color? color;
   final BorderRadius borderRadius;
   final EdgeInsetsGeometry padding;
@@ -29,64 +31,20 @@ class GlassSurface extends StatelessWidget {
   final double? width;
   final double? height;
   final bool showShadow;
+  final Color? glow;
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
-    final isDark = theme.brightness == Brightness.dark;
-    final tint = color ?? colors.surfaceContainerHigh;
-    final fill = tint.withValues(alpha: isDark ? 0.72 : 0.76);
-
-    final surface = Container(
-      width: width,
-      height: height,
-      padding: padding,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color.alphaBlend(
-              Colors.white.withValues(alpha: isDark ? 0.055 : 0.20),
-              fill,
-            ),
-            fill,
-          ],
-        ),
+  Widget build(BuildContext context) => GlassLayer(
+        blur: blur,
+        groupBlur: groupBlur,
+        tint: color,
         borderRadius: borderRadius,
-        border: Border.all(
-          color: colors.outlineVariant.withValues(
-            alpha: isDark ? 0.30 : 0.38,
-          ),
-        ),
-        boxShadow: showShadow
-            ? [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: isDark ? 0.22 : 0.08),
-                  blurRadius: 28,
-                  offset: const Offset(0, 12),
-                ),
-              ]
-            : null,
-      ),
-      child: child,
-    );
-
-    final clippedSurface = ClipRRect(
-      borderRadius: borderRadius,
-      child: blur <= 0
-          ? surface
-          : BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-              child: surface,
-            ),
-    );
-
-    return Padding(
-      padding: margin,
-      child:
-          blur <= 0 ? clippedSurface : RepaintBoundary(child: clippedSurface),
-    );
-  }
+        padding: padding,
+        margin: margin,
+        width: width,
+        height: height,
+        showShadow: showShadow,
+        glow: glow,
+        child: child,
+      );
 }

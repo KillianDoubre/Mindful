@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -36,13 +39,43 @@ const _highlightColors = <int>[
   0xFFE1BEE7,
 ];
 
-/// A full-screen, always-editable note canvas (Google Keep style).
+const _frenchMonths = <String>[
+  'janv.',
+  'févr.',
+  'mars',
+  'avr.',
+  'mai',
+  'juin',
+  'juil.',
+  'août',
+  'sept.',
+  'oct.',
+  'nov.',
+  'déc.',
+];
+
+/// What happened to the note when the editor closed, so the notes list can
+/// show the matching feedback.
+class NoteEditorResult {
+  const NoteEditorResult.deleted(int this.deletedNoteId)
+      : discardedEmpty = false;
+
+  const NoteEditorResult.discardedEmpty()
+      : deletedNoteId = null,
+        discardedEmpty = true;
+
+  /// Id of the note the user deleted from the editor (undoable).
+  final int? deletedNoteId;
+
+  /// The note ended up empty and was dropped.
+  final bool discardedEmpty;
+}
+
+/// A full-screen, always-editable note canvas that behaves like Google Keep.
 ///
-/// Reading and editing share the exact same surface: there is no separate
-/// read-only mode. The whole note is a single uniform block — a tinted glass
-/// card holding a borderless title and full-width, background-free text blocks.
-/// A single persistent toolbar at the bottom drives block type, formatting,
-/// adding and deleting blocks.
+/// Reading and editing share the exact same surface, and there is no save
+/// button: every change is written shortly after it happens and again when
+/// leaving. A note left without title and content is discarded on close.
 class NoteEditorScreen extends ConsumerStatefulWidget {
   const NoteEditorScreen({
     super.key,
@@ -55,15 +88,53 @@ class NoteEditorScreen extends ConsumerStatefulWidget {
   ConsumerState<NoteEditorScreen> createState() => _NoteEditorScreenState();
 }
 
-class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
+class _NoteSnapshot {
+  const _NoteSnapshot({
+    required this.title,
+    required this.blocks,
+    required this.colorValue,
+  });
+
+  final String title;
+  final List<NoteBlock> blocks;
+  final int colorValue;
+}
+
+class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen>
+    with WidgetsBindingObserver {
+  static const _autoSaveDelay = Duration(milliseconds: 600);
+
+  /// Edits closer together than this collapse into one undo step.
+  static const _historyMergeWindow = Duration(seconds: 1);
+  static const _maxHistory = 100;
+
+  late final ProductivityItemsNotifier _notes;
   late final TextEditingController _titleController;
   late List<NoteBlock> _blocks;
   late int _noteColorValue;
+  late bool _isPinned;
+  late String _title;
+  int? _noteId;
+  DateTime? _updatedAt;
 
   String? _activeBlockId;
   String? _focusBlockId;
-  bool _isDirty = false;
-  bool _isSaving = false;
+  bool _showFormatting = false;
+  bool _showCheckedItems = true;
+
+  Timer? _saveTimer;
+  Future<void> _saveQueue = Future.value();
+  bool _hasUnsavedChanges = false;
+  bool _hasEdited = false;
+  bool _isClosing = false;
+
+  final List<_NoteSnapshot> _history = [];
+  int _historyIndex = 0;
+  DateTime _lastHistoryAt = DateTime.fromMillisecondsSinceEpoch(0);
+  bool _isRestoring = false;
+
+  /// Bumped on undo/redo so every block editor remounts with restored text.
+  int _revision = 0;
 
   NoteBlock? get _activeBlock {
     final id = _activeBlockId;
@@ -72,138 +143,210 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
         _blocks.firstOrNull;
   }
 
+  bool get _isEmpty =>
+      _title.trim().isEmpty &&
+      _blocks.every(
+        (block) =>
+            block.text.trim().isEmpty &&
+            (block.kind != NoteBlockKind.number ||
+                (block.numberValue == 0 && block.unit.trim().isEmpty)),
+      );
+
+  bool get _canUndo => _historyIndex > 0;
+
+  bool get _canRedo => _historyIndex < _history.length - 1;
+
   @override
   void initState() {
     super.initState();
-    _titleController = TextEditingController(text: widget.note?.title);
+    _notes = ref.read(
+      productivityItemsProvider(ProductivityItemType.note).notifier,
+    );
+    _title = widget.note?.title ?? '';
+    _titleController = TextEditingController(text: _title);
     _blocks = NoteDocument.decode(widget.note?.details ?? '').blocks.toList();
     _noteColorValue = widget.note?.colorValue ?? 0;
+    _isPinned = widget.note?.isPinned ?? false;
+    _noteId = widget.note?.id;
+    _updatedAt = widget.note?.updatedAt;
     _activeBlockId = _blocks.firstOrNull?.id;
-    _titleController.addListener(_markDirty);
+    // A new note opens ready to type, like Keep
+    if (widget.note == null) _focusBlockId = _blocks.firstOrNull?.id;
+    _history.add(_snapshot());
+    _titleController.addListener(_onTitleChanged);
+    WidgetsBinding.instance.addObserver(this);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _saveTimer?.cancel();
+    // Route removed without going through _close (e.g. a deep link)
+    if (_hasUnsavedChanges && !_isClosing) _flush();
     _titleController
-      ..removeListener(_markDirty)
+      ..removeListener(_onTitleChanged)
       ..dispose();
     super.dispose();
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
+      _flush();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colors = theme.colorScheme;
     final activeBlock = _activeBlock;
 
-    return PopScope(
-      canPop: !_isDirty,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _requestClose();
-      },
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        resizeToAvoidBottomInset: true,
-        appBar: AppBar(
-          backgroundColor: colors.surface.withValues(alpha: 0.96),
-          surfaceTintColor: Colors.transparent,
-          scrolledUnderElevation: 0,
-          leading: IconButton(
-            tooltip: 'Retour',
-            onPressed: _requestClose,
-            icon: const Icon(Icons.arrow_back_rounded),
-          ),
-          title: Text(widget.note == null ? 'Nouvelle note' : 'Note'),
-          actions: [
-            _ColorMenu(
-              tooltip: 'Couleur de la note',
-              icon: Icons.palette_outlined,
-              values: _noteColors,
-              selectedValue: _noteColorValue,
-              onSelected: (value) {
-                setState(() => _noteColorValue = value);
-                _markDirty();
-              },
-            ),
-            if (widget.note != null)
-              IconButton(
-                tooltip: 'Supprimer la note',
-                onPressed: _confirmDelete,
-                icon: Icon(Icons.delete_outline_rounded, color: colors.error),
-              ),
-            Padding(
-              padding: const EdgeInsets.only(right: 8, left: 4),
-              child: FilledButton.icon(
-                onPressed: (_isSaving || !_isDirty) ? null : _save,
-                icon: _isSaving
-                    ? const SizedBox.square(
-                        dimension: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.check_rounded, size: 19),
-                label: const Text('Enregistrer'),
-              ),
-            ),
-          ],
+    // Checked items sink to their own section; the stored order is kept so
+    // unchecking puts an item back where it was.
+    final openIndexes = <int>[];
+    final checkedIndexes = <int>[];
+    for (var index = 0; index < _blocks.length; index++) {
+      final block = _blocks[index];
+      (block.kind == NoteBlockKind.checkbox && block.isChecked
+              ? checkedIndexes
+              : openIndexes)
+          .add(index);
+    }
+
+    return Theme(
+      data: theme.copyWith(
+        inputDecorationTheme: const InputDecorationTheme(
+          filled: false,
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          disabledBorder: InputBorder.none,
         ),
-        body: Stack(
+      ),
+      child: PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) _close();
+        },
+        // The app background sits behind the whole page, app bar included
+        child: Stack(
           fit: StackFit.expand,
           children: [
             const MindfulBackground(),
-            Column(
-              children: [
-                Expanded(
-                  child: ListView(
-                    physics: const BouncingScrollPhysics(),
-                    // Keep the keyboard (and any active text selection) alive
-                    // while scrolling — onDrag would dismiss both.
-                    keyboardDismissBehavior:
-                        ScrollViewKeyboardDismissBehavior.manual,
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                    children: [
-                      GlassSurface(
-                        color: _resolveNoteColor(theme, _noteColorValue),
-                        borderRadius: BorderRadius.circular(28),
-                        padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildTitleField(theme),
-                            const SizedBox(height: 4),
-                            for (var index = 0;
-                                index < _blocks.length;
-                                index++)
-                              _NoteBlockEditor(
-                                key: ValueKey(_blocks[index].id),
-                                block: _blocks[index],
-                                orderedNumber: _orderedNumberAt(index),
-                                requestFocus: _blocks[index].id == _focusBlockId,
-                                onFocused: () => setState(
-                                  () {
-                                    _activeBlockId = _blocks[index].id;
-                                    _focusBlockId = null;
-                                  },
-                                ),
-                                onChanged: _replaceBlock,
-                                onListBreak: _handleListBreak,
-                                onListShortcut: _applyListShortcut,
-                                onBackspaceEmpty: _handleBackspaceEmpty,
-                              ),
-                          ],
+            if (_noteColorValue != 0)
+              ColoredBox(
+                color: Color(_noteColorValue).withValues(
+                  alpha: theme.brightness == Brightness.dark ? 0.16 : 0.45,
+                ),
+              ),
+            Scaffold(
+              backgroundColor: Colors.transparent,
+              resizeToAvoidBottomInset: true,
+              appBar: AppBar(
+                backgroundColor: Colors.transparent,
+                surfaceTintColor: Colors.transparent,
+                scrolledUnderElevation: 0,
+                leading: IconButton(
+                  tooltip: 'Retour',
+                  onPressed: _close,
+                  icon: const Icon(Icons.arrow_back_rounded),
+                ),
+                actions: [
+                  IconButton(
+                    tooltip: _isPinned ? 'Désépingler' : 'Épingler',
+                    onPressed: _togglePinned,
+                    isSelected: _isPinned,
+                    icon: const Icon(Icons.push_pin_outlined),
+                    selectedIcon: const Icon(Icons.push_pin_rounded),
+                  ),
+                  PopupMenuButton<String>(
+                    tooltip: "Plus d'options",
+                    onSelected: (value) {
+                      if (value == 'delete') _deleteNote();
+                    },
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: ListTile(
+                          leading: Icon(Icons.delete_outline_rounded),
+                          title: Text('Supprimer la note'),
                         ),
                       ),
                     ],
                   ),
-                ),
-                if (activeBlock != null)
-                  _BottomEditingBar(
-                    block: activeBlock,
-                    onTypeChanged: _changeActiveBlockType,
-                    onBlockChanged: _replaceBlock,
-                    onAdd: _insertBlock,
-                    onDelete: () => _removeBlock(activeBlock),
+                  const SizedBox(width: 4),
+                ],
+              ),
+              body: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Column(
+                    children: [
+                      Expanded(
+                        child: ListView(
+                          physics: const BouncingScrollPhysics(),
+                          // Keep the keyboard (and any active text selection) alive
+                          // while scrolling — onDrag would dismiss both.
+                          keyboardDismissBehavior:
+                              ScrollViewKeyboardDismissBehavior.manual,
+                          padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                _buildTitleField(theme),
+                                const SizedBox(height: 4),
+                                for (final index in openIndexes)
+                                  _buildBlockEditor(index),
+                                if (checkedIndexes.isNotEmpty) ...[
+                                  _CheckedItemsHeader(
+                                    count: checkedIndexes.length,
+                                    isExpanded: _showCheckedItems,
+                                    onTap: () => setState(
+                                      () => _showCheckedItems =
+                                          !_showCheckedItems,
+                                    ),
+                                  ),
+                                  if (_showCheckedItems)
+                                    for (final index in checkedIndexes)
+                                      _buildBlockEditor(index),
+                                ],
+                              ],
+                            ),
+                            // Tapping below the note continues writing at its end
+                            GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: _focusEnd,
+                              child: const SizedBox(height: 160),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (_showFormatting && activeBlock != null)
+                        _FormattingBar(
+                          block: activeBlock,
+                          onTypeChanged: _changeActiveBlockType,
+                          onBlockChanged: _replaceBlock,
+                          onDelete: () => _removeBlock(activeBlock),
+                        ),
+                      _NoteBottomBar(
+                        noteColorValue: _noteColorValue,
+                        isFormattingOpen: _showFormatting,
+                        editedLabel: _editedLabel,
+                        canUndo: _canUndo,
+                        canRedo: _canRedo,
+                        onAdd: _insertBlock,
+                        onColorSelected: _changeNoteColor,
+                        onToggleFormatting: () =>
+                            setState(() => _showFormatting = !_showFormatting),
+                        onUndo: () => _restoreHistory(_historyIndex - 1),
+                        onRedo: () => _restoreHistory(_historyIndex + 1),
+                      ),
+                    ],
                   ),
-              ],
+                ],
+              ),
             ),
           ],
         ),
@@ -226,6 +369,41 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
         ),
       );
 
+  Widget _buildBlockEditor(int index) {
+    final block = _blocks[index];
+    return _NoteBlockEditor(
+      key: ValueKey('${block.id}#$_revision'),
+      block: block,
+      orderedNumber: _orderedNumberAt(index),
+      requestFocus: block.id == _focusBlockId,
+      onFocused: () => setState(() {
+        _activeBlockId = block.id;
+        _focusBlockId = null;
+      }),
+      onChanged: _replaceBlock,
+      onListBreak: _handleListBreak,
+      onListShortcut: _applyListShortcut,
+      onBackspaceEmpty: _handleBackspaceEmpty,
+    );
+  }
+
+  String get _editedLabel {
+    final at = _updatedAt;
+    if (at == null) return '';
+    final now = DateTime.now();
+    final time = '${at.hour.toString().padLeft(2, '0')}:'
+        '${at.minute.toString().padLeft(2, '0')}';
+    final days = DateTime(now.year, now.month, now.day)
+        .difference(DateTime(at.year, at.month, at.day))
+        .inDays;
+    if (days == 0) return 'Modifié à $time';
+    if (days == 1) return 'Modifié hier à $time';
+    final date = '${at.day} ${_frenchMonths[at.month - 1]}';
+    return at.year == now.year
+        ? 'Modifié le $date'
+        : 'Modifié le $date ${at.year}';
+  }
+
   int _orderedNumberAt(int index) {
     var number = 0;
     for (var current = index; current >= 0; current--) {
@@ -235,20 +413,54 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
     return number;
   }
 
+  // ---------------------------------------------------------------------------
+  // Editing
+  // ---------------------------------------------------------------------------
+
+  void _onTitleChanged() {
+    // The listener also fires on cursor moves
+    if (_isRestoring || _titleController.text == _title) return;
+    _title = _titleController.text;
+    _onContentChanged(mergeWithPrevious: true);
+  }
+
   void _replaceBlock(NoteBlock updated) {
     final index = _blocks.indexWhere((block) => block.id == updated.id);
     if (index < 0) return;
+    final previous = _blocks[index];
+    // Plain typing is merged into one undo step; any other change is its own
+    final isTypingOnly = jsonEncode(
+          updated
+              .copyWith(
+                text: previous.text,
+                numberValue: previous.numberValue,
+                unit: previous.unit,
+              )
+              .toJson(),
+        ) ==
+        jsonEncode(previous.toJson());
     setState(() {
       _blocks[index] = updated;
       _activeBlockId = updated.id;
     });
-    _markDirty();
+    _onContentChanged(mergeWithPrevious: isTypingOnly);
   }
 
   void _changeActiveBlockType(NoteBlockKind kind, [int headingLevel = 2]) {
     final block = _activeBlock;
     if (block == null) return;
     _replaceBlock(block.copyWith(kind: kind, headingLevel: headingLevel));
+  }
+
+  void _changeNoteColor(int value) {
+    setState(() => _noteColorValue = value);
+    _onContentChanged();
+  }
+
+  void _togglePinned() {
+    setState(() => _isPinned = !_isPinned);
+    _hasUnsavedChanges = true;
+    _scheduleSave();
   }
 
   void _insertBlock(NoteBlockKind kind, [int headingLevel = 2]) {
@@ -261,7 +473,25 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
       _activeBlockId = block.id;
       _focusBlockId = block.id;
     });
-    _markDirty();
+    _onContentChanged();
+  }
+
+  /// Puts the cursor at the end of the note, adding a text line if the last
+  /// block is not an empty paragraph.
+  void _focusEnd() {
+    final last = _blocks.lastOrNull;
+    if (last != null &&
+        last.kind == NoteBlockKind.paragraph &&
+        last.text.isEmpty) {
+      setState(() {
+        _activeBlockId = last.id;
+        _focusBlockId = last.id;
+        _revision++;
+      });
+      return;
+    }
+    _activeBlockId = last?.id;
+    _insertBlock(NoteBlockKind.paragraph);
   }
 
   /// Google-Keep-style markdown shortcut: `- ` / `* ` starts a bullet list and
@@ -285,7 +515,7 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
         );
         _activeBlockId = block.id;
       });
-      _markDirty();
+      _onContentChanged();
       return;
     }
 
@@ -299,7 +529,7 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
       _activeBlockId = sibling.id;
       _focusBlockId = sibling.id;
     });
-    _markDirty();
+    _onContentChanged();
   }
 
   /// Backspace on an empty block: a list/checkbox item drops its marker and
@@ -314,7 +544,7 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
         _activeBlockId = block.id;
         _focusBlockId = block.id;
       });
-      _markDirty();
+      _onContentChanged();
       return;
     }
 
@@ -325,7 +555,7 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
         _activeBlockId = previous.id;
         _focusBlockId = previous.id;
       });
-      _markDirty();
+      _onContentChanged();
     }
   }
 
@@ -344,128 +574,274 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
         _activeBlockId = _blocks[nextIndex].id;
       }
     });
-    _markDirty();
+    _onContentChanged();
   }
 
-  void _markDirty() {
-    if (!_isDirty && mounted) {
-      setState(() => _isDirty = true);
-    }
+  // ---------------------------------------------------------------------------
+  // Undo / redo
+  // ---------------------------------------------------------------------------
+
+  _NoteSnapshot _snapshot() => _NoteSnapshot(
+        title: _title,
+        blocks: List.of(_blocks),
+        colorValue: _noteColorValue,
+      );
+
+  void _onContentChanged({bool mergeWithPrevious = false}) {
+    if (_isRestoring) return;
+    _recordHistory(mergeWithPrevious: mergeWithPrevious);
+    _hasEdited = true;
+    _hasUnsavedChanges = true;
+    _scheduleSave();
   }
 
-  Future<void> _save() async {
-    final title = _titleController.text.trim();
-    if (title.isEmpty) {
+  void _recordHistory({required bool mergeWithPrevious}) {
+    final now = DateTime.now();
+    final canMerge = mergeWithPrevious &&
+        _historyIndex > 0 &&
+        _historyIndex == _history.length - 1 &&
+        now.difference(_lastHistoryAt) < _historyMergeWindow;
+    setState(() {
+      if (canMerge) {
+        _history[_historyIndex] = _snapshot();
+      } else {
+        _history
+          ..removeRange(_historyIndex + 1, _history.length)
+          ..add(_snapshot());
+        if (_history.length > _maxHistory) _history.removeAt(0);
+        _historyIndex = _history.length - 1;
+      }
+    });
+    _lastHistoryAt = now;
+  }
+
+  void _restoreHistory(int index) {
+    if (index < 0 || index >= _history.length) return;
+    final snapshot = _history[index];
+    FocusScope.of(context).unfocus();
+
+    _isRestoring = true;
+    _title = snapshot.title;
+    _titleController.text = snapshot.title;
+    _isRestoring = false;
+
+    setState(() {
+      _historyIndex = index;
+      _blocks = List.of(snapshot.blocks);
+      _noteColorValue = snapshot.colorValue;
+      _activeBlockId = _blocks.firstOrNull?.id;
+      _focusBlockId = null;
+      _revision++;
+    });
+    // The next edit starts a fresh undo step
+    _lastHistoryAt = DateTime.fromMillisecondsSinceEpoch(0);
+    _hasEdited = true;
+    _hasUnsavedChanges = true;
+    _scheduleSave();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Persistence
+  // ---------------------------------------------------------------------------
+
+  void _scheduleSave() {
+    _saveTimer?.cancel();
+    _saveTimer = Timer(_autoSaveDelay, _flush);
+  }
+
+  /// Writes pending changes. Saves are chained so a new note is only
+  /// inserted once, every later save updating that same row.
+  Future<void> _flush() {
+    _saveTimer?.cancel();
+    return _saveQueue = _saveQueue.then((_) => _persist());
+  }
+
+  Future<void> _persist() async {
+    if (!_hasUnsavedChanges) return;
+    _hasUnsavedChanges = false;
+    // Empty notes are never written; they are dropped on close instead
+    if (_isEmpty) return;
+
+    try {
+      _noteId = await _notes.save(
+        ProductivityItemDraft(
+          title: _title,
+          details: NoteDocument(List.of(_blocks)).encode(),
+          colorValue: _noteColorValue,
+          isPinned: _isPinned,
+        ),
+        id: _noteId,
+      );
+      if (mounted) setState(() => _updatedAt = DateTime.now());
+    } catch (_) {
+      _hasUnsavedChanges = true;
+      if (!mounted) return;
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
-            const SnackBar(content: Text('Ajoutez un titre à la note.')));
-      return;
+          const SnackBar(
+            content: Text("La note n'a pas pu être enregistrée."),
+          ),
+        );
     }
+  }
 
-    setState(() => _isSaving = true);
-    try {
-      final document = NoteDocument(_blocks);
-      await ref
-          .read(productivityItemsProvider(ProductivityItemType.note).notifier)
-          .save(
-            ProductivityItemDraft(
-              title: title,
-              details: document.encode(),
-              colorValue: _noteColorValue,
-            ),
-            id: widget.note?.id,
-          );
-      if (!mounted) return;
-      if (widget.note == null) {
-        setState(() => _isDirty = false);
-        await Future<void>.delayed(Duration.zero);
-        if (mounted) Navigator.pop(context);
-      } else {
-        setState(() {
-          _isDirty = false;
-          _isSaving = false;
-        });
+  Future<void> _close() async {
+    if (_isClosing) return;
+    _isClosing = true;
+    await _flush();
+
+    NoteEditorResult? result;
+    if (_isEmpty) {
+      final id = _noteId;
+      if (id != null) await _notes.deleteById(id);
+      if (id != null || _hasEdited) {
+        result = const NoteEditorResult.discardedEmpty();
       }
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("La note n'a pas pu être enregistrée.")),
-      );
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
     }
+    if (mounted) Navigator.of(context).pop(result);
   }
 
-  Future<void> _requestClose() async {
-    if (!_isDirty) {
-      Navigator.pop(context);
-      return;
-    }
-    final discard = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        icon: const Icon(Icons.edit_note_rounded),
-        title: const Text('Abandonner les modifications ?'),
-        content: const Text('Les changements non enregistrés seront perdus.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Continuer à écrire'),
-          ),
-          FilledButton.tonal(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Abandonner'),
-          ),
-        ],
-      ),
-    );
-    if (discard == true && mounted) {
-      setState(() => _isDirty = false);
-      await Future<void>.delayed(Duration.zero);
-      if (mounted) Navigator.pop(context);
-    }
-  }
-
-  Future<void> _confirmDelete() async {
-    final note = widget.note;
-    if (note == null) return;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        icon: const Icon(Icons.delete_outline_rounded),
-        title: const Text('Supprimer cette note ?'),
-        content: const Text('Cette action est définitive.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Annuler'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Supprimer'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-    await ref
-        .read(productivityItemsProvider(ProductivityItemType.note).notifier)
-        .delete(note);
+  Future<void> _deleteNote() async {
+    if (_isClosing) return;
+    _isClosing = true;
+    await _flush();
     if (!mounted) return;
-    setState(() => _isDirty = false);
-    await Future<void>.delayed(Duration.zero);
-    if (mounted) Navigator.pop(context);
+    final id = _noteId;
+    // The list performs the deletion so it can offer to undo it
+    Navigator.of(context).pop(id == null ? null : NoteEditorResult.deleted(id));
   }
+}
 
-  Color _resolveNoteColor(ThemeData theme, int value) {
-    final colors = theme.colorScheme;
-    if (value == 0) return colors.surfaceContainerHigh;
-    return Color.lerp(
-      colors.surfaceContainerHigh,
-      Color(value),
-      theme.brightness == Brightness.dark ? 0.20 : 0.58,
-    )!;
+/// Divider row above checked items, collapsible like Keep's
+/// "N checked items".
+class _CheckedItemsHeader extends StatelessWidget {
+  const _CheckedItemsHeader({
+    required this.count,
+    required this.isExpanded,
+    required this.onTap,
+  });
+
+  final int count;
+  final bool isExpanded;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 6),
+        Divider(height: 1, color: colors.outlineVariant),
+        InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              children: [
+                Icon(
+                  isExpanded
+                      ? Icons.expand_more_rounded
+                      : Icons.chevron_right_rounded,
+                  color: colors.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  count == 1 ? '1 élément coché' : '$count éléments cochés',
+                  style: TextStyle(
+                    color: colors.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Keep-style bottom bar: add, colour and formatting on the left, the last
+/// edit time in the middle, undo/redo on the right.
+class _NoteBottomBar extends StatelessWidget {
+  const _NoteBottomBar({
+    required this.noteColorValue,
+    required this.isFormattingOpen,
+    required this.editedLabel,
+    required this.canUndo,
+    required this.canRedo,
+    required this.onAdd,
+    required this.onColorSelected,
+    required this.onToggleFormatting,
+    required this.onUndo,
+    required this.onRedo,
+  });
+
+  final int noteColorValue;
+  final bool isFormattingOpen;
+  final String editedLabel;
+  final bool canUndo;
+  final bool canRedo;
+  final void Function(NoteBlockKind kind, [int headingLevel]) onAdd;
+  final ValueChanged<int> onColorSelected;
+  final VoidCallback onToggleFormatting;
+  final VoidCallback onUndo;
+  final VoidCallback onRedo;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+      child: GlassSurface(
+        blur: 16,
+        borderRadius: BorderRadius.circular(22),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        child: Row(
+          children: [
+            _AddBlockMenu(onAdd: onAdd),
+            _ColorMenu(
+              tooltip: 'Couleur de la note',
+              icon: Icons.palette_outlined,
+              values: _noteColors,
+              selectedValue: noteColorValue,
+              onSelected: onColorSelected,
+            ),
+            _FormatToggle(
+              tooltip: 'Mise en forme',
+              icon: Icons.text_format_rounded,
+              selected: isFormattingOpen,
+              onPressed: onToggleFormatting,
+            ),
+            Expanded(
+              child: Text(
+                editedLabel,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colors.onSurfaceVariant,
+                    ),
+              ),
+            ),
+            IconButton(
+              tooltip: 'Annuler',
+              onPressed: canUndo ? onUndo : null,
+              icon: const Icon(Icons.undo_rounded),
+            ),
+            IconButton(
+              tooltip: 'Rétablir',
+              onPressed: canRedo ? onRedo : null,
+              icon: const Icon(Icons.redo_rounded),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -498,22 +874,19 @@ TextStyle _noteBlockTextStyle(BuildContext context, NoteBlock block) {
   );
 }
 
-/// The single persistent toolbar at the bottom of the editor. Rides above the
-/// keyboard when it is open. Combines block-type selection, inline formatting,
-/// text/highlight colours, and add/delete for the active block.
-class _BottomEditingBar extends StatelessWidget {
-  const _BottomEditingBar({
+/// Formatting row for the active block, shown above the bottom bar when the
+/// "Aa" button is on. Hidden by default so reading stays uncluttered.
+class _FormattingBar extends StatelessWidget {
+  const _FormattingBar({
     required this.block,
     required this.onTypeChanged,
     required this.onBlockChanged,
-    required this.onAdd,
     required this.onDelete,
   });
 
   final NoteBlock block;
   final void Function(NoteBlockKind kind, [int headingLevel]) onTypeChanged;
   final ValueChanged<NoteBlock> onBlockChanged;
-  final void Function(NoteBlockKind kind, [int headingLevel]) onAdd;
   final VoidCallback onDelete;
 
   @override
@@ -521,7 +894,8 @@ class _BottomEditingBar extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     return SafeArea(
       top: false,
-      minimum: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+      bottom: false,
+      minimum: const EdgeInsets.fromLTRB(12, 4, 12, 0),
       child: GlassSurface(
         blur: 16,
         borderRadius: BorderRadius.circular(22),
@@ -531,8 +905,6 @@ class _BottomEditingBar extends StatelessWidget {
           child: ListView(
             scrollDirection: Axis.horizontal,
             children: [
-              _AddBlockMenu(onAdd: onAdd),
-              _dividerFor(colors),
               _TypeMenu(block: block, onTypeChanged: onTypeChanged),
               _dividerFor(colors),
               _FormatToggle(
@@ -871,7 +1243,8 @@ class _NoteBlockEditorState extends State<_NoteBlockEditor> {
       text: _formatNumber(widget.block.numberValue),
     );
     _unitController = TextEditingController(text: widget.block.unit);
-    _focusNode = FocusNode(onKeyEvent: _handleKeyEvent)..addListener(_handleFocus);
+    _focusNode = FocusNode(onKeyEvent: _handleKeyEvent)
+      ..addListener(_handleFocus);
     if (widget.requestFocus) {
       WidgetsBinding.instance
           .addPostFrameCallback((_) => _focusNode.requestFocus());
@@ -1017,6 +1390,18 @@ class _NoteBlockEditorState extends State<_NoteBlockEditor> {
     };
   }
 
+  TextStyle _textStyle(BuildContext context) {
+    final style = _noteBlockTextStyle(context, widget.block);
+    if (widget.block.kind != NoteBlockKind.checkbox ||
+        !widget.block.isChecked) {
+      return style;
+    }
+    return style.copyWith(
+      color: style.color?.withValues(alpha: 0.55),
+      decoration: TextDecoration.lineThrough,
+    );
+  }
+
   Widget _textField(BuildContext context) => TextField(
         controller: _textController,
         focusNode: _focusNode,
@@ -1024,7 +1409,7 @@ class _NoteBlockEditorState extends State<_NoteBlockEditor> {
         minLines: 1,
         textCapitalization: TextCapitalization.sentences,
         keyboardType: TextInputType.multiline,
-        style: _noteBlockTextStyle(context, widget.block),
+        style: _textStyle(context),
         decoration: InputDecoration(
           hintText: widget.block.kind == NoteBlockKind.heading
               ? 'Titre H${widget.block.headingLevel}'

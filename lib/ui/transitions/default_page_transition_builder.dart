@@ -27,6 +27,10 @@ class DefaultPageTransitionsBuilder extends PageTransitionsBuilder {
   /// Slide page transition like ios for android without any ios dependencies
   const DefaultPageTransitionsBuilder();
 
+  /// Shorter than Flutter's 300ms default so navigation feels snappier.
+  @override
+  Duration get transitionDuration => const Duration(milliseconds: 220);
+
   @override
   Widget buildTransitions<T>(
     PageRoute<T> route,

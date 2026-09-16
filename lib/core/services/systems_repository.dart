@@ -23,6 +23,9 @@ class SystemsRepository {
   static final SystemsRepository instance = SystemsRepository._();
   static const int maximumSystems = 5;
 
+  /// How far back daily activity is loaded for chains and streaks.
+  static const int _chainDays = 120;
+
   final StreamController<void> _changes = StreamController.broadcast();
   Stream<void> get changes => _changes.stream;
 
@@ -173,6 +176,12 @@ class SystemsRepository {
     /// Migrations for databases created before these columns existed.
     await _ensureColumn('life_systems', 'notes', "TEXT NOT NULL DEFAULT ''");
     await _ensureColumn(
+      'life_systems',
+      'intention',
+      "TEXT NOT NULL DEFAULT ''",
+    );
+    await _ensureColumn('life_systems', 'reward', "TEXT NOT NULL DEFAULT ''");
+    await _ensureColumn(
       'system_victories',
       'frequency',
       "TEXT NOT NULL DEFAULT 'weekly'",
@@ -281,8 +290,9 @@ class SystemsRepository {
           INSERT INTO life_systems (
             name, identity_text, status, priority,
             minimum_version, accountability_name, comeback_rule, notes,
-            review_every_days, sort_order, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            review_every_days, sort_order, created_at, updated_at,
+            intention, reward
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', [
           draft.name.trim(),
           draft.identity.trim(),
@@ -296,6 +306,8 @@ class SystemsRepository {
           orderRow.read<int>('next_order'),
           now,
           now,
+          draft.intention.trim(),
+          draft.reward.trim(),
         ]);
         final inserted = await _db
             .customSelect(
@@ -310,7 +322,7 @@ class SystemsRepository {
             name = ?, identity_text = ?, status = ?,
             priority = ?, minimum_version = ?, accountability_name = ?,
             comeback_rule = ?, notes = ?, review_every_days = ?,
-            updated_at = ?
+            updated_at = ?, intention = ?, reward = ?
           WHERE id = ?
         ''', [
           draft.name.trim(),
@@ -323,6 +335,8 @@ class SystemsRepository {
           draft.notes.trim(),
           draft.reviewEveryDays,
           now,
+          draft.intention.trim(),
+          draft.reward.trim(),
           systemId,
         ]);
       }
@@ -745,7 +759,8 @@ class SystemsRepository {
 
     SystemReminder reminderFrom(String prefix) => SystemReminder(
           isEnabled: row.read<int>('${prefix}_enabled') == 1,
-          time: TimeOfDayAdapter.fromMinutes(row.read<int>('${prefix}_minutes')),
+          time:
+              TimeOfDayAdapter.fromMinutes(row.read<int>('${prefix}_minutes')),
           days: _parseDays(row.read<String>('${prefix}_days')),
         );
 
@@ -931,8 +946,54 @@ class SystemsRepository {
       for (final row in eventRows) _eventFromRow(row.data),
     ];
 
+    // Votes feed the chain, the streak and today's progress
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    final chainStart = todayStart.subtract(const Duration(days: _chainDays));
+    final voteRows = await _db.customSelect('''
+      SELECT source_key, event_type, occurred_at FROM system_events
+      WHERE system_id = ? AND event_type IN (?, ?) AND occurred_at >= ?
+    ''', variables: [
+      Variable.withInt(id),
+      Variable.withString(SystemEventType.weeklyVictory.databaseValue),
+      Variable.withString(SystemEventType.minimumVersion.databaseValue),
+      Variable.withInt(chainStart.millisecondsSinceEpoch),
+    ]).get();
+    final activeDays = <DateTime>{};
+    final todayVotes = <int, int>{};
+    for (final row in voteRows) {
+      final at = DateTime.fromMillisecondsSinceEpoch(
+        row.read<int>('occurred_at'),
+      );
+      activeDays.add(DateTime(at.year, at.month, at.day));
+      final key = row.readNullable<String>('source_key') ?? '';
+      if (!at.isBefore(todayStart) && key.startsWith('victory:')) {
+        final victoryId = int.tryParse(key.split(':')[1]);
+        if (victoryId != null) {
+          todayVotes[victoryId] = (todayVotes[victoryId] ?? 0) + 1;
+        }
+      }
+    }
+    final totalsRow = await _db.customSelect('''
+      SELECT COUNT(*) AS votes,
+        COUNT(DISTINCT date(occurred_at / 1000, 'unixepoch', 'localtime'))
+          AS days
+      FROM system_events
+      WHERE system_id = ? AND event_type IN (?, ?)
+    ''', variables: [
+      Variable.withInt(id),
+      Variable.withString(SystemEventType.weeklyVictory.databaseValue),
+      Variable.withString(SystemEventType.minimumVersion.databaseValue),
+    ]).getSingle();
+
     return LifeSystem(
       id: id,
+      intention: data['intention'] as String? ?? '',
+      reward: data['reward'] as String? ?? '',
+      activeDays: activeDays,
+      todayVotes: todayVotes,
+      totalVotes: totalsRow.read<int>('votes'),
+      lifetimeActiveDays: totalsRow.read<int>('days'),
       name: data['name'] as String? ?? '',
       identity: data['identity_text'] as String? ?? '',
       status: status,

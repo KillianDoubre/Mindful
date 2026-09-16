@@ -100,12 +100,12 @@ class BrowserManager(
      * @param hostDomain     The resolved host name for the provided url.
      */
     private fun applySafeSearch(browserPackage: String, url: String, hostDomain: String) {
+        // Only the search terms are judged, never the rest of the URL
         val query = runCatching {
-            url.toUri().getQueryParameter("q")?.lowercase()
-        }.getOrNull() ?: url
+            Utils.validateHttpsProtocol(url).toUri().getQueryParameter("q")
+        }.getOrNull() ?: return
 
-        // Apply safe search if searching maybe nsfw
-        if (NsfwKeywords.keywords.none { query.contains(it) }) return
+        if (!NsfwKeywords.isAdultQuery(query)) return
 
         val safeUrl = when {
             /// Google search

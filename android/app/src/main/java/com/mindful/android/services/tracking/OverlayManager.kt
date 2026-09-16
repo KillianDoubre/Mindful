@@ -145,6 +145,7 @@ class OverlayManager(
         packageName: String,
         isLimitExhausted: Boolean,
         isLimitCheckPending: Boolean = false,
+        onIntentionConfirmed: () -> Unit,
     ) {
         if (!reserveSheet()) return
 
@@ -163,6 +164,7 @@ class OverlayManager(
                     isLimitExhausted = isLimitExhausted,
                     isLimitCheckPending = isLimitCheckPending,
                     dismissOverlay = ::dismissSheetOverlay,
+                    onIntentionConfirmed = onIntentionConfirmed,
                 ).apply {
                     systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
                             View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or

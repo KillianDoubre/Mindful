@@ -5,8 +5,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mindful/core/services/systems_repository.dart';
 import 'package:mindful/models/life_system.dart';
 import 'package:mindful/providers/systems/systems_provider.dart';
+import 'package:mindful/ui/common/glass_surface.dart';
 import 'package:mindful/ui/common/mindful_background.dart';
 
+const _defaultComebackRule =
+    'Ne jamais manquer deux fois : si je rate un jour, je fais au moins la version 2 minutes le lendemain.';
+
+const _identityIdeas = [
+  'lit un peu chaque jour',
+  'prend soin de son corps',
+  'termine ce qu’il commence',
+  'se couche à l’heure',
+  'apprend quelque chose chaque jour',
+  'reste concentré sur l’essentiel',
+];
+
+/// System creation and editing, built on Atomic Habits.
+///
+/// Creating a system takes three light steps (identity, habit, environment);
+/// everything else lives in collapsed advanced options. Editing shows the
+/// same sections on a single page.
 class SystemEditorScreen extends ConsumerStatefulWidget {
   const SystemEditorScreen({super.key, this.system});
 
@@ -17,9 +35,17 @@ class SystemEditorScreen extends ConsumerStatefulWidget {
 }
 
 class _SystemEditorScreenState extends ConsumerState<SystemEditorScreen> {
+  static const _stepTitles = [
+    'Qui veux-tu devenir ?',
+    'Quelle est la plus petite action ?',
+    'Rends-le évident et satisfaisant',
+  ];
+
   late final TextEditingController _name;
   late final TextEditingController _identity;
   late final TextEditingController _minimum;
+  late final TextEditingController _intention;
+  late final TextEditingController _reward;
   late final TextEditingController _accountability;
   late final TextEditingController _comeback;
   late final TextEditingController _notes;
@@ -41,6 +67,8 @@ class _SystemEditorScreenState extends ConsumerState<SystemEditorScreen> {
     _name = TextEditingController(text: system?.name);
     _identity = TextEditingController(text: system?.identity);
     _minimum = TextEditingController(text: system?.minimumVersion);
+    _intention = TextEditingController(text: system?.intention);
+    _reward = TextEditingController(text: system?.reward);
     _accountability = TextEditingController(text: system?.accountabilityName);
     _comeback = TextEditingController(text: system?.comebackRule);
     _notes = TextEditingController(text: system?.notes);
@@ -59,6 +87,7 @@ class _SystemEditorScreenState extends ConsumerState<SystemEditorScreen> {
             )
             .toList() ??
         [_VictoryInput()];
+    if (_victories.isEmpty) _victories.add(_VictoryInput());
     _rules = system?.rules
             .map(
               (item) => _RuleInput(
@@ -68,7 +97,7 @@ class _SystemEditorScreenState extends ConsumerState<SystemEditorScreen> {
               ),
             )
             .toList() ??
-        [_RuleInput()];
+        [];
     _frictions = system?.frictions
             .map(
               (item) => _FrictionInput(
@@ -88,6 +117,8 @@ class _SystemEditorScreenState extends ConsumerState<SystemEditorScreen> {
       _name,
       _identity,
       _minimum,
+      _intention,
+      _reward,
       _accountability,
       _comeback,
       _notes,
@@ -108,547 +139,654 @@ class _SystemEditorScreenState extends ConsumerState<SystemEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        backgroundColor: colors.surface.withValues(alpha: .96),
-        surfaceTintColor: Colors.transparent,
-        scrolledUnderElevation: 0,
-        title: Text(_editing ? 'Modifier le système' : 'Nouveau système'),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: Text('${_step + 1}/11'),
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final sections = [_identitySection, _habitSection, _environmentSection];
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        const MindfulBackground(),
+        Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            scrolledUnderElevation: 0,
+            title: Text(_editing ? 'Modifier le système' : 'Nouveau système'),
+            bottom: _editing
+                ? null
+                : PreferredSize(
+                    preferredSize: const Size.fromHeight(6),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(9),
+                        child: TweenAnimationBuilder<double>(
+                          tween: Tween(end: (_step + 1) / sections.length),
+                          duration: const Duration(milliseconds: 300),
+                          builder: (context, value, _) =>
+                              LinearProgressIndicator(
+                            value: value,
+                            minHeight: 6,
+                            backgroundColor:
+                                colors.onSurface.withValues(alpha: 0.08),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
           ),
-        ],
-      ),
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          const MindfulBackground(),
-          SafeArea(
-            top: false,
-            child: Stepper(
-              currentStep: _step,
-              type: StepperType.vertical,
-              elevation: 0,
-              margin: const EdgeInsets.only(left: 18, right: 14, bottom: 110),
-              onStepTapped: (value) => setState(() => _step = value),
-              controlsBuilder: (context, details) => Padding(
-                padding: const EdgeInsets.only(top: 20),
-                child: Row(
-                  children: [
-                    FilledButton.icon(
-                      onPressed: _saving
-                          ? null
-                          : _step == 10
-                              ? _save
-                              : _next,
-                      icon: _saving
-                          ? const SizedBox.square(
-                              dimension: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : Icon(
-                              _step == 10
-                                  ? FluentIcons.checkmark_20_filled
-                                  : FluentIcons.arrow_right_20_filled,
-                            ),
-                      label: Text(
-                        _step == 10
-                            ? (_editing ? 'Enregistrer' : 'Créer le système')
-                            : 'Continuer',
-                      ),
-                    ),
-                    if (_step > 0) ...[
-                      const SizedBox(width: 8),
-                      TextButton(
-                        onPressed:
-                            _saving ? null : () => setState(() => _step--),
-                        child: const Text('Retour'),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              steps: [
-                Step(
-                  title: const Text('Nom'),
-                  subtitle: const Text('L’essentiel du système'),
-                  isActive: _step >= 0,
-                  content: Column(
-                    children: [
-                      _field(
-                        controller: _name,
-                        label: 'Nom du système',
-                        hint: 'Ex. Activité entrepreneuriale',
-                      ),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<LifeSystemStatus>(
-                        initialValue: _status,
-                        decoration: _decoration('État initial'),
-                        items: LifeSystemStatus.values
-                            .map(
-                              (status) => DropdownMenuItem(
-                                value: status,
-                                child: Text(status.label),
+          body: BackdropGroup(
+            child: ListView(
+              physics: const BouncingScrollPhysics(),
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+              children: _editing
+                  ? [
+                      for (var i = 0; i < sections.length; i++) ...[
+                        _StepTitle(title: _stepTitles[i]),
+                        sections[i](),
+                        const SizedBox(height: 22),
+                      ],
+                    ]
+                  : [
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 220),
+                        transitionBuilder: (child, animation) => FadeTransition(
+                          opacity: animation,
+                          child: SlideTransition(
+                            position: Tween(
+                              begin: const Offset(0.06, 0),
+                              end: Offset.zero,
+                            ).animate(animation),
+                            child: child,
+                          ),
+                        ),
+                        child: Column(
+                          key: ValueKey(_step),
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text(
+                              'Étape ${_step + 1} sur ${sections.length}',
+                              style: theme.textTheme.labelLarge?.copyWith(
+                                color: colors.primary,
+                                fontWeight: FontWeight.w700,
                               ),
-                            )
-                            .toList(),
-                        onChanged: (value) =>
-                            setState(() => _status = value ?? _status),
-                      ),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<int>(
-                        initialValue: _priority,
-                        decoration: _decoration('Priorité'),
-                        items: const [
-                          DropdownMenuItem(
-                              value: 1, child: Text('1 · Essentiel')),
-                          DropdownMenuItem(
-                              value: 2, child: Text('2 · Important')),
-                          DropdownMenuItem(value: 3, child: Text('3 · Normal')),
-                          DropdownMenuItem(
-                              value: 4, child: Text('4 · Secondaire')),
-                          DropdownMenuItem(
-                              value: 5, child: Text('5 · Entretien')),
-                        ],
-                        onChanged: (value) =>
-                            setState(() => _priority = value ?? _priority),
+                            ),
+                            _StepTitle(title: _stepTitles[_step]),
+                            sections[_step](),
+                          ],
+                        ),
                       ),
                     ],
+            ),
+          ),
+          bottomNavigationBar: SafeArea(
+            minimum: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+            child: Row(
+              children: [
+                if (!_editing && _step > 0) ...[
+                  OutlinedButton(
+                    onPressed: () => setState(() => _step--),
+                    child: const Text('Retour'),
                   ),
-                ),
-                Step(
-                  title: const Text('Identité'),
-                  subtitle: const Text('Observable et atteignable maintenant'),
-                  isActive: _step >= 1,
-                  content: _field(
-                    controller: _identity,
-                    label: 'Je suis une personne qui…',
-                    hint:
-                        'Ex. travaille sur le principal goulot d’étranglement et confronte son offre au marché.',
-                    lines: 5,
-                  ),
-                ),
-                Step(
-                  title: const Text('Victoires'),
-                  subtitle: const Text(
-                      'Quotidiennes ou hebdomadaires, jamais des résultats'),
-                  isActive: _step >= 2,
-                  content: _victoriesEditor(),
-                ),
-                Step(
-                  title: const Text('Version minimale'),
-                  subtitle: const Text(
-                      'Ce qui reste possible lors d’une semaine difficile'),
-                  isActive: _step >= 3,
-                  content: _field(
-                    controller: _minimum,
-                    label: 'Version minimale',
-                    hint: 'Ex. travailler cinq minutes sur une victoire.',
-                    lines: 3,
-                  ),
-                ),
-                Step(
-                  title: const Text('Règles de vie'),
-                  subtitle:
-                      const Text('Des décisions prises avant la tentation'),
-                  isActive: _step >= 4,
-                  content: _rulesEditor(),
-                ),
-                Step(
-                  title: const Text('Frictions'),
-                  subtitle: const Text('Retirer un obstacle ou en ajouter un'),
-                  isActive: _step >= 5,
-                  content: _frictionsEditor(),
-                ),
-                Step(
-                  title: const Text('Redevabilité'),
-                  subtitle:
-                      const Text('Une personne extérieure, si elle existe'),
-                  isActive: _step >= 6,
-                  content: _field(
-                    controller: _accountability,
-                    label: 'Prénom ou nom de la personne',
-                    hint: 'Facultatif',
-                  ),
-                ),
-                Step(
-                  title: const Text('Notes'),
-                  subtitle: const Text('Notes libres, facultatives'),
-                  isActive: _step >= 7,
-                  content: _field(
-                    controller: _notes,
-                    label: 'Notes',
-                    hint: 'Tout ce que tu veux garder à l’esprit…',
-                    lines: 5,
-                  ),
-                ),
-                Step(
-                  title: const Text('Règle de reprise'),
-                  subtitle: const Text(
-                      'La reprise compte davantage que la perfection'),
-                  isActive: _step >= 8,
-                  content: _field(
-                    controller: _comeback,
-                    label: 'Après une interruption…',
-                    hint:
-                        'Ex. reprendre à la prochaine occurrence prévue sans compenser excessivement.',
-                    lines: 5,
-                  ),
-                ),
-                Step(
-                  title: const Text('Fréquence de révision'),
-                  subtitle: const Text('Un système doit pouvoir évoluer'),
-                  isActive: _step >= 9,
-                  content: DropdownButtonFormField<int>(
-                    initialValue: _reviewEveryDays,
-                    decoration: _decoration('Rythme de revue'),
-                    items: const [
-                      DropdownMenuItem(value: 7, child: Text('Chaque semaine')),
-                      DropdownMenuItem(
-                          value: 14, child: Text('Toutes les deux semaines')),
-                      DropdownMenuItem(value: 30, child: Text('Chaque mois')),
-                    ],
-                    onChanged: (value) => setState(
-                      () => _reviewEveryDays = value ?? _reviewEveryDays,
+                  const SizedBox(width: 10),
+                ],
+                Expanded(
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                    ),
+                    onPressed: _saving
+                        ? null
+                        : _editing || _step == sections.length - 1
+                            ? _save
+                            : _next,
+                    icon: _saving
+                        ? const SizedBox.square(
+                            dimension: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Icon(
+                            _editing || _step == sections.length - 1
+                                ? FluentIcons.checkmark_20_filled
+                                : FluentIcons.arrow_right_20_filled,
+                          ),
+                    label: Text(
+                      _editing
+                          ? 'Enregistrer'
+                          : _step == sections.length - 1
+                              ? 'Créer mon système'
+                              : 'Continuer',
                     ),
                   ),
-                ),
-                Step(
-                  title: const Text('Résumé'),
-                  subtitle: const Text(
-                      'Le système doit rester au service de la vie réelle'),
-                  isActive: _step >= 10,
-                  content: _summary(),
                 ),
               ],
             ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Sections
+  // ---------------------------------------------------------------------------
+
+  Widget _identitySection() => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const _Hint(
+            'Les habitudes durables partent de l’identité, pas du résultat. '
+            'Chaque action devient un vote pour cette personne.',
+          ),
+          const SizedBox(height: 14),
+          _Card(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _field(
+                  controller: _name,
+                  label: 'Nom du système',
+                  hint: 'Lecture, Sport, Sommeil…',
+                  autofocus: !_editing,
+                ),
+                const SizedBox(height: 12),
+                _field(
+                  controller: _identity,
+                  label: 'Je suis quelqu’un qui…',
+                  hint: 'lit un peu chaque jour',
+                  lines: 2,
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final idea in _identityIdeas)
+                      ActionChip(
+                        label: Text(idea),
+                        onPressed: () => setState(() => _identity.text = idea),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+
+  Widget _habitSection() => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const _Hint(
+            'Commence ridiculement petit. Une habitude doit pouvoir se faire '
+            'même les mauvais jours.',
+          ),
+          const SizedBox(height: 14),
+          for (var index = 0; index < _victories.length; index++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _victoryEditor(index),
+            ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () => setState(() => _victories.add(_VictoryInput())),
+              icon: const Icon(FluentIcons.add_20_regular),
+              label: const Text('Ajouter une habitude'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          _Card(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _field(
+                  controller: _minimum,
+                  label: 'Version 2 minutes',
+                  hint: 'Lire une page · enfiler ses baskets',
+                  icon: FluentIcons.timer_2_20_regular,
+                ),
+                const SizedBox(height: 6),
+                const _Hint(
+                  'La version à faire quand tout va mal. Elle compte comme un vote.',
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          _Card(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _field(
+                  controller: _intention,
+                  label: 'Intention · quand et où ?',
+                  hint: 'Après mon café du matin, je lis au salon',
+                  icon: FluentIcons.link_20_regular,
+                  lines: 2,
+                ),
+                const SizedBox(height: 6),
+                const _Hint(
+                  'Accroche la nouvelle habitude à une habitude existante : '
+                  '« Après [habitude actuelle], je [nouvelle habitude]. »',
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+
+  Widget _victoryEditor(int index) {
+    final victory = _victories[index];
+    final colors = Theme.of(context).colorScheme;
+    return _Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: _field(
+                  controller: victory.title,
+                  label:
+                      'Habitude${_victories.length > 1 ? ' ${index + 1}' : ''}',
+                  hint: 'Lire 10 pages',
+                  icon: FluentIcons.checkmark_starburst_20_regular,
+                ),
+              ),
+              if (_victories.length > 1)
+                IconButton(
+                  tooltip: 'Retirer',
+                  onPressed: () => setState(
+                    () => _victories.removeAt(index).dispose(),
+                  ),
+                  icon: const Icon(FluentIcons.delete_20_regular),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: SegmentedButton<SystemVictoryFrequency>(
+                  showSelectedIcon: false,
+                  segments: const [
+                    ButtonSegment(
+                      value: SystemVictoryFrequency.daily,
+                      label: Text('Chaque jour'),
+                    ),
+                    ButtonSegment(
+                      value: SystemVictoryFrequency.weekly,
+                      label: Text('Par semaine'),
+                    ),
+                  ],
+                  selected: {victory.frequency},
+                  onSelectionChanged: (value) =>
+                      setState(() => victory.frequency = value.first),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Text(
+                'Fois par ${victory.frequency.unit}',
+                style: TextStyle(color: colors.onSurfaceVariant),
+              ),
+              const Spacer(),
+              IconButton.filledTonal(
+                visualDensity: VisualDensity.compact,
+                onPressed: victory.target <= 1
+                    ? null
+                    : () => setState(() => victory.target--),
+                icon: const Icon(FluentIcons.subtract_16_regular),
+              ),
+              SizedBox(
+                width: 36,
+                child: Text(
+                  '${victory.target}',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+              ),
+              IconButton.filledTonal(
+                visualDensity: VisualDensity.compact,
+                onPressed: victory.target >= 99
+                    ? null
+                    : () => setState(() => victory.target++),
+                icon: const Icon(FluentIcons.add_16_regular),
+              ),
+            ],
+          ),
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            title: const Text('Habitude clé ★'),
+            subtitle: const Text('Vaut deux votes d’XP'),
+            value: victory.important,
+            onChanged: (value) => setState(() => victory.important = value),
           ),
         ],
       ),
     );
   }
 
-  Widget _victoriesEditor() => Column(
+  Widget _environmentSection() => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          for (var index = 0; index < _victories.length; index++)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: _EditorCard(
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _field(
-                            controller: _victories[index].title,
-                            label: 'Victoire ${index + 1}',
-                            hint: 'Ex. réaliser quatre blocs de travail',
-                          ),
-                        ),
-                        if (_victories.length > 1)
-                          IconButton(
-                            tooltip: 'Retirer',
-                            onPressed: () => _removeVictory(index),
-                            icon: const Icon(FluentIcons.delete_20_regular),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    SegmentedButton<SystemVictoryFrequency>(
-                      segments: const [
-                        ButtonSegment(
-                          value: SystemVictoryFrequency.weekly,
-                          label: Text('Hebdomadaire'),
-                        ),
-                        ButtonSegment(
-                          value: SystemVictoryFrequency.daily,
-                          label: Text('Quotidienne'),
-                        ),
-                      ],
-                      selected: {_victories[index].frequency},
-                      onSelectionChanged: (value) => setState(
-                        () => _victories[index].frequency = value.first,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Text('Cible par ${_victories[index].frequency.unit}'),
-                        const Spacer(),
-                        IconButton.filledTonal(
-                          onPressed: _victories[index].target <= 1
-                              ? null
-                              : () =>
-                                  setState(() => _victories[index].target--),
-                          icon: const Icon(FluentIcons.subtract_20_regular),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 14),
-                          child: Text(
-                            '${_victories[index].target}',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                        ),
-                        IconButton.filledTonal(
-                          onPressed: _victories[index].target >= 99
-                              ? null
-                              : () =>
-                                  setState(() => _victories[index].target++),
-                          icon: const Icon(FluentIcons.add_20_regular),
-                        ),
-                      ],
-                    ),
-                    SwitchListTile.adaptive(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Victoire importante'),
-                      subtitle: const Text(
-                          '20 XP au lieu de 10, une fois par occurrence'),
-                      value: _victories[index].important,
-                      onChanged: (value) =>
-                          setState(() => _victories[index].important = value),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: OutlinedButton.icon(
-              onPressed: () => setState(() => _victories.add(_VictoryInput())),
-              icon: const Icon(FluentIcons.add_20_regular),
-              label: const Text('Ajouter une victoire'),
-            ),
+          const _Hint(
+            'L’environnement bat la motivation : rends la bonne habitude '
+            'visible et facile, la mauvaise invisible et pénible.',
           ),
-        ],
-      );
-
-  Widget _rulesEditor() => Column(
-        children: [
-          ReorderableListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            buildDefaultDragHandles: false,
-            itemCount: _rules.length,
-            onReorderItem: (oldIndex, newIndex) {
-              setState(
-                  () => _rules.insert(newIndex, _rules.removeAt(oldIndex)));
-              HapticFeedback.selectionClick();
-            },
-            itemBuilder: (context, index) => Padding(
-              key: ValueKey(_rules[index]),
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _EditorCard(
-                child: Row(
-                  children: [
-                    ReorderableDragStartListener(
-                      index: index,
-                      child: const Padding(
-                        padding: EdgeInsets.all(8),
-                        child:
-                            Icon(FluentIcons.re_order_dots_vertical_20_regular),
-                      ),
-                    ),
-                    Expanded(
-                      child: _field(
-                        controller: _rules[index].text,
-                        label: 'Règle ${index + 1}',
-                        hint: 'Ex. le téléphone reste hors de portée.',
-                        lines: 2,
-                      ),
-                    ),
-                    Switch.adaptive(
-                      value: _rules[index].active,
-                      onChanged: (value) =>
-                          setState(() => _rules[index].active = value),
-                    ),
-                    IconButton(
-                      onPressed: () => _removeRule(index),
-                      icon: const Icon(FluentIcons.delete_20_regular),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: OutlinedButton.icon(
-              onPressed: () => setState(() => _rules.add(_RuleInput())),
-              icon: const Icon(FluentIcons.add_20_regular),
-              label: const Text('Ajouter une règle'),
-            ),
-          ),
-        ],
-      );
-
-  Widget _frictionsEditor() => Column(
-        children: [
+          const SizedBox(height: 14),
           for (var index = 0; index < _frictions.length; index++)
             Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: _EditorCard(
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _field(
-                            controller: _frictions[index].text,
-                            label: 'Friction ${index + 1}',
-                            hint: 'Ex. préparer le sac la veille.',
-                            lines: 2,
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: () => _removeFriction(index),
-                          icon: const Icon(FluentIcons.delete_20_regular),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    SegmentedButton<SystemFrictionType>(
-                      segments: const [
-                        ButtonSegment(
-                          value: SystemFrictionType.remove,
-                          label: Text('Retirer'),
-                          icon: Icon(FluentIcons.subtract_circle_20_regular),
-                        ),
-                        ButtonSegment(
-                          value: SystemFrictionType.add,
-                          label: Text('Ajouter'),
-                          icon: Icon(FluentIcons.add_circle_20_regular),
-                        ),
-                      ],
-                      selected: {_frictions[index].type},
-                      onSelectionChanged: (value) =>
-                          setState(() => _frictions[index].type = value.first),
-                    ),
-                  ],
-                ),
-              ),
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _frictionEditor(index),
             ),
           Align(
             alignment: Alignment.centerLeft,
-            child: OutlinedButton.icon(
+            child: TextButton.icon(
               onPressed: () => setState(
                 () => _frictions.add(
                   _FrictionInput(type: SystemFrictionType.remove),
                 ),
               ),
               icon: const Icon(FluentIcons.add_20_regular),
-              label: const Text('Ajouter une friction'),
+              label: const Text('Ajouter un réglage d’environnement'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          _Card(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _field(
+                  controller: _reward,
+                  label: 'Récompense immédiate (facultatif)',
+                  hint: 'Un bon thé après ma séance',
+                  icon: FluentIcons.gift_20_regular,
+                ),
+                const SizedBox(height: 6),
+                const _Hint(
+                  'Ce qui est récompensé est répété : termine sur une note agréable.',
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          _Card(
+            padding: EdgeInsets.zero,
+            child: Theme(
+              data:
+                  Theme.of(context).copyWith(dividerColor: Colors.transparent),
+              child: ExpansionTile(
+                initiallyExpanded: _editing,
+                leading: const Icon(FluentIcons.options_20_regular),
+                title: const Text('Options avancées'),
+                subtitle: const Text(
+                  'État, règles, redevabilité, reprise, révision, notes',
+                ),
+                childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                children: [_advancedOptions()],
+              ),
             ),
           ),
         ],
       );
 
-  Widget _summary() {
-    final validVictories =
-        _victories.where((v) => v.title.text.trim().isNotEmpty);
-    return _EditorCard(
+  Widget _frictionEditor(int index) {
+    final friction = _frictions[index];
+    return _Card(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _SummaryLine(label: 'Nom', value: _name.text.trim()),
-          _SummaryLine(label: 'État', value: _status.label),
-          _SummaryLine(label: 'Identité', value: _identity.text.trim()),
-          _SummaryLine(
-            label: 'Victoires',
-            value:
-                '${validVictories.length} définie${validVictories.length > 1 ? 's' : ''}',
+          SegmentedButton<SystemFrictionType>(
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(
+                value: SystemFrictionType.remove,
+                label: Text('Faciliter le bon'),
+                icon: Icon(FluentIcons.subtract_circle_20_regular),
+              ),
+              ButtonSegment(
+                value: SystemFrictionType.add,
+                label: Text('Freiner le mauvais'),
+                icon: Icon(FluentIcons.add_circle_20_regular),
+              ),
+            ],
+            selected: {friction.type},
+            onSelectionChanged: (value) =>
+                setState(() => friction.type = value.first),
           ),
-          _SummaryLine(label: 'Version minimale', value: _minimum.text.trim()),
-          _SummaryLine(
-            label: 'Redevabilité',
-            value: _accountability.text.trim().isEmpty
-                ? 'Aucune personne'
-                : _accountability.text.trim(),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Mindful ne récompensera jamais l’ouverture de cette page. Seules les preuves produites dans la vie réelle comptent.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _field(
+                  controller: friction.text,
+                  label: friction.type == SystemFrictionType.remove
+                      ? 'Obstacle à retirer'
+                      : 'Obstacle à ajouter',
+                  hint: friction.type == SystemFrictionType.remove
+                      ? 'Laisser le livre sur l’oreiller'
+                      : 'Téléphone rangé dans une autre pièce',
+                  lines: 2,
                 ),
+              ),
+              IconButton(
+                tooltip: 'Retirer',
+                onPressed: () => setState(
+                  () => _frictions.removeAt(index).dispose(),
+                ),
+                icon: const Icon(FluentIcons.delete_20_regular),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
+  Widget _advancedOptions() => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 4),
+          DropdownButtonFormField<LifeSystemStatus>(
+            initialValue: _status,
+            decoration: _decoration('État'),
+            items: LifeSystemStatus.values
+                .map(
+                  (status) => DropdownMenuItem(
+                    value: status,
+                    child: Text(status.label),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) => setState(() => _status = value ?? _status),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<int>(
+            initialValue: _priority,
+            decoration: _decoration('Priorité'),
+            items: const [
+              DropdownMenuItem(value: 1, child: Text('1 · Essentiel')),
+              DropdownMenuItem(value: 2, child: Text('2 · Important')),
+              DropdownMenuItem(value: 3, child: Text('3 · Normal')),
+              DropdownMenuItem(value: 4, child: Text('4 · Secondaire')),
+              DropdownMenuItem(value: 5, child: Text('5 · Entretien')),
+            ],
+            onChanged: (value) =>
+                setState(() => _priority = value ?? _priority),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<int>(
+            initialValue: _reviewEveryDays,
+            decoration: _decoration('Revue du système'),
+            items: const [
+              DropdownMenuItem(value: 7, child: Text('Chaque semaine')),
+              DropdownMenuItem(
+                  value: 14, child: Text('Toutes les deux semaines')),
+              DropdownMenuItem(value: 30, child: Text('Chaque mois')),
+            ],
+            onChanged: (value) =>
+                setState(() => _reviewEveryDays = value ?? _reviewEveryDays),
+          ),
+          const SizedBox(height: 12),
+          _field(
+            controller: _comeback,
+            label: 'Règle de reprise',
+            hint: _defaultComebackRule,
+            lines: 2,
+          ),
+          const SizedBox(height: 12),
+          _field(
+            controller: _accountability,
+            label: 'Partenaire de redevabilité',
+            hint: 'Une personne qui suit tes progrès',
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Règles de vie',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+          const _Hint('Des décisions prises à l’avance, avant la tentation.'),
+          const SizedBox(height: 8),
+          for (var index = 0; index < _rules.length; index++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _field(
+                      controller: _rules[index].text,
+                      label: 'Règle ${index + 1}',
+                      hint: 'Pas d’écran après 22 h',
+                    ),
+                  ),
+                  Switch.adaptive(
+                    value: _rules[index].active,
+                    onChanged: (value) =>
+                        setState(() => _rules[index].active = value),
+                  ),
+                  IconButton(
+                    onPressed: () =>
+                        setState(() => _rules.removeAt(index).dispose()),
+                    icon: const Icon(FluentIcons.delete_20_regular),
+                  ),
+                ],
+              ),
+            ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () => setState(() => _rules.add(_RuleInput())),
+              icon: const Icon(FluentIcons.add_20_regular),
+              label: const Text('Ajouter une règle'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          _field(
+            controller: _notes,
+            label: 'Notes',
+            hint: 'Notes libres',
+            lines: 3,
+          ),
+        ],
+      );
+
   TextField _field({
     required TextEditingController controller,
     required String label,
     required String hint,
+    IconData? icon,
     int lines = 1,
+    bool autofocus = false,
   }) =>
       TextField(
         controller: controller,
-        minLines: lines,
+        autofocus: autofocus,
+        minLines: 1,
         maxLines: lines == 1 ? 1 : lines + 2,
         textCapitalization: TextCapitalization.sentences,
-        decoration: _decoration(label).copyWith(hintText: hint),
+        decoration: _decoration(label).copyWith(
+          hintText: hint,
+          prefixIcon: icon == null ? null : Icon(icon, size: 20),
+        ),
       );
 
   InputDecoration _decoration(String label) => InputDecoration(
         labelText: label,
         filled: true,
-        fillColor: Theme.of(context).colorScheme.surfaceContainerHigh,
+        fillColor: Theme.of(context)
+            .colorScheme
+            .surfaceContainerHighest
+            .withValues(alpha: 0.45),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide.none,
         ),
       );
 
-  void _next() {
-    final error = _stepError(_step);
-    if (error != null) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(error)));
-      return;
-    }
-    setState(() => _step++);
-  }
+  // ---------------------------------------------------------------------------
+  // Flow
+  // ---------------------------------------------------------------------------
 
   String? _stepError(int step) {
     if (step == 0 && _name.text.trim().isEmpty) {
-      return 'Ajoute un nom au système.';
+      return 'Donne un nom à ton système.';
     }
-    if (step == 1 && _identity.text.trim().isEmpty) {
-      return 'Décris une identité observable et atteignable.';
+    if (step == 0 && _identity.text.trim().isEmpty) {
+      return 'Décris la personne que tu deviens.';
     }
-    if (step == 2 &&
+    if (step == 1 &&
         !_victories.any((victory) => victory.title.text.trim().isNotEmpty)) {
-      return 'Ajoute au moins une victoire.';
-    }
-    if (step == 3 && _minimum.text.trim().isEmpty) {
-      return 'Prévois une version minimale pour les jours difficiles.';
-    }
-    if (step == 8 && _comeback.text.trim().isEmpty) {
-      return 'Définis une règle de reprise explicite.';
+      return 'Ajoute au moins une habitude.';
     }
     return null;
   }
 
+  void _showError(String error) => ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(content: Text(error)));
+
+  void _next() {
+    final error = _stepError(_step);
+    if (error != null) {
+      _showError(error);
+      return;
+    }
+    HapticFeedback.selectionClick();
+    FocusScope.of(context).unfocus();
+    setState(() => _step++);
+  }
+
   Future<void> _save() async {
-    for (var step = 0; step < 10; step++) {
+    for (var step = 0; step < 3; step++) {
       final error = _stepError(step);
       if (error != null) {
-        setState(() => _step = step);
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(content: Text(error)));
+        if (!_editing) setState(() => _step = step);
+        _showError(error);
         return;
       }
     }
 
     setState(() => _saving = true);
     try {
+      final comeback =
+          _comeback.text.trim().isEmpty ? _defaultComebackRule : _comeback.text;
       final id = await ref.read(systemsProvider.notifier).save(
             LifeSystemDraft(
               name: _name.text,
@@ -656,8 +794,10 @@ class _SystemEditorScreenState extends ConsumerState<SystemEditorScreen> {
               status: _status,
               priority: _priority,
               minimumVersion: _minimum.text,
+              intention: _intention.text,
+              reward: _reward.text,
               accountabilityName: _accountability.text,
-              comebackRule: _comeback.text,
+              comebackRule: comeback,
               notes: _notes.text,
               reviewEveryDays: _reviewEveryDays,
               victories: _victories
@@ -696,32 +836,64 @@ class _SystemEditorScreenState extends ConsumerState<SystemEditorScreen> {
             ),
             id: widget.system?.id,
           );
+      HapticFeedback.mediumImpact();
       if (mounted) Navigator.of(context).pop(id);
     } on SystemsLimitException catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.toString())),
-        );
-      }
+      if (mounted) _showError(error.toString());
     } finally {
       if (mounted) setState(() => _saving = false);
     }
   }
+}
 
-  void _removeVictory(int index) {
-    _victories.removeAt(index).dispose();
-    setState(() {});
-  }
+class _StepTitle extends StatelessWidget {
+  const _StepTitle({required this.title});
 
-  void _removeRule(int index) {
-    _rules.removeAt(index).dispose();
-    setState(() {});
-  }
+  final String title;
 
-  void _removeFriction(int index) {
-    _frictions.removeAt(index).dispose();
-    setState(() {});
-  }
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(top: 4, bottom: 8),
+        child: Text(
+          title,
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.4,
+              ),
+        ),
+      );
+}
+
+class _Hint extends StatelessWidget {
+  const _Hint(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Text(
+        text,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+      );
+}
+
+class _Card extends StatelessWidget {
+  const _Card({
+    required this.child,
+    this.padding = const EdgeInsets.all(14),
+  });
+
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) => GlassSurface(
+        showShadow: false,
+        borderRadius: BorderRadius.circular(22),
+        padding: padding,
+        child: Material(color: Colors.transparent, child: child),
+      );
 }
 
 class _VictoryInput {
@@ -730,7 +902,7 @@ class _VictoryInput {
     String title = '',
     this.target = 1,
     this.important = false,
-    this.frequency = SystemVictoryFrequency.weekly,
+    this.frequency = SystemVictoryFrequency.daily,
   }) : title = TextEditingController(text: title);
 
   final int? id;
@@ -769,54 +941,4 @@ class _FrictionInput {
   SystemFrictionStatus status;
 
   void dispose() => text.dispose();
-}
-
-class _EditorCard extends StatelessWidget {
-  const _EditorCard({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(13),
-        decoration: BoxDecoration(
-          color: Theme.of(context)
-              .colorScheme
-              .surfaceContainer
-              .withValues(alpha: .72),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: Theme.of(context)
-                .colorScheme
-                .outlineVariant
-                .withValues(alpha: .45),
-          ),
-        ),
-        child: child,
-      );
-}
-
-class _SummaryLine extends StatelessWidget {
-  const _SummaryLine({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-            ),
-            const SizedBox(height: 2),
-            Text(value.isEmpty ? 'Non défini' : value),
-          ],
-        ),
-      );
 }

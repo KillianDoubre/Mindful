@@ -1,5 +1,6 @@
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mindful/models/life_system.dart';
 import 'package:mindful/providers/systems/systems_provider.dart';
@@ -8,6 +9,7 @@ import 'package:mindful/ui/common/mindful_background.dart';
 import 'package:mindful/ui/screens/systems/system_editor_screen.dart';
 import 'package:mindful/ui/screens/systems/system_history_screen.dart';
 import 'package:mindful/ui/screens/systems/system_review_screen.dart';
+import 'package:mindful/ui/screens/systems/system_widgets.dart';
 import 'package:mindful/ui/screens/systems/systems_tab.dart';
 
 class SystemDetailScreen extends ConsumerWidget {
@@ -24,63 +26,65 @@ class SystemDetailScreen extends ConsumerWidget {
     }
 
     final colors = Theme.of(context).colorScheme;
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        backgroundColor: colors.surface.withValues(alpha: .96),
-        surfaceTintColor: Colors.transparent,
-        scrolledUnderElevation: 0,
-        title: Text(system?.name ?? 'Système'),
-        actions: [
-          if (system != null)
-            IconButton(
-              tooltip: 'Modifier le système',
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => SystemEditorScreen(system: system),
-                ),
-              ),
-              icon: const Icon(FluentIcons.edit_20_regular),
-            ),
-          if (system != null)
-            PopupMenuButton<String>(
-              tooltip: 'Plus d’options',
-              onSelected: (value) => _handleMenu(context, ref, system!, value),
-              itemBuilder: (_) => [
-                const PopupMenuItem(
-                  value: 'status',
-                  child: ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(FluentIcons.status_20_regular),
-                    title: Text('Changer l’état'),
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        const MindfulBackground(),
+        Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            scrolledUnderElevation: 0,
+            title: Text(system?.name ?? 'Système'),
+            actions: [
+              if (system != null)
+                IconButton(
+                  tooltip: 'Modifier le système',
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => SystemEditorScreen(system: system),
+                    ),
                   ),
+                  icon: const Icon(FluentIcons.edit_20_regular),
                 ),
-                PopupMenuItem(
-                  value: 'delete',
-                  child: ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(FluentIcons.delete_20_regular,
-                        color: colors.error),
-                    title: Text('Supprimer',
-                        style: TextStyle(color: colors.error)),
-                  ),
+              if (system != null)
+                PopupMenuButton<String>(
+                  tooltip: 'Plus d’options',
+                  onSelected: (value) =>
+                      _handleMenu(context, ref, system!, value),
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(
+                      value: 'status',
+                      child: ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(FluentIcons.status_20_regular),
+                        title: Text('Changer l’état'),
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(FluentIcons.delete_20_regular,
+                            color: colors.error),
+                        title: Text('Supprimer',
+                            style: TextStyle(color: colors.error)),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-        ],
-      ),
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          const MindfulBackground(),
-          if (state.isLoading && system == null)
-            const Center(child: CircularProgressIndicator())
-          else if (system == null)
-            const Center(child: Text('Ce système n’existe plus.'))
-          else
-            _SystemView(system: system),
-        ],
-      ),
+            ],
+          ),
+          body: BackdropGroup(
+            child: state.isLoading && system == null
+                ? const Center(child: CircularProgressIndicator())
+                : system == null
+                    ? const Center(child: Text('Ce système n’existe plus.'))
+                    : _SystemView(system: system),
+          ),
+        ),
+      ],
     );
   }
 
@@ -159,46 +163,80 @@ class _SystemView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final intention = system.intention.trim();
+    final reward = system.reward.trim();
     return ListView(
       physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 42),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 42),
       children: [
-        _IdentityHeader(system: system),
-        if (system.shouldOfferComeback) ...[
+        _IdentityHero(system: system),
+        if (system.isStreakAtRisk) ...[
+          const SizedBox(height: 12),
+          _NeverMissTwiceCard(system: system),
+        ] else if (system.shouldOfferComeback) ...[
           const SizedBox(height: 12),
           _ComebackCard(system: system),
         ],
-        const SizedBox(height: 18),
-        _Section(
-          icon: FluentIcons.person_heart_20_regular,
-          title: 'Identité',
-          child: Text(system.identity),
-        ),
-        _VictoriesSection(system: system),
-        _MinimumSection(system: system),
-        if (system.rules.isNotEmpty) _RulesSection(system: system),
-        if (system.frictions.isNotEmpty) _FrictionsSection(system: system),
-        _Section(
-          icon: FluentIcons.people_community_20_regular,
-          title: 'Redevabilité',
-          child: Text(
-            system.accountabilityName.isEmpty
-                ? 'Aucune personne définie.'
-                : system.accountabilityName,
+        const SizedBox(height: 14),
+        if (system.victories.isNotEmpty)
+          _Section(
+            icon: FluentIcons.checkmark_starburst_20_regular,
+            title: 'Voter aujourd’hui',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final victory in system.victories)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: VoteChip(
+                      system: system,
+                      victory: victory,
+                      expanded: true,
+                    ),
+                  ),
+                const VoteHint(),
+              ],
+            ),
           ),
-        ),
+        _MinimumSection(system: system),
+        if (intention.isNotEmpty)
+          _Section(
+            icon: FluentIcons.link_20_regular,
+            title: 'Intention · rends-le évident',
+            child: Text(
+              intention,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+          ),
+        if (system.frictions.isNotEmpty) _FrictionsSection(system: system),
+        if (reward.isNotEmpty)
+          _Section(
+            icon: FluentIcons.gift_20_regular,
+            title: 'Récompense · rends-le satisfaisant',
+            child: Text(
+              reward,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+          ),
+        if (system.rules.isNotEmpty) _RulesSection(system: system),
+        if (system.accountabilityName.trim().isNotEmpty)
+          _Section(
+            icon: FluentIcons.people_community_20_regular,
+            title: 'Partenaire de redevabilité',
+            child: Text(system.accountabilityName),
+          ),
+        if (system.comebackRule.trim().isNotEmpty)
+          _Section(
+            icon: FluentIcons.arrow_reset_20_regular,
+            title: 'Règle de reprise',
+            child: Text(system.comebackRule),
+          ),
         if (system.notes.trim().isNotEmpty)
           _Section(
             icon: FluentIcons.note_20_regular,
             title: 'Notes',
             child: Text(system.notes),
           ),
-        _Section(
-          icon: FluentIcons.arrow_reset_20_regular,
-          title: 'Règle de reprise',
-          child: Text(system.comebackRule),
-        ),
-        _ProgressSection(system: system),
         _HistoryPreview(system: system),
         const SizedBox(height: 5),
         FilledButton.icon(
@@ -221,80 +259,111 @@ class _SystemView extends ConsumerWidget {
   }
 }
 
-class _IdentityHeader extends StatelessWidget {
-  const _IdentityHeader({required this.system});
+/// Who the user is becoming, and the evidence so far.
+class _IdentityHero extends StatelessWidget {
+  const _IdentityHero({required this.system});
 
   final LifeSystem system;
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final identity = system.identity.trim();
     return GlassSurface(
-      blur: 10,
-      borderRadius: BorderRadius.circular(28),
+      borderRadius: BorderRadius.circular(30),
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              SystemStatusPill(status: system.status),
-              _Badge(text: 'Priorité ${system.priority}'),
-              _Badge(text: '${system.totalXp} XP'),
-            ],
-          ),
-          const SizedBox(height: 18),
           Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
+              LevelRing(system: system, size: 72),
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       system.evidenceLevel,
-                      style:
-                          Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 2),
                     Text(
-                      '${system.completedThisWeek}/${system.targetThisWeek} preuves prévues',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: colors.onSurfaceVariant,
-                          ),
+                      system.isMaxLevel
+                          ? 'Niveau maximal atteint'
+                          : '${system.xpToNextLevel} XP avant « ${system.nextLevelName} »',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        StreakBadge(system: system, compact: true),
+                        if (!system.isPlayable)
+                          SystemStatusPill(status: system.status),
+                      ],
                     ),
                   ],
                 ),
               ),
-              Text(
-                '${(system.momentum * 100).round()} %',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: colors.primary,
-                      fontWeight: FontWeight.w700,
-                    ),
+            ],
+          ),
+          if (identity.isNotEmpty) ...[
+            const SizedBox(height: 18),
+            Text(
+              'Je suis quelqu’un qui…',
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: colors.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              identity,
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+                height: 1.25,
+              ),
+            ),
+          ],
+          const SizedBox(height: 18),
+          ChainDots(system: system),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(
+                child: _Metric(
+                  value: '${system.totalVotes}',
+                  label: 'votes pour ton identité',
+                ),
+              ),
+              Expanded(
+                child: _Metric(
+                  value: '${system.lifetimeActiveDays}',
+                  label: 'jours actifs',
+                ),
+              ),
+              Expanded(
+                child: _Metric(
+                  value: formatGrowth(system.compoundedGrowth),
+                  label: 'à 1 % par jour',
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: LinearProgressIndicator(
-              value: system.momentum,
-              minHeight: 8,
-              backgroundColor: colors.surfaceContainerHighest,
-            ),
-          ),
-          const SizedBox(height: 7),
+          const SizedBox(height: 14),
           Text(
-            system.momentumLabel,
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: colors.primary,
-                  fontWeight: FontWeight.w600,
-                ),
+            dailyHabitQuote(),
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontStyle: FontStyle.italic,
+              color: colors.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -302,90 +371,56 @@ class _IdentityHeader extends StatelessWidget {
   }
 }
 
-class _VictoriesSection extends ConsumerWidget {
-  const _VictoriesSection({required this.system});
+class _NeverMissTwiceCard extends ConsumerWidget {
+  const _NeverMissTwiceCard({required this.system});
 
   final LifeSystem system;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => _Section(
-        icon: FluentIcons.trophy_20_regular,
-        title: 'Victoires',
-        child: system.victories.isEmpty
-            ? const Text('Aucune victoire définie.')
-            : Column(
-                children: [
-                  for (var index = 0;
-                      index < system.victories.length;
-                      index++) ...[
-                    if (index > 0) const Divider(height: 18),
-                    _VictoryRow(
-                        system: system, victory: system.victories[index]),
-                  ],
-                ],
-              ),
-      );
-}
-
-class _VictoryRow extends ConsumerWidget {
-  const _VictoryRow({required this.system, required this.victory});
-
-  final LifeSystem system;
-  final SystemVictory victory;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) => Row(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = Theme.of(context).colorScheme;
+    return GlassSurface(
+      showShadow: false,
+      color: colors.errorContainer.withValues(alpha: 0.6),
+      borderRadius: BorderRadius.circular(24),
+      padding: const EdgeInsets.all(17),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            victory.isCompleted
-                ? FluentIcons.checkmark_circle_20_filled
-                : FluentIcons.circle_20_regular,
-            color: victory.isCompleted
-                ? Theme.of(context).colorScheme.primary
-                : null,
-          ),
-          const SizedBox(width: 10),
+          Icon(FluentIcons.fire_24_filled, color: colors.error),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(victory.title),
                 Text(
-                  '${victory.completedCount} sur ${victory.targetCount} cette semaine'
-                  '${victory.frequency == SystemVictoryFrequency.daily ? ' · ${victory.perPeriodTarget}/jour' : ''}'
-                  '${victory.isImportant ? ' · importante' : ''}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  'Ne rate pas deux fois',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
                       ),
                 ),
+                const SizedBox(height: 4),
+                Text(
+                  'Hier a été manqué. Ta série de ${system.streakDays} jours tient à un seul vote aujourd’hui, même minuscule.',
+                ),
+                if (system.minimumVersion.trim().isNotEmpty &&
+                    !system.currentWeek.minimumUsed) ...[
+                  const SizedBox(height: 10),
+                  FilledButton.tonalIcon(
+                    onPressed: () => ref
+                        .read(systemsProvider.notifier)
+                        .completeMinimumVersion(system.id),
+                    icon: const Icon(FluentIcons.timer_2_20_regular),
+                    label: const Text('Faire la version 2 minutes'),
+                  ),
+                ],
               ],
             ),
           ),
-          IconButton.filledTonal(
-            tooltip: 'Retirer une occurrence',
-            onPressed: victory.completedCount <= 0
-                ? null
-                : () => ref.read(systemsProvider.notifier).setVictoryProgress(
-                      system.id,
-                      victory,
-                      victory.completedCount - 1,
-                    ),
-            icon: const Icon(FluentIcons.subtract_16_regular),
-          ),
-          const SizedBox(width: 5),
-          IconButton.filled(
-            tooltip: 'Ajouter une occurrence',
-            onPressed: victory.completedCount >= victory.targetCount
-                ? null
-                : () => ref.read(systemsProvider.notifier).setVictoryProgress(
-                      system.id,
-                      victory,
-                      victory.completedCount + 1,
-                    ),
-            icon: const Icon(FluentIcons.add_16_regular),
-          ),
         ],
-      );
+      ),
+    );
+  }
 }
 
 class _MinimumSection extends ConsumerWidget {
@@ -394,34 +429,47 @@ class _MinimumSection extends ConsumerWidget {
   final LifeSystem system;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => _Section(
-        icon: FluentIcons.sparkle_20_regular,
-        title: 'Version minimale',
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(system.minimumVersion),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: system.currentWeek.minimumUsed
-                  ? null
-                  : () => ref
-                      .read(systemsProvider.notifier)
-                      .completeMinimumVersion(system.id),
-              icon: Icon(
-                system.currentWeek.minimumUsed
-                    ? FluentIcons.checkmark_20_filled
-                    : FluentIcons.play_20_regular,
-              ),
-              label: Text(
-                system.currentWeek.minimumUsed
-                    ? 'Utilisée cette semaine'
-                    : 'J’ai réalisé la version minimale',
-              ),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final minimum = system.minimumVersion.trim();
+    if (minimum.isEmpty) return const SizedBox.shrink();
+    final used = system.currentWeek.minimumUsed;
+    return _Section(
+      icon: FluentIcons.timer_2_20_regular,
+      title: 'Version 2 minutes · rends-le facile',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(minimum, style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 4),
+          Text(
+            'Pour les jours sans énergie : se présenter compte plus que la performance.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: used || !system.isPlayable
+                ? null
+                : () {
+                    HapticFeedback.mediumImpact();
+                    ref
+                        .read(systemsProvider.notifier)
+                        .completeMinimumVersion(system.id);
+                  },
+            icon: Icon(
+              used
+                  ? FluentIcons.checkmark_20_filled
+                  : FluentIcons.play_20_regular,
             ),
-          ],
-        ),
-      );
+            label: Text(
+              used ? 'Faite cette semaine' : 'J’ai fait la version 2 minutes',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _RulesSection extends ConsumerWidget {
@@ -458,7 +506,7 @@ class _FrictionsSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) => _Section(
         icon: FluentIcons.settings_cog_multiple_20_regular,
-        title: 'Frictions',
+        title: 'Environnement · frictions',
         child: Column(
           children: system.frictions
               .map(
@@ -516,34 +564,6 @@ class _FrictionsSection extends ConsumerWidget {
       );
 }
 
-class _ProgressSection extends StatelessWidget {
-  const _ProgressSection({required this.system});
-
-  final LifeSystem system;
-
-  @override
-  Widget build(BuildContext context) => _Section(
-        icon: FluentIcons.sparkle_20_regular,
-        title: 'Preuves accumulées',
-        child: Row(
-          children: [
-            Expanded(
-              child: _Metric(
-                value: '${system.totalXp}',
-                label: 'XP local',
-              ),
-            ),
-            Expanded(
-              child: _Metric(
-                value: system.evidenceLevel,
-                label: 'Phase du système',
-              ),
-            ),
-          ],
-        ),
-      );
-}
-
 class _HistoryPreview extends StatelessWidget {
   const _HistoryPreview({required this.system});
 
@@ -574,7 +594,12 @@ class _HistoryPreview extends StatelessWidget {
                         title: Text(event.title),
                         subtitle:
                             event.details.isEmpty ? null : Text(event.details),
-                        trailing: event.xp > 0 ? Text('+${event.xp} XP') : null,
+                        trailing: event.xp > 0
+                            ? SoftPill(
+                                label: '+${event.xp} XP',
+                                color: Theme.of(context).colorScheme.primary,
+                              )
+                            : null,
                       ),
                     )
                     .toList(),
@@ -796,22 +821,6 @@ class _Section extends StatelessWidget {
       );
 }
 
-class _Badge extends StatelessWidget {
-  const _Badge({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(30),
-        ),
-        child: Text(text, style: Theme.of(context).textTheme.labelMedium),
-      );
-}
-
 class _Metric extends StatelessWidget {
   const _Metric({required this.value, required this.label});
 
@@ -824,8 +833,10 @@ class _Metric extends StatelessWidget {
         children: [
           Text(
             value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w800,
                 ),
           ),
           Text(

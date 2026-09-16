@@ -20,6 +20,7 @@ import android.content.pm.PackageManager
 import android.graphics.Path
 import android.graphics.Rect
 import android.net.Uri
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -255,7 +256,13 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
                 isForegroundWindowEvent(eventPackageName)
             ) {
                 trackingManager.onNewEvent(eventPackageName)
+                shortsPlatformManager.onForegroundPackageChanged(eventPackageName)
             }
+
+            // Events are recycled once this callback returns, so read the
+            // scroll source now
+            val isPagingScroll = event.eventType == TYPE_VIEW_SCROLLED &&
+                    isFullScreenVerticalScroll(event)
 
             executorService.submit {
                 // Determine package and event source node
@@ -277,7 +284,8 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
                         processEventInBackground(
                             packageName = eventPackageName,
                             node = it,
-                            wellBeing = wellbeing.copy()
+                            wellBeing = wellbeing.copy(),
+                            isPagingScroll = isPagingScroll,
                         )
                     }
                 }
@@ -300,6 +308,21 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
      * window. A null root means the foreground app is still loading (a genuine
      * fresh launch that must not be missed), so it stays permitted.
      */
+    /**
+     * True when a scroll moved a container covering most of the screen
+     * vertically, which is how short-form players page to the next video.
+     * Comment sheets and other partial lists do not qualify.
+     */
+    private fun isFullScreenVerticalScroll(event: AccessibilityEvent): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && event.scrollDeltaY == 0) {
+            return false
+        }
+        val source = event.source ?: return false
+        val bounds = Rect().also(source::getBoundsInScreen)
+        val screenHeight = resources.displayMetrics.heightPixels
+        return screenHeight > 0 && bounds.height() >= screenHeight * 0.7f
+    }
+
     private fun isForegroundWindowEvent(eventPackageName: String): Boolean {
         val activePackage = rootInActiveWindow?.packageName?.toString() ?: return true
         return activePackage == eventPackageName
@@ -315,6 +338,7 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
         packageName: String,
         node: AccessibilityNodeInfo,
         wellBeing: Wellbeing,
+        isPagingScroll: Boolean = false,
     ) {
         try {
             when (packageName) {
@@ -322,7 +346,12 @@ class MindfulAccessibilityService : AccessibilityService(), OnSharedPreferenceCh
                     deviceFeaturesManager.blockFeatures(packageName, node, wellBeing)
 
                 in shortsPlatformPackages ->
-                    shortsPlatformManager.blockDistraction(packageName, node, wellBeing)
+                    shortsPlatformManager.blockDistraction(
+                        packageName,
+                        node,
+                        wellBeing,
+                        isPagingScroll,
+                    )
 
                 in browserPackages ->
                     browserManager.blockDistraction(packageName, node, wellBeing)

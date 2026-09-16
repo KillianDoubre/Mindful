@@ -35,6 +35,18 @@ class ProductivityRepository {
       CREATE INDEX IF NOT EXISTS productivity_items_type_order
       ON productivity_items(item_type, sort_order)
     ''');
+
+    // Columns added after the table first shipped
+    final columns = await db
+        .customSelect('PRAGMA table_info(productivity_items)')
+        .map((row) => row.read<String>('name'))
+        .get();
+    if (!columns.contains('is_pinned')) {
+      await db.customStatement(
+        'ALTER TABLE productivity_items '
+        'ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0',
+      );
+    }
   }
 
   Future<List<ProductivityItem>> load(ProductivityItemType type) async {
@@ -50,7 +62,10 @@ class ProductivityRepository {
     return rows.map((row) => ProductivityItem.fromDatabase(row.data)).toList();
   }
 
-  Future<void> save({
+  /// Creates or updates an item and returns its id.
+  ///
+  /// New notes are placed first, like Google Keep; new tasks go last.
+  Future<int> save({
     required ProductivityItemType type,
     required ProductivityItemDraft draft,
     int? id,
@@ -64,7 +79,7 @@ class ProductivityRepository {
         '''
           UPDATE productivity_items
           SET title = ?, details = ?, color_value = ?, is_completed = ?,
-              due_at = ?, updated_at = ?
+              due_at = ?, is_pinned = COALESCE(?, is_pinned), updated_at = ?
           WHERE id = ? AND item_type = ?
         ''',
         [
@@ -73,40 +88,85 @@ class ProductivityRepository {
           draft.colorValue,
           draft.isCompleted ? 1 : 0,
           draft.dueAt?.millisecondsSinceEpoch,
+          switch (draft.isPinned) {
+            null => null,
+            final pinned => pinned ? 1 : 0,
+          },
           now,
           id,
           type.databaseValue,
         ],
       );
-      return;
+      return id;
     }
 
+    final placeFirst = type == ProductivityItemType.note;
     final orderRow = await db.customSelect(
-      '''
-        SELECT COALESCE(MAX(sort_order), -1) + 1 AS next_order
-        FROM productivity_items WHERE item_type = ?
-      ''',
+      placeFirst
+          ? '''
+              SELECT COALESCE(MIN(sort_order), 1) - 1 AS next_order
+              FROM productivity_items WHERE item_type = ?
+            '''
+          : '''
+              SELECT COALESCE(MAX(sort_order), -1) + 1 AS next_order
+              FROM productivity_items WHERE item_type = ?
+            ''',
       variables: [Variable.withString(type.databaseValue)],
     ).getSingle();
     final nextOrder = orderRow.read<int>('next_order');
 
-    await db.customStatement(
+    return db.customInsert(
       '''
         INSERT INTO productivity_items (
           item_type, title, details, color_value, is_completed, due_at,
-          sort_order, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          sort_order, is_pinned, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ''',
-      [
-        type.databaseValue,
-        draft.title.trim(),
-        draft.details.trim(),
-        draft.colorValue,
-        draft.isCompleted ? 1 : 0,
-        draft.dueAt?.millisecondsSinceEpoch,
-        nextOrder,
-        now,
-        now,
+      variables: [
+        Variable.withString(type.databaseValue),
+        Variable.withString(draft.title.trim()),
+        Variable.withString(draft.details.trim()),
+        Variable.withInt(draft.colorValue),
+        Variable.withInt(draft.isCompleted ? 1 : 0),
+        Variable<int>(draft.dueAt?.millisecondsSinceEpoch),
+        Variable.withInt(nextOrder),
+        Variable.withInt((draft.isPinned ?? false) ? 1 : 0),
+        Variable.withInt(now),
+        Variable.withInt(now),
+      ],
+    );
+  }
+
+  Future<void> setPinned(ProductivityItem item, bool isPinned) async {
+    await _ensureInitialized();
+    await DriftDbService.instance.driftDb.customStatement(
+      'UPDATE productivity_items SET is_pinned = ? WHERE id = ?',
+      [isPinned ? 1 : 0, item.id],
+    );
+  }
+
+  /// Re-inserts a deleted item exactly as it was (same id, order and dates).
+  Future<void> restore(ProductivityItem item) async {
+    await _ensureInitialized();
+    await DriftDbService.instance.driftDb.customInsert(
+      '''
+        INSERT OR REPLACE INTO productivity_items (
+          id, item_type, title, details, color_value, is_completed, due_at,
+          sort_order, is_pinned, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ''',
+      variables: [
+        Variable.withInt(item.id),
+        Variable.withString(item.type.databaseValue),
+        Variable.withString(item.title),
+        Variable.withString(item.details),
+        Variable.withInt(item.colorValue),
+        Variable.withInt(item.isCompleted ? 1 : 0),
+        Variable<int>(item.dueAt?.millisecondsSinceEpoch),
+        Variable.withInt(item.sortOrder),
+        Variable.withInt(item.isPinned ? 1 : 0),
+        Variable.withInt(item.createdAt.millisecondsSinceEpoch),
+        Variable.withInt(item.updatedAt.millisecondsSinceEpoch),
       ],
     );
   }

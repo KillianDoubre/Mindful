@@ -7,6 +7,8 @@ import android.content.Context
 import android.content.Intent
 import com.mindful.android.AppConstants.REMOVED_PACKAGE
 import com.mindful.android.AppConstants.TETHERING_PACKAGE
+import java.util.concurrent.Callable
+import java.util.concurrent.Executors
 
 object AppsUsageHelper {
     /// Keys for the map
@@ -53,22 +55,31 @@ object AppsUsageHelper {
             val networkStatsManager =
                 context.getSystemService(Context.NETWORK_STATS_SERVICE) as NetworkStatsManager
 
+            // The three queries are independent system calls, run them side by side
+            val executor = Executors.newFixedThreadPool(2)
+            val mobileDataFuture = executor.submit(Callable {
+                NetworkUsageHelper.fetchMobileUsageForInterval(
+                    networkStatsManager = networkStatsManager,
+                    start = startMsEpoch,
+                    end = endMsEpoch
+                )
+            })
+            val wifiDataFuture = executor.submit(Callable {
+                NetworkUsageHelper.fetchWifiUsageForInterval(
+                    networkStatsManager = networkStatsManager,
+                    start = startMsEpoch,
+                    end = endMsEpoch
+                )
+            })
+            executor.shutdown()
+
             val screenUsage = ScreenUsageHelper.fetchUsageForInterval(
                 usageStatsManager = usageStatsManager,
                 start = startMsEpoch,
                 end = endMsEpoch
             )
-
-            val mobileDataUsage = NetworkUsageHelper.fetchMobileUsageForInterval(
-                networkStatsManager = networkStatsManager,
-                start = startMsEpoch,
-                end = endMsEpoch
-            )
-            val wifiDataUsage = NetworkUsageHelper.fetchWifiUsageForInterval(
-                networkStatsManager = networkStatsManager,
-                start = startMsEpoch,
-                end = endMsEpoch
-            )
+            val mobileDataUsage = mobileDataFuture.get()
+            val wifiDataUsage = wifiDataFuture.get()
 
             val packageManager = context.packageManager
 

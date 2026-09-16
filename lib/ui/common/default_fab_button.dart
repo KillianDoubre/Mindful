@@ -11,6 +11,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:mindful/config/app_constants.dart';
+import 'package:mindful/ui/common/glass_material.dart';
 import 'package:mindful/ui/transitions/default_hero.dart';
 
 class DefaultFabButton extends StatelessWidget {
@@ -28,19 +29,29 @@ class DefaultFabButton extends StatelessWidget {
   final VoidCallback onPressed;
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return DefaultHero(
       tag: heroTag ?? "defaultScaffoldFabButton",
-      child: FilledButton.icon(
-        onPressed: onPressed,
-        icon: Icon(icon),
-        label: Text(label),
-        style: const ButtonStyle().copyWith(
-          elevation: const WidgetStatePropertyAll(0),
-          padding: const WidgetStatePropertyAll(
-            EdgeInsets.symmetric(horizontal: 18, vertical: 15),
-          ),
-          shape: WidgetStatePropertyAll(
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      // Primary-tinted glass with a soft halo
+      child: GlassLayer(
+        tint: colors.primary.withValues(alpha: 0.82),
+        glow: colors.primary,
+        groupBlur: false,
+        borderRadius: BorderRadius.circular(18),
+        child: FilledButton.icon(
+          onPressed: onPressed,
+          icon: Icon(icon),
+          label: Text(label),
+          style: const ButtonStyle().copyWith(
+            elevation: const WidgetStatePropertyAll(0),
+            backgroundColor: const WidgetStatePropertyAll(Colors.transparent),
+            foregroundColor: WidgetStatePropertyAll(colors.onPrimary),
+            padding: const WidgetStatePropertyAll(
+              EdgeInsets.symmetric(horizontal: 18, vertical: 15),
+            ),
+            shape: WidgetStatePropertyAll(
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            ),
           ),
         ),
       ),

@@ -9,6 +9,7 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:mindful/ui/common/glass_material.dart';
 
 class RoundedContainer extends StatelessWidget {
   /// A decorated container with the provided properties
@@ -41,61 +42,31 @@ class RoundedContainer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
-    final isDark = theme.brightness == Brightness.dark;
-    final bgColor = color ?? colors.surfaceContainerHigh;
-    final fill = color != null && bgColor.a < 1
-        ? bgColor
-        : bgColor.withValues(
-            alpha:
-                color == null ? (isDark ? 0.62 : 0.68) : (isDark ? 0.74 : 0.78),
-          );
+    final colors = Theme.of(context).colorScheme;
     final radius = borderRadius ?? BorderRadius.circular(circularRadius);
-    final decoration = BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Color.alphaBlend(
-            Colors.white.withValues(alpha: isDark ? 0.04 : 0.18),
-            fill,
-          ),
-          fill,
-        ],
-      ),
-      borderRadius: radius,
-      border: Border.all(
-        color: colors.outlineVariant.withValues(
-          alpha: isDark ? 0.24 : 0.32,
-        ),
-      ),
-    );
 
     final content = Padding(
       padding: padding,
       child: Align(alignment: alignment, child: child),
     );
 
-    return Container(
+    return GlassLayer(
       width: width,
       height: height,
       margin: margin,
-      decoration: decoration,
-      child: ClipRRect(
-        borderRadius: radius,
-        child: onPressed == null
-            ? content
-            : Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: onPressed,
-                  splashColor: colors.primary.withValues(alpha: 0.10),
-                  highlightColor: colors.primary.withValues(alpha: 0.055),
-                  child: content,
-                ),
+      tint: color,
+      borderRadius: radius,
+      child: onPressed == null
+          ? content
+          : Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onPressed,
+                splashColor: colors.primary.withValues(alpha: 0.12),
+                highlightColor: colors.primary.withValues(alpha: 0.06),
+                child: content,
               ),
-      ),
+            ),
     );
   }
 }

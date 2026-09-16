@@ -165,7 +165,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
           ].animate(
             effects: DefaultEffects.transitionIn,
             delay: 100.ms,
-            interval: 100.ms,
+            interval: 40.ms,
           ),
         ),
       ),

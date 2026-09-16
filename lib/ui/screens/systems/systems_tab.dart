@@ -10,7 +10,10 @@ import 'package:mindful/ui/common/glass_surface.dart';
 import 'package:mindful/ui/common/sliver_tabs_bottom_padding.dart';
 import 'package:mindful/ui/screens/systems/system_detail_screen.dart';
 import 'package:mindful/ui/screens/systems/system_editor_screen.dart';
+import 'package:mindful/ui/screens/systems/system_widgets.dart';
 
+/// Systems home, built around Atomic Habits: what to do today first, then
+/// the identities being built.
 class SystemsTab extends ConsumerWidget {
   const SystemsTab({super.key});
 
@@ -22,55 +25,69 @@ class SystemsTab extends ConsumerWidget {
       child: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
-          SliverToBoxAdapter(
-            child: systems.when(
-              loading: () => const Padding(
-                padding: EdgeInsets.symmetric(vertical: 48),
-                child: Center(child: CircularProgressIndicator()),
-              ),
-              error: (_, __) => _LoadError(
-                onRetry: ref.read(systemsProvider.notifier).refresh,
-              ),
-              // Summary moved to the home dashboard (SystemsSummaryCard).
-              data: (_) => const SizedBox(height: 6),
-            ),
-          ),
           ...systems.when(
-            loading: () => const <Widget>[],
-            error: (_, __) => const <Widget>[],
+            loading: () => const [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 48),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              ),
+            ],
+            error: (_, __) => [
+              SliverToBoxAdapter(
+                child: _LoadError(
+                  onRetry: ref.read(systemsProvider.notifier).refresh,
+                ),
+              ),
+            ],
             data: (items) => items.isEmpty
                 ? [
                     SliverFillRemaining(
                       hasScrollBody: false,
                       child: _EmptySystems(
-                          onCreate: () => openSystemEditor(context, ref)),
-                    ),
-                  ]
-                : [
-                    SliverList.builder(
-                      itemCount: items.length,
-                      itemBuilder: (context, index) => Padding(
-                        padding: const EdgeInsets.only(bottom: 11),
-                        child: SystemCard(
-                          system: items[index],
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => SystemDetailScreen(
-                                systemId: items[index].id,
-                              ),
-                            ),
-                          ),
-                        ),
+                        onCreate: () => openSystemEditor(context, ref),
                       ),
                     ),
-                  ],
+                  ]
+                : _content(context, items),
           ),
           const SliverTabsBottomPadding(),
         ],
       ),
     );
   }
+
+  List<Widget> _content(BuildContext context, List<LifeSystem> systems) {
+    final playable = systems
+        .where((system) => system.isPlayable && system.victories.isNotEmpty)
+        .toList();
+    return [
+      if (playable.isNotEmpty) ...[
+        SliverToBoxAdapter(child: _TodayHub(systems: playable)),
+        const SliverToBoxAdapter(child: SizedBox(height: 20)),
+      ],
+      const SliverToBoxAdapter(child: _SectionLabel('Tes identités')),
+      SliverList.builder(
+        itemCount: systems.length,
+        itemBuilder: (context, index) => Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: SystemCard(
+            system: systems[index],
+            onTap: () => openSystemDetail(context, systems[index].id),
+          ),
+        ),
+      ),
+    ];
+  }
 }
+
+void openSystemDetail(BuildContext context, int systemId) =>
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => SystemDetailScreen(systemId: systemId),
+      ),
+    );
 
 class SystemsAddFab extends ConsumerWidget {
   const SystemsAddFab({super.key});
@@ -96,7 +113,7 @@ Future<void> openSystemEditor(
       ..showSnackBar(
         const SnackBar(
           content: Text(
-            'Vous avez atteint la limite de cinq systèmes. Supprimez-en un pour en créer un autre.',
+            'Cinq systèmes au maximum : mieux vaut peu d’habitudes bien ancrées. Supprimes-en un pour en créer un autre.',
           ),
         ),
       );
@@ -108,9 +125,169 @@ Future<void> openSystemEditor(
     ),
   );
   if (system == null && createdId != null && context.mounted) {
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => SystemDetailScreen(systemId: createdId),
+    openSystemDetail(context, createdId);
+  }
+}
+
+/// "Aujourd'hui": the daily check-in across every running system.
+class _TodayHub extends StatelessWidget {
+  const _TodayHub({required this.systems});
+
+  final List<LifeSystem> systems;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
+    var dailyGoal = 0;
+    var dailyDone = 0;
+    var votesToday = 0;
+    var weeklyTarget = 0;
+    var weeklyDone = 0;
+    for (final system in systems) {
+      votesToday += system.todayVotes.values.fold(0, (a, b) => a + b);
+      for (final victory in system.victories) {
+        if (victory.frequency == SystemVictoryFrequency.daily) {
+          dailyGoal += victory.perPeriodTarget;
+          dailyDone +=
+              system.todayVotesFor(victory).clamp(0, victory.perPeriodTarget);
+        } else {
+          weeklyTarget += victory.targetCount;
+          weeklyDone += victory.completedCount.clamp(0, victory.targetCount);
+        }
+      }
+    }
+    final progress = dailyGoal > 0
+        ? dailyDone / dailyGoal
+        : weeklyTarget == 0
+            ? 0.0
+            : weeklyDone / weeklyTarget;
+    final isAllDone = progress >= 1;
+    final atRisk = systems.where((system) => system.isStreakAtRisk).toList();
+
+    return GlassSurface(
+      borderRadius: BorderRadius.circular(28),
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              ProgressRing(
+                progress: progress,
+                child: isAllDone
+                    ? Icon(
+                        FluentIcons.checkmark_starburst_24_filled,
+                        color: colors.primary,
+                        size: 34,
+                      )
+                    : Text(
+                        '${(progress * 100).round()}%',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Aujourd’hui',
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      isAllDone
+                          ? 'Journée gagnée · $votesToday vote${votesToday > 1 ? 's' : ''}'
+                          : votesToday == 0
+                              ? 'Un seul vote suffit pour lancer la journée'
+                              : '$votesToday vote${votesToday > 1 ? 's' : ''} · continue sur ta lancée',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (atRisk.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            _NeverMissTwiceBanner(systems: atRisk),
+          ],
+          for (final system in systems) ...[
+            const SizedBox(height: 16),
+            InkWell(
+              onTap: () => openSystemDetail(context, system.id),
+              borderRadius: BorderRadius.circular(10),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      system.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  StreakBadge(system: system, compact: true),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final victory in system.victories)
+                  VoteChip(system: system, victory: victory),
+              ],
+            ),
+          ],
+          const SizedBox(height: 12),
+          const VoteHint(),
+        ],
+      ),
+    );
+  }
+}
+
+class _NeverMissTwiceBanner extends StatelessWidget {
+  const _NeverMissTwiceBanner({required this.systems});
+
+  final List<LifeSystem> systems;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final names = systems.map((system) => system.name).join(', ');
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colors.errorContainer.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Icon(FluentIcons.fire_20_filled, color: colors.error),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Ne rate pas deux fois : un seul vote aujourd’hui sauve ta série ($names). La version 2 minutes compte.',
+              style: TextStyle(
+                color: colors.onErrorContainer,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -124,90 +301,111 @@ class SystemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final identity = system.identity.trim();
     final target = system.targetThisWeek;
-    return GlassSurface(
-      showShadow: false,
-      borderRadius: BorderRadius.circular(24),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(24),
-          child: Padding(
-            padding: const EdgeInsets.all(17),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            system.name,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleLarge
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: -.35,
-                                ),
-                          ),
-                          const SizedBox(height: 7),
-                          Wrap(
-                            spacing: 7,
-                            runSpacing: 7,
-                            children: [
-                              SystemStatusPill(status: system.status),
-                              _SoftPill(
-                                icon: FluentIcons.sparkle_20_regular,
-                                label:
-                                    '${system.totalXp} XP · ${system.evidenceLevel}',
+
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 200),
+      opacity: system.isPlayable ? 1 : 0.6,
+      child: GlassSurface(
+        showShadow: false,
+        borderRadius: BorderRadius.circular(26),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(26),
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      LevelRing(system: system, size: 52),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              system.name,
+                              style: theme.textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -.35,
                               ),
-                            ],
-                          ),
-                        ],
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              system.evidenceLevel +
+                                  (system.isMaxLevel
+                                      ? ''
+                                      : ' · ${system.xpToNextLevel} XP avant « ${system.nextLevelName} »'),
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                color: colors.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    const Icon(FluentIcons.chevron_right_20_regular),
-                  ],
-                ),
-                const SizedBox(height: 15),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        target == 0
-                            ? 'Aucune victoire définie'
-                            : '${system.completedThisWeek} sur $target cette semaine',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ),
-                    Text(
-                      system.momentumLabel,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: colors.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: LinearProgressIndicator(
-                    minHeight: 7,
-                    value: system.status == LifeSystemStatus.paused
-                        ? system.momentum
-                        : system.currentWeekRatio,
-                    backgroundColor: colors.surfaceContainerHighest,
+                      const SizedBox(width: 8),
+                      StreakBadge(system: system),
+                    ],
                   ),
-                ),
-              ],
+                  if (identity.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      '« $identity »',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontStyle: FontStyle.italic,
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 14),
+                  ChainDots(system: system),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      if (!system.isPlayable) ...[
+                        SystemStatusPill(status: system.status),
+                        const SizedBox(width: 8),
+                      ],
+                      Expanded(
+                        child: Text(
+                          target == 0
+                              ? 'Aucune victoire définie'
+                              : '${system.completedThisWeek}/$target votes cette semaine',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colors.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        '${system.totalVotes} votes',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: LinearProgressIndicator(
+                      minHeight: 5,
+                      value: system.currentWeekRatio,
+                      backgroundColor: colors.onSurface.withValues(alpha: 0.08),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -231,70 +429,32 @@ class SystemStatusPill extends StatelessWidget {
       LifeSystemStatus.draft => colors.secondary,
       LifeSystemStatus.archived => colors.onSurfaceVariant,
     };
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: .12),
-        borderRadius: BorderRadius.circular(50),
-      ),
-      child: Text(
-        status.label,
-        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w700,
-            ),
-      ),
-    );
+    return SoftPill(label: status.label, color: color);
   }
 }
 
-class _CountPill extends StatelessWidget {
-  const _CountPill({required this.status, required this.count});
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.label);
 
-  final LifeSystemStatus status;
-  final int count;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(30),
-        ),
-        child: Text(
-          '${status.label} · $count',
-          style: Theme.of(context).textTheme.labelMedium,
-        ),
-      );
-}
-
-class _SoftPill extends StatelessWidget {
-  const _SoftPill({required this.icon, required this.label});
-
-  final IconData icon;
   final String label;
 
   @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(50),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 14),
-            const SizedBox(width: 5),
-            Text(label, style: Theme.of(context).textTheme.labelMedium),
-          ],
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(6, 0, 6, 10),
+        child: Text(
+          label.toUpperCase(),
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.8,
+              ),
         ),
       );
 }
 
-/// Systems summary card ("Mes systèmes") used on the home
-/// dashboard. Watches [systemsProvider] and, when [onTap] is provided, becomes
-/// a tappable shortcut (e.g. to switch to the Systems tab).
+/// Systems summary card ("Mes systèmes") used on the home dashboard.
+/// Watches [systemsProvider] and, when [onTap] is provided, becomes a
+/// tappable shortcut (e.g. to switch to the Systems tab).
 class SystemsSummaryCard extends ConsumerWidget {
   const SystemsSummaryCard({super.key, this.onTap});
 
@@ -319,50 +479,66 @@ class _SystemsSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final content = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final votesToday = systems.fold<int>(
+      0,
+      (sum, system) => sum + system.todayVotes.values.fold(0, (a, b) => a + b),
+    );
+    final bestStreak = systems.fold<int>(
+      0,
+      (best, system) => system.streakDays > best ? system.streakDays : best,
+    );
+    final atRisk = systems.any((system) => system.isStreakAtRisk);
+
+    final content = Row(
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
+        SvgPicture.asset(
+          'assets/vectors/systems.svg',
+          width: 34,
+          height: 34,
+          colorFilter: ColorFilter.mode(colors.primary, BlendMode.srcIn),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
                 'Mes systèmes',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-            ),
-            if (onTap != null)
-              const Padding(
-                padding: EdgeInsets.only(left: 8),
-                child: Icon(FluentIcons.chevron_right_20_regular),
+              const SizedBox(height: 3),
+              Text(
+                systems.isEmpty
+                    ? 'Deviens la personne que tu veux être, un vote à la fois.'
+                    : atRisk
+                        ? 'Ne rate pas deux fois : un vote aujourd’hui sauve ta série.'
+                        : votesToday == 0
+                            ? 'Aucun vote aujourd’hui pour l’instant.'
+                            : '$votesToday vote${votesToday > 1 ? 's' : ''} aujourd’hui',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: atRisk ? colors.error : colors.onSurfaceVariant,
+                ),
               ),
-          ],
+            ],
+          ),
         ),
-        const SizedBox(height: 5),
-        Text(
-          systems.isEmpty
-              ? 'Construisez un environnement qui rend l’action réelle plus simple.'
-              : '${systems.length} systèmes',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-        ),
-        if (systems.isNotEmpty) ...[
-          const SizedBox(height: 13),
-          Wrap(
-            spacing: 7,
-            runSpacing: 7,
-            children: LifeSystemStatus.values
-                .map(
-                  (status) => _CountPill(
-                    status: status,
-                    count: systems.where((s) => s.status == status).length,
-                  ),
-                )
-                .toList(),
+        if (bestStreak > 0) ...[
+          const SizedBox(width: 8),
+          SoftPill(
+            icon: FluentIcons.fire_20_filled,
+            label: '$bestStreak j',
+            color: const Color(0xFFFF8A3D),
           ),
         ],
+        if (onTap != null)
+          const Padding(
+            padding: EdgeInsets.only(left: 6),
+            child: Icon(FluentIcons.chevron_right_20_regular),
+          ),
       ],
     );
 
@@ -410,7 +586,7 @@ class _EmptySystems extends StatelessWidget {
               ),
               const SizedBox(height: 20),
               Text(
-                'Quel système veux-tu construire ?',
+                'Qui veux-tu devenir ?',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w700,
@@ -418,7 +594,7 @@ class _EmptySystems extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'Commence par une direction, une identité observable et quelques victoires contrôlables.',
+                'Chaque action est un vote pour cette personne. Commence par une identité et une toute petite habitude.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,

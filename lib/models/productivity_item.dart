@@ -17,6 +17,7 @@ class ProductivityItem {
     required this.isCompleted,
     required this.dueAt,
     required this.sortOrder,
+    this.isPinned = false,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -29,6 +30,7 @@ class ProductivityItem {
   final bool isCompleted;
   final DateTime? dueAt;
   final int sortOrder;
+  final bool isPinned;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -50,6 +52,7 @@ class ProductivityItem {
         _ => null,
       },
       sortOrder: data['sort_order'] as int? ?? 0,
+      isPinned: (data['is_pinned'] as int? ?? 0) == 1,
       createdAt: DateTime.fromMillisecondsSinceEpoch(
         data['created_at'] as int? ?? 0,
       ),
@@ -67,6 +70,7 @@ class ProductivityItem {
     DateTime? dueAt,
     bool clearDueAt = false,
     int? sortOrder,
+    bool? isPinned,
     DateTime? updatedAt,
   }) =>
       ProductivityItem(
@@ -78,6 +82,7 @@ class ProductivityItem {
         isCompleted: isCompleted ?? this.isCompleted,
         dueAt: clearDueAt ? null : dueAt ?? this.dueAt,
         sortOrder: sortOrder ?? this.sortOrder,
+        isPinned: isPinned ?? this.isPinned,
         createdAt: createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -90,6 +95,7 @@ class ProductivityItemDraft {
     this.colorValue = 0,
     this.isCompleted = false,
     this.dueAt,
+    this.isPinned,
   });
 
   final String title;
@@ -97,4 +103,7 @@ class ProductivityItemDraft {
   final int colorValue;
   final bool isCompleted;
   final DateTime? dueAt;
+
+  /// `null` keeps the stored value when updating an existing item.
+  final bool? isPinned;
 }

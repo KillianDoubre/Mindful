@@ -23,7 +23,7 @@ import com.mindful.android.utils.ThreadUtils
 object OverlayBuilder {
     /// Seconds the user must wait before the conscious-opening
     /// "Continue" button becomes tappable.
-    private const val UNLOCK_DELAY_SECONDS = 10
+    private const val UNLOCK_DELAY_SECONDS = 15
 
     @MainThread
     fun buildFullScreenOverlay(
@@ -165,6 +165,7 @@ object OverlayBuilder {
         isLimitExhausted: Boolean,
         isLimitCheckPending: Boolean,
         dismissOverlay: () -> Unit,
+        onIntentionConfirmed: () -> Unit,
     ): View {
         val sheetView = LayoutInflater.from(context)
             .inflate(R.layout.overlay_full_screen_layout, null)
@@ -241,6 +242,8 @@ object OverlayBuilder {
                         "com.mindful.android://open/appDashboard?package=$packageName"
                     )
                 )
+            } else {
+                onIntentionConfirmed.invoke()
             }
             dismissOverlay.invoke()
         }

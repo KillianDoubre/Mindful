@@ -14,6 +14,7 @@ import com.mindful.android.helpers.storage.SharedPrefsHelper
 import com.mindful.android.services.notification.MindfulNotificationListenerService
 import com.mindful.android.enums.RestrictionType
 import com.mindful.android.utils.ForegroundAppResolver
+import java.util.concurrent.ConcurrentHashMap
 
 class MindfulTrackerService : Service() {
     companion object {
@@ -31,6 +32,11 @@ class MindfulTrackerService : Service() {
     /// background -> foreground return (see [onNewAppLaunch]).
     private var lastForegroundPkg: String? = null
     private val leftBackgroundAtMillis = HashMap<String, Long>()
+
+    /// Packages whose conscious-opening prompt was actually passed (Continue after
+    /// the countdown). Only these may skip the prompt on a background return:
+    /// cancelling the prompt, then reopening the app, must show it again in full.
+    private val confirmedIntentPkgs = ConcurrentHashMap.newKeySet<String>()
 
     private lateinit var overlayManager: OverlayManager
     private lateinit var reminderManager: ReminderManager
@@ -108,7 +114,8 @@ class MindfulTrackerService : Service() {
             val awayMs =
                 leftBackgroundAtMillis[packageName]?.let { nowMs - it } ?: Long.MAX_VALUE
             val isReturningFromBackground =
-                previousPkg == packageName || awayMs < RESUME_WINDOW_MS
+                confirmedIntentPkgs.contains(packageName) &&
+                        (previousPkg == packageName || awayMs < RESUME_WINDOW_MS)
             lastForegroundPkg = packageName
 
             reminderManager.cancelReminders()
@@ -128,6 +135,7 @@ class MindfulTrackerService : Service() {
                 MindfulNotificationListenerService.hasPendingNotification(packageName)
             ) {
                 Log.d(TAG, "onNewAppLaunch: $packageName has a pending notification, no delay")
+                confirmedIntentPkgs.add(packageName)
                 isFreshOpen = false
             }
 
@@ -218,10 +226,12 @@ class MindfulTrackerService : Service() {
         isLimitExhausted: Boolean,
         isLimitCheckPending: Boolean = false,
     ) {
+        confirmedIntentPkgs.remove(packageName)
         overlayManager.showIntentionOverlay(
             packageName = packageName,
             isLimitExhausted = isLimitExhausted,
             isLimitCheckPending = isLimitCheckPending,
+            onIntentionConfirmed = { confirmedIntentPkgs.add(packageName) },
         )
     }
 
