@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:mindful/core/extensions/ext_num.dart';
 import 'package:mindful/config/app_constants.dart';
 import 'package:mindful/ui/common/content_section_header.dart';
+import 'package:mindful/ui/common/glass_material.dart';
 import 'package:mindful/ui/common/sliver_tabs_bottom_padding.dart';
 
 /// Opens modal bottom sheet with the passed sliver body
@@ -36,32 +37,34 @@ Future<void> showDefaultBottomSheet({
         reverseDuration: AppConstants.defaultAnimDuration,
         reverseCurve: Curves.easeOutBack.flipped,
       ),
-      builder: (sheetContext) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: initialSize,
-        builder: (context, scrollController) => Padding(
-          padding: padding,
-          child: Column(
-            children: [
-              /// Header
-              headerTitle != null
-                  ? ContentSectionHeader(
-                      title: headerTitle,
-                      padding: const EdgeInsets.only(bottom: 12),
-                    )
-                  : header ?? 0.vBox,
+      builder: (sheetContext) => GlassScope(
+        child: DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: initialSize,
+          builder: (context, scrollController) => Padding(
+            padding: padding,
+            child: Column(
+              children: [
+                /// Header
+                headerTitle != null
+                    ? ContentSectionHeader(
+                        title: headerTitle,
+                        padding: const EdgeInsets.only(bottom: 12),
+                      )
+                    : header ?? 0.vBox,
 
-              /// Body
-              Expanded(
-                child: CustomScrollView(
-                  controller: scrollController,
-                  slivers: [
-                    sliverBody,
-                    const SliverTabsBottomPadding(),
-                  ],
+                /// Body
+                Expanded(
+                  child: CustomScrollView(
+                    controller: scrollController,
+                    slivers: [
+                      sliverBody,
+                      const SliverTabsBottomPadding(),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

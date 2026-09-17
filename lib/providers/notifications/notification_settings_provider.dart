@@ -8,6 +8,8 @@
  *
  */
 
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mindful/core/database/adapters/time_of_day_adapter.dart';
 import 'package:mindful/core/database/app_database.dart';
@@ -26,7 +28,10 @@ final notificationSettingsProvider =
 
 /// This class manages the state of [NotificationConfig]settings.
 class NotificationSettingsNotifier extends StateNotifier<NotificationSettings> {
+  static const _persistDelay = Duration(milliseconds: 400);
+
   late UniqueRecordsDao _dao;
+  Timer? _persistTimer;
 
   NotificationSettingsNotifier() : super(defaultNotificationSettingsModel) {
     _init();
@@ -49,8 +54,12 @@ class NotificationSettingsNotifier extends StateNotifier<NotificationSettings> {
     addListener(
       fireImmediately: false,
       (state) {
-        _dao.saveNotificationSettings(state);
-        MethodChannelService.instance.updateNotificationSettings(state);
+        // Selecting many apps changes the state in bursts: write once
+        _persistTimer?.cancel();
+        _persistTimer = Timer(_persistDelay, () {
+          _dao.saveNotificationSettings(state);
+          MethodChannelService.instance.updateNotificationSettings(state);
+        });
       },
     );
   }

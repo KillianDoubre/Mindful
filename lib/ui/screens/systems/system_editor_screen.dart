@@ -7,6 +7,7 @@ import 'package:mindful/models/life_system.dart';
 import 'package:mindful/providers/systems/systems_provider.dart';
 import 'package:mindful/ui/common/glass_surface.dart';
 import 'package:mindful/ui/common/mindful_background.dart';
+import 'package:mindful/ui/common/page_app_bar.dart';
 
 const _defaultComebackRule =
     'Ne jamais manquer deux fois : si je rate un jour, je fais au moins la version 2 minutes le lendemain.';
@@ -149,10 +150,7 @@ class _SystemEditorScreenState extends ConsumerState<SystemEditorScreen> {
         const MindfulBackground(),
         Scaffold(
           backgroundColor: Colors.transparent,
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            surfaceTintColor: Colors.transparent,
-            scrolledUnderElevation: 0,
+          appBar: PageAppBar(
             title: Text(_editing ? 'Modifier le système' : 'Nouveau système'),
             bottom: _editing
                 ? null

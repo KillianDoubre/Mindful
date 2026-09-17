@@ -41,7 +41,7 @@ class WeeklyReviewEntryCard extends StatelessWidget {
             child: Row(
               children: [
                 Icon(
-                  FluentIcons.calendar_week_numbers_24_regular,
+                  FluentIcons.calendar_checkmark_24_regular,
                   size: 32,
                   color: colors.primary,
                 ),

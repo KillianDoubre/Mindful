@@ -75,16 +75,25 @@ class _SliverDistractingAppsListState
   @override
   Widget build(BuildContext context) {
     final allApps = ref.watch(filteredPackagesProvider(_filter));
+    final appInfos = ref.watch(appsInfoProvider).valueOrNull ?? const {};
+    final distracting = widget.distractingApps.toSet();
+    final hidden = widget.hiddenApps.toSet();
+    final installed = allApps.value ?? const <String>[];
 
-    /// Selected apps which are installed
-    final selectedApps =
-        allApps.value?.where((e) => widget.distractingApps.contains(e)) ?? [];
-
-    /// Unselected apps which are installed
-    final unselectedApps = (allApps.value ?? []).where(
-      (e) =>
-          !widget.distractingApps.contains(e) && !widget.hiddenApps.contains(e),
-    );
+    // Built once per frame: tiles used to rescan these lists for every row
+    final selectedApps = [
+      for (final package in installed)
+        if (distracting.contains(package)) package,
+    ];
+    final unselectedApps = [
+      for (final package in installed)
+        if (!distracting.contains(package) && !hidden.contains(package))
+          package,
+    ];
+    final positions = {
+      ...positionsInGroup(selectedApps),
+      ...positionsInGroup(unselectedApps),
+    };
 
     final filterPanel = SearchFilterPanel(
       filter: _filter,
@@ -99,10 +108,14 @@ class _SliverDistractingAppsListState
         /// Search and filter panel
         widget.isInsideModalSheet
             ? PinnedHeaderSliver(
-                child: Container(
-                  color: Theme.of(context).colorScheme.surfaceContainerLow,
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: filterPanel,
+                // Same colour as the sheet: the band only hides rows beneath
+                child: ColoredBox(
+                  color: Theme.of(context).bottomSheetTheme.backgroundColor ??
+                      Theme.of(context).colorScheme.surface,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: filterPanel,
+                  ),
                 ),
               )
             : filterPanel,
@@ -132,12 +145,8 @@ class _SliverDistractingAppsListState
                   ],
                   keyBuilder: (item) => item,
                   itemBuilder: (context, i, packageName, _) {
-                    /// Fetch app using the package
-                    final appInfo =
-                        ref.read(appsInfoProvider).value?[packageName];
-
-                    final isSelected =
-                        widget.distractingApps.contains(packageName);
+                    final appInfo = appInfos[packageName];
+                    final isSelected = distracting.contains(packageName);
 
                     return packageName == "separator"
                         ? ContentSectionHeader(
@@ -150,11 +159,8 @@ class _SliverDistractingAppsListState
                                 color: Theme.of(context)
                                     .colorScheme
                                     .surfaceContainerLow,
-                                position: _resolvePosition(
-                                  packageName,
-                                  selectedApps,
-                                  unselectedApps,
-                                ),
+                                position:
+                                    positions[packageName] ?? ItemPosition.none,
                                 leading:
                                     ApplicationIcon(appInfo: appInfo, size: 16),
                                 titleText: appInfo.name,
@@ -182,20 +188,16 @@ class _SliverDistractingAppsListState
       ],
     );
   }
-
-  ItemPosition _resolvePosition(
-    String package,
-    Iterable<String> selected,
-    Iterable<String> unselected,
-  ) =>
-      (selected.length == 1 && selected.first == package) ||
-              (unselected.length == 1 && unselected.first == package)
-          ? ItemPosition.none
-          : (selected.isNotEmpty && selected.first == package) ||
-                  (unselected.isNotEmpty && unselected.first == package)
-              ? ItemPosition.top
-              : (selected.isNotEmpty && selected.last == package) ||
-                      (unselected.isNotEmpty && unselected.last == package)
-                  ? ItemPosition.bottom
-                  : ItemPosition.mid;
 }
+
+/// Position of each package within a visual group of tiles.
+Map<String, ItemPosition> positionsInGroup(List<String> group) => {
+      for (var i = 0; i < group.length; i++)
+        group[i]: group.length == 1
+            ? ItemPosition.none
+            : i == 0
+                ? ItemPosition.top
+                : i == group.length - 1
+                    ? ItemPosition.bottom
+                    : ItemPosition.mid,
+    };

@@ -9,6 +9,7 @@ import 'package:mindful/models/productivity_item.dart';
 import 'package:mindful/providers/productivity/productivity_items_provider.dart';
 import 'package:mindful/ui/common/glass_surface.dart';
 import 'package:mindful/ui/common/mindful_background.dart';
+import 'package:mindful/ui/common/page_app_bar.dart';
 
 const _noteColors = <int>[
   0,
@@ -243,10 +244,7 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen>
             Scaffold(
               backgroundColor: Colors.transparent,
               resizeToAvoidBottomInset: true,
-              appBar: AppBar(
-                backgroundColor: Colors.transparent,
-                surfaceTintColor: Colors.transparent,
-                scrolledUnderElevation: 0,
+              appBar: PageAppBar(
                 leading: IconButton(
                   tooltip: 'Retour',
                   onPressed: _close,

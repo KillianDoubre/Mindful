@@ -45,6 +45,9 @@ class ApplicationIcon extends StatelessWidget {
               ? _resolveIcon()
               : Image.memory(
                   appInfo.icon,
+                  cacheWidth: (size * 2 * MediaQuery.devicePixelRatioOf(context))
+                      .round(),
+                  gaplessPlayback: true,
                   color: isGrayedOut ? Colors.white : null,
                   colorBlendMode: isGrayedOut ? BlendMode.saturation : null,
                 ),

@@ -62,9 +62,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
           NavbarItem(
             titleText: 'Systèmes',
-            icon: FluentIcons.branch_20_regular,
-            filledIcon: FluentIcons.branch_20_regular,
-            svgAsset: 'assets/vectors/systems.svg',
+            icon: FluentIcons.leaf_two_20_regular,
+            filledIcon: FluentIcons.leaf_two_20_filled,
             sliverBody: const SystemsTab(),
             fab: const SystemsAddFab(),
           ),

@@ -84,7 +84,6 @@ flutter:
     - assets/vectors/dating_bumble.svg
     - assets/vectors/dating_happn.svg
     - assets/vectors/edit_note.svg
-    - assets/vectors/systems.svg
 
   # fonts:
   #   - family: Schyler

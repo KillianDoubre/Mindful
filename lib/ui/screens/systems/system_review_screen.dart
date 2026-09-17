@@ -5,6 +5,7 @@ import 'package:mindful/models/life_system.dart';
 import 'package:mindful/providers/systems/systems_provider.dart';
 import 'package:mindful/ui/common/glass_surface.dart';
 import 'package:mindful/ui/common/mindful_background.dart';
+import 'package:mindful/ui/common/page_app_bar.dart';
 
 class SystemReviewScreen extends ConsumerStatefulWidget {
   const SystemReviewScreen({super.key, required this.systemId});
@@ -44,171 +45,174 @@ class _SystemReviewScreenState extends ConsumerState<SystemReviewScreen> {
       _decision = system.status;
       _initializedSystemId = system.id;
     }
-    final colors = Theme.of(context).colorScheme;
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        backgroundColor: colors.surface.withValues(alpha: .96),
-        surfaceTintColor: Colors.transparent,
-        scrolledUnderElevation: 0,
-        title: const Text('Revue du système'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Reporter'),
-          ),
-        ],
-      ),
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          const MindfulBackground(),
-          ListView(
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 40),
-            children: [
-              GlassSurface(
-                showShadow: false,
-                padding: const EdgeInsets.all(17),
-                borderRadius: BorderRadius.circular(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      system?.name ?? 'Système',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                    ),
-                    const SizedBox(height: 5),
-                    const Text(
-                      'Il ne s’agit pas de te noter, mais de rendre le système plus praticable.',
-                    ),
-                    const SizedBox(height: 14),
-                    SegmentedButton<bool>(
-                      segments: const [
-                        ButtonSegment(value: true, label: Text('Express')),
-                        ButtonSegment(value: false, label: Text('Complète')),
-                      ],
-                      selected: {_express},
-                      onSelectionChanged: (value) =>
-                          setState(() => _express = value.first),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              _ReviewField(
-                controller: _proof,
-                title: 'Quelles preuves d’identité ai-je produites ?',
-                hint: 'Les actions réelles, même modestes…',
-              ),
-              if (!_express)
-                _ReviewField(
-                  controller: _natural,
-                  title: 'Quelle victoire a été la plus naturelle ?',
-                  hint: 'Ce qui s’est intégré facilement à la semaine…',
-                ),
-              _ReviewField(
-                controller: _resistance,
-                title: 'Où ai-je ressenti le plus de résistance ?',
-                hint: 'Un moment, une action ou un contexte précis…',
-              ),
-              if (!_express) ...[
-                GlassSurface(
-                  showShadow: false,
-                  padding: const EdgeInsets.all(16),
-                  borderRadius: BorderRadius.circular(22),
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _resistanceSource,
-                    decoration: const InputDecoration(
-                      labelText: 'Cette résistance vient surtout de…',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: const [
-                      'Effort',
-                      'Environnement',
-                      'Manque de clarté',
-                      'Manque de sens',
-                      'Manque de soutien extérieur',
-                    ]
-                        .map(
-                          (value) => DropdownMenuItem(
-                            value: value,
-                            child: Text(value),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (value) => setState(
-                      () => _resistanceSource = value ?? _resistanceSource,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _ReviewField(
-                  controller: _friction,
-                  title: 'Quelle friction puis-je modifier ?',
-                  hint: 'Une expérience simple pour la prochaine période…',
-                ),
-                GlassSurface(
-                  showShadow: false,
-                  padding: const EdgeInsets.all(16),
-                  borderRadius: BorderRadius.circular(22),
-                  child: DropdownButtonFormField<LifeSystemStatus>(
-                    initialValue: _decision,
-                    decoration: const InputDecoration(
-                      labelText: 'Décision pour ce système',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: const [
-                      DropdownMenuItem(
-                        value: LifeSystemStatus.active,
-                        child: Text('Conserver actif'),
-                      ),
-                      DropdownMenuItem(
-                        value: LifeSystemStatus.maintenance,
-                        child: Text('Passer en entretien'),
-                      ),
-                      DropdownMenuItem(
-                        value: LifeSystemStatus.paused,
-                        child: Text('Suspendre sans perdre l’élan'),
-                      ),
-                      DropdownMenuItem(
-                        value: LifeSystemStatus.draft,
-                        child: Text('Réviser en brouillon'),
-                      ),
-                      DropdownMenuItem(
-                        value: LifeSystemStatus.archived,
-                        child: Text('Archiver'),
-                      ),
-                    ],
-                    onChanged: (value) =>
-                        setState(() => _decision = value ?? _decision),
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ],
-              _ReviewField(
-                controller: _commitment,
-                title: 'Quel est mon prochain engagement concret ?',
-                hint: 'Une action claire et contrôlable…',
-              ),
-              const SizedBox(height: 4),
-              FilledButton.icon(
-                onPressed:
-                    _saving || system == null ? null : () => _save(system),
-                icon: _saving
-                    ? const SizedBox.square(
-                        dimension: 17,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(FluentIcons.checkmark_20_filled),
-                label: const Text('Enregistrer la revue'),
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        const MindfulBackground(),
+        Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: PageAppBar(
+            title: const Text('Revue du système'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Reporter'),
               ),
             ],
           ),
-        ],
-      ),
+          body: Stack(
+            fit: StackFit.expand,
+            children: [
+              ListView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 40),
+                children: [
+                  GlassSurface(
+                    showShadow: false,
+                    padding: const EdgeInsets.all(17),
+                    borderRadius: BorderRadius.circular(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          system?.name ?? 'Système',
+                          style:
+                              Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                        ),
+                        const SizedBox(height: 5),
+                        const Text(
+                          'Il ne s’agit pas de te noter, mais de rendre le système plus praticable.',
+                        ),
+                        const SizedBox(height: 14),
+                        SegmentedButton<bool>(
+                          segments: const [
+                            ButtonSegment(value: true, label: Text('Express')),
+                            ButtonSegment(
+                                value: false, label: Text('Complète')),
+                          ],
+                          selected: {_express},
+                          onSelectionChanged: (value) =>
+                              setState(() => _express = value.first),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _ReviewField(
+                    controller: _proof,
+                    title: 'Quelles preuves d’identité ai-je produites ?',
+                    hint: 'Les actions réelles, même modestes…',
+                  ),
+                  if (!_express)
+                    _ReviewField(
+                      controller: _natural,
+                      title: 'Quelle victoire a été la plus naturelle ?',
+                      hint: 'Ce qui s’est intégré facilement à la semaine…',
+                    ),
+                  _ReviewField(
+                    controller: _resistance,
+                    title: 'Où ai-je ressenti le plus de résistance ?',
+                    hint: 'Un moment, une action ou un contexte précis…',
+                  ),
+                  if (!_express) ...[
+                    GlassSurface(
+                      showShadow: false,
+                      padding: const EdgeInsets.all(16),
+                      borderRadius: BorderRadius.circular(22),
+                      child: DropdownButtonFormField<String>(
+                        initialValue: _resistanceSource,
+                        decoration: const InputDecoration(
+                          labelText: 'Cette résistance vient surtout de…',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: const [
+                          'Effort',
+                          'Environnement',
+                          'Manque de clarté',
+                          'Manque de sens',
+                          'Manque de soutien extérieur',
+                        ]
+                            .map(
+                              (value) => DropdownMenuItem(
+                                value: value,
+                                child: Text(value),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) => setState(
+                          () => _resistanceSource = value ?? _resistanceSource,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _ReviewField(
+                      controller: _friction,
+                      title: 'Quelle friction puis-je modifier ?',
+                      hint: 'Une expérience simple pour la prochaine période…',
+                    ),
+                    GlassSurface(
+                      showShadow: false,
+                      padding: const EdgeInsets.all(16),
+                      borderRadius: BorderRadius.circular(22),
+                      child: DropdownButtonFormField<LifeSystemStatus>(
+                        initialValue: _decision,
+                        decoration: const InputDecoration(
+                          labelText: 'Décision pour ce système',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: LifeSystemStatus.active,
+                            child: Text('Conserver actif'),
+                          ),
+                          DropdownMenuItem(
+                            value: LifeSystemStatus.maintenance,
+                            child: Text('Passer en entretien'),
+                          ),
+                          DropdownMenuItem(
+                            value: LifeSystemStatus.paused,
+                            child: Text('Suspendre sans perdre l’élan'),
+                          ),
+                          DropdownMenuItem(
+                            value: LifeSystemStatus.draft,
+                            child: Text('Réviser en brouillon'),
+                          ),
+                          DropdownMenuItem(
+                            value: LifeSystemStatus.archived,
+                            child: Text('Archiver'),
+                          ),
+                        ],
+                        onChanged: (value) =>
+                            setState(() => _decision = value ?? _decision),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  _ReviewField(
+                    controller: _commitment,
+                    title: 'Quel est mon prochain engagement concret ?',
+                    hint: 'Une action claire et contrôlable…',
+                  ),
+                  const SizedBox(height: 4),
+                  FilledButton.icon(
+                    onPressed:
+                        _saving || system == null ? null : () => _save(system),
+                    icon: _saving
+                        ? const SizedBox.square(
+                            dimension: 17,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(FluentIcons.checkmark_20_filled),
+                    label: const Text('Enregistrer la revue'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

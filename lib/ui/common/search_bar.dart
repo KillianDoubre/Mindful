@@ -48,8 +48,14 @@ class _DefaultSearchBarState extends State<DefaultSearchBar> {
       leadingIcon: FluentIcons.search_20_filled,
       title: TextField(
         textInputAction: TextInputAction.search,
+        // The theme's filled, outlined fields do not belong inside a tile
         decoration: InputDecoration.collapsed(
           hintText: widget.hintText,
+        ).copyWith(
+          filled: false,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          disabledBorder: InputBorder.none,
         ),
         onChanged: (v) {
           _debouncer?.cancel();

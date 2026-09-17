@@ -1,7 +1,6 @@
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:mindful/core/services/systems_repository.dart';
 import 'package:mindful/models/life_system.dart';
 import 'package:mindful/providers/systems/systems_provider.dart';
@@ -93,12 +92,19 @@ class SystemsAddFab extends ConsumerWidget {
   const SystemsAddFab({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => DefaultFabButton(
-        heroTag: 'newSystemFab',
-        label: 'Nouveau système',
-        icon: FluentIcons.add_20_filled,
-        onPressed: () => openSystemEditor(context, ref),
-      );
+  Widget build(BuildContext context, WidgetRef ref) {
+    // The empty state already shows its own create button.
+    final isEmpty = ref.watch(
+      systemsProvider.select((systems) => systems.valueOrNull?.isEmpty ?? true),
+    );
+    if (isEmpty) return const SizedBox.shrink();
+    return DefaultFabButton(
+      heroTag: 'newSystemFab',
+      label: 'Nouveau système',
+      icon: FluentIcons.add_20_filled,
+      onPressed: () => openSystemEditor(context, ref),
+    );
+  }
 }
 
 Future<void> openSystemEditor(
@@ -493,11 +499,10 @@ class _SystemsSummary extends StatelessWidget {
 
     final content = Row(
       children: [
-        SvgPicture.asset(
-          'assets/vectors/systems.svg',
-          width: 34,
-          height: 34,
-          colorFilter: ColorFilter.mode(colors.primary, BlendMode.srcIn),
+        Icon(
+          FluentIcons.leaf_two_24_regular,
+          size: 34,
+          color: colors.primary,
         ),
         const SizedBox(width: 14),
         Expanded(
@@ -575,14 +580,10 @@ class _EmptySystems extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              SvgPicture.asset(
-                'assets/vectors/systems.svg',
-                width: 58,
-                height: 58,
-                colorFilter: ColorFilter.mode(
-                  Theme.of(context).colorScheme.primary,
-                  BlendMode.srcIn,
-                ),
+              Icon(
+                FluentIcons.leaf_two_24_regular,
+                size: 58,
+                color: Theme.of(context).colorScheme.primary,
               ),
               const SizedBox(height: 20),
               Text(

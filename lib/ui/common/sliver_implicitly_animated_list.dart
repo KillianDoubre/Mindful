@@ -10,6 +10,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:mindful/ui/common/glass_material.dart';
 import 'package:mindful/core/enums/item_position.dart';
 import 'package:mindful/config/app_constants.dart';
 import 'package:mindful/core/utils/widget_utils.dart';
@@ -63,20 +64,20 @@ class _SliverImplicitlyAnimatedListState<T>
   @override
   Widget build(BuildContext context) {
     /// Update indices of tiles based on packages
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _postFrameCallback(),
-    );
+    _postFrameCallback();
 
-    return widget.itemExtent != null
-        ? SliverFixedExtentList.builder(
-            itemExtent: widget.itemExtent!,
-            itemCount: widget.items.length,
-            itemBuilder: _itemBuilder,
-          )
-        : SliverList.builder(
-            itemCount: widget.items.length,
-            itemBuilder: _itemBuilder,
-          );
+    return GlassScope(
+      child: widget.itemExtent != null
+          ? SliverFixedExtentList.builder(
+              itemExtent: widget.itemExtent!,
+              itemCount: widget.items.length,
+              itemBuilder: _itemBuilder,
+            )
+          : SliverList.builder(
+              itemCount: widget.items.length,
+              itemBuilder: _itemBuilder,
+            ),
+    );
   }
 
   Widget _itemBuilder(BuildContext context, int index) {

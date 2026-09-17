@@ -12,6 +12,22 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+/// Turns the backdrop blur off for every glass layer below it.
+///
+/// Long lists of tiles gain nothing visible from blurring the smooth aurora
+/// behind them, but each blur costs a pass per tile while scrolling.
+class GlassScope extends InheritedWidget {
+  const GlassScope({super.key, required super.child, this.blur = false});
+
+  final bool blur;
+
+  static bool blurEnabled(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<GlassScope>()?.blur ?? true;
+
+  @override
+  bool updateShouldNotify(GlassScope oldWidget) => oldWidget.blur != blur;
+}
+
 /// The app-wide frosted glass material.
 ///
 /// A glass layer is a translucent tinted fill with a diagonal sheen, a light
@@ -121,10 +137,12 @@ class GlassLayer extends StatelessWidget {
       ),
     );
 
-    final filter = ImageFilter.blur(sigmaX: blur, sigmaY: blur);
+    final effectiveBlur = GlassScope.blurEnabled(context) ? blur : 0.0;
+    final filter =
+        ImageFilter.blur(sigmaX: effectiveBlur, sigmaY: effectiveBlur);
     final blurred = ClipRRect(
       borderRadius: borderRadius,
-      child: blur <= 0
+      child: effectiveBlur <= 0
           ? surface
           : groupBlur
               ? BackdropFilter.grouped(filter: filter, child: surface)

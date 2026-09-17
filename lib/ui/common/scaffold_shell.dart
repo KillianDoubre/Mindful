@@ -20,6 +20,7 @@ import 'package:mindful/core/extensions/ext_build_context.dart';
 import 'package:mindful/core/extensions/ext_num.dart';
 import 'package:mindful/ui/common/glass_surface.dart';
 import 'package:mindful/ui/common/mindful_background.dart';
+import 'package:mindful/ui/common/page_app_bar.dart';
 import 'package:mindful/ui/common/styled_text.dart';
 import 'package:mindful/ui/controllers/tab_controller_provider.dart';
 import 'package:skeletonizer/skeletonizer.dart';
@@ -74,12 +75,18 @@ class ScaffoldShell extends StatefulWidget {
 class _ScaffoldShellState extends State<ScaffoldShell>
     with SingleTickerProviderStateMixin {
   final _isBottomNavVisible = ValueNotifier<bool>(true);
-  final _appBarScrollOffSet = ValueNotifier<double>(0);
+
+  /// Scroll state is kept per tab: each page has its own header and scroll
+  /// position, so switching tabs must never show another page's offset.
+  late final List<ValueNotifier<double>> _appBarOffsets = List.generate(
+    widget.items.length,
+    (_) => ValueNotifier<double>(0),
+  );
   late final TabController _tabController;
 
   late final bool _haveMultiTabs = widget.items.length > 1;
   int _selectedTabIndex = 0;
-  double _wholeScreenScrollOffSet = 0;
+  late final List<double> _screenOffsets = List.filled(widget.items.length, 0);
 
   @override
   void initState() {
@@ -122,6 +129,10 @@ class _ScaffoldShellState extends State<ScaffoldShell>
   void dispose() {
     _tabController.animation?.removeListener(_onTabAnimationTick);
     _tabController.dispose();
+    for (final offset in _appBarOffsets) {
+      offset.dispose();
+    }
+    _isBottomNavVisible.dispose();
     super.dispose();
   }
 
@@ -152,34 +163,35 @@ class _ScaffoldShellState extends State<ScaffoldShell>
                     // position reaches the top, including after an overscroll.
                     if (notification.depth == 0 &&
                         notification.metrics.pixels <= 0) {
-                      _appBarScrollOffSet.value = 0;
+                      _appBarOffsets[i].value = 0;
                     }
 
                     if (notification is ScrollUpdateNotification) {
                       /// Add app bar offset if current scroll offset is from body
                       final currentOffset = notification.metrics.pixels +
                           (notification.depth == 1
-                              ? _appBarScrollOffSet.value
+                              ? _appBarOffsets[i].value
                               : 0);
 
-                      /// Show/Hide bottom bar
-                      if (currentOffset >= widget.appBarExpandedHeight &&
-                          (currentOffset >= _wholeScreenScrollOffSet + 1)) {
-                        _isBottomNavVisible.value = false;
-                      } else if (currentOffset <=
-                          _wholeScreenScrollOffSet - 1) {
-                        _isBottomNavVisible.value = true;
+                      /// Show/Hide bottom bar (only the visible page drives it)
+                      if (i == _selectedTabIndex) {
+                        if (currentOffset >= widget.appBarExpandedHeight &&
+                            (currentOffset >= _screenOffsets[i] + 1)) {
+                          _isBottomNavVisible.value = false;
+                        } else if (currentOffset <= _screenOffsets[i] - 1) {
+                          _isBottomNavVisible.value = true;
+                        }
                       }
 
                       final normalizedOffset =
                           currentOffset < 0 ? 0.0 : currentOffset;
 
                       /// Cache offset for whole screen
-                      _wholeScreenScrollOffSet = normalizedOffset;
+                      _screenOffsets[i] = normalizedOffset;
 
                       /// Cache offset for just the app bar only
                       if (notification.depth == 0) {
-                        _appBarScrollOffSet.value = normalizedOffset;
+                        _appBarOffsets[i].value = normalizedOffset;
                       }
                     }
                     return false;
@@ -213,10 +225,10 @@ class _ScaffoldShellState extends State<ScaffoldShell>
     final isRtl = Directionality.of(context) == TextDirection.rtl;
 
     return AnimatedBuilder(
-      animation: _appBarScrollOffSet,
+      animation: _appBarOffsets[tabIndex],
       builder: (context, constraints) {
         // Calculate the scroll percentage
-        final percentage = (_appBarScrollOffSet.value /
+        final percentage = (_appBarOffsets[tabIndex].value /
                 (widget.appBarExpandedHeight - kToolbarHeight))
             .clamp(0.0, 1.0);
 
@@ -224,9 +236,10 @@ class _ScaffoldShellState extends State<ScaffoldShell>
 
         // Keep the expanded bar airy and turn it into frosted glass as it
         // collapses over the content.
+        final theme = Theme.of(context);
         final appBarColor = Color.lerp(
           Colors.transparent,
-          colors.surface.withValues(alpha: 0.55),
+          pageHeaderColor(theme),
           percentage,
         );
 
@@ -259,6 +272,18 @@ class _ScaffoldShellState extends State<ScaffoldShell>
           flexibleSpace: Stack(
             fit: StackFit.expand,
             children: [
+              if (percentage > 0)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  height: 1,
+                  child: ColoredBox(
+                    color: pageHeaderDivider(theme).withValues(
+                      alpha: pageHeaderDivider(theme).a * percentage,
+                    ),
+                  ),
+                ),
               if (percentage > 0)
                 ClipRect(
                   child: BackdropFilter(

@@ -227,7 +227,8 @@ class AppTheme {
       ),
       bottomSheetTheme: BottomSheetThemeData(
         elevation: 0,
-        backgroundColor: colors.surface.withValues(alpha: 0.96),
+        // Opaque: the page underneath must not show through the sheet's lists
+        backgroundColor: colors.surface,
         surfaceTintColor: Colors.transparent,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(30)),

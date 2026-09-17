@@ -18,6 +18,7 @@ import 'package:mindful/models/weekly_review.dart';
 import 'package:mindful/providers/apps/apps_info_provider.dart';
 import 'package:mindful/ui/common/glass_surface.dart';
 import 'package:mindful/ui/common/mindful_background.dart';
+import 'package:mindful/ui/common/page_app_bar.dart';
 
 /// The Sunday review: a whole-week summary across every module, and a short
 /// reflection saved with a snapshot of the numbers.
@@ -123,10 +124,7 @@ class _WeeklyReviewScreenState extends State<WeeklyReviewScreen> {
         const MindfulBackground(),
         Scaffold(
           backgroundColor: Colors.transparent,
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            surfaceTintColor: Colors.transparent,
-            scrolledUnderElevation: 0,
+          appBar: PageAppBar(
             title: const Text('Bilan de la semaine'),
             actions: [
               IconButton(
@@ -446,7 +444,7 @@ class WeeklyStatsView extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _CardTitle(
-                icon: FluentIcons.task_list_ltr_20_regular,
+                icon: FluentIcons.task_list_square_ltr_20_regular,
                 title: 'Tâches · ${stats.completedTasks.length} accomplies',
               ),
               if (stats.overdueTasks > 0)

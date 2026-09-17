@@ -6,6 +6,7 @@ import 'package:mindful/models/life_system.dart';
 import 'package:mindful/providers/systems/systems_provider.dart';
 import 'package:mindful/ui/common/glass_surface.dart';
 import 'package:mindful/ui/common/mindful_background.dart';
+import 'package:mindful/ui/common/page_app_bar.dart';
 
 class SystemHistoryScreen extends ConsumerStatefulWidget {
   const SystemHistoryScreen({super.key, required this.systemId});
@@ -27,55 +28,57 @@ class _SystemHistoryScreenState extends ConsumerState<SystemHistoryScreen> {
         in ref.watch(systemsProvider).valueOrNull ?? const <LifeSystem>[]) {
       if (item.id == widget.systemId) system = item;
     }
-    final colors = Theme.of(context).colorScheme;
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        backgroundColor: colors.surface.withValues(alpha: .96),
-        surfaceTintColor: Colors.transparent,
-        scrolledUnderElevation: 0,
-        title: const Text('Historique'),
-      ),
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          const MindfulBackground(),
-          if (system == null)
-            const Center(child: CircularProgressIndicator())
-          else
-            ListView(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 40),
-              children: [
-                SegmentedButton<bool>(
-                  segments: const [
-                    ButtonSegment(
-                      value: true,
-                      icon: Icon(FluentIcons.calendar_week_numbers_20_regular),
-                      label: Text('Semaines'),
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        const MindfulBackground(),
+        Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: PageAppBar(
+            title: const Text('Historique'),
+          ),
+          body: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (system == null)
+                const Center(child: CircularProgressIndicator())
+              else
+                ListView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 40),
+                  children: [
+                    SegmentedButton<bool>(
+                      segments: const [
+                        ButtonSegment(
+                          value: true,
+                          icon: Icon(
+                              FluentIcons.calendar_week_numbers_20_regular),
+                          label: Text('Semaines'),
+                        ),
+                        ButtonSegment(
+                          value: false,
+                          icon: Icon(FluentIcons.history_20_regular),
+                          label: Text('Événements'),
+                        ),
+                      ],
+                      selected: {_showWeeks},
+                      onSelectionChanged: (value) =>
+                          setState(() => _showWeeks = value.first),
                     ),
-                    ButtonSegment(
-                      value: false,
-                      icon: Icon(FluentIcons.history_20_regular),
-                      label: Text('Événements'),
-                    ),
+                    const SizedBox(height: 14),
+                    if (_showWeeks)
+                      ...system.recentWeeks.map((week) => _WeekCard(week: week))
+                    else if (system.recentEvents.isEmpty)
+                      const _EmptyHistory()
+                    else
+                      ...system.recentEvents
+                          .map((event) => _EventCard(event: event)),
                   ],
-                  selected: {_showWeeks},
-                  onSelectionChanged: (value) =>
-                      setState(() => _showWeeks = value.first),
                 ),
-                const SizedBox(height: 14),
-                if (_showWeeks)
-                  ...system.recentWeeks.map((week) => _WeekCard(week: week))
-                else if (system.recentEvents.isEmpty)
-                  const _EmptyHistory()
-                else
-                  ...system.recentEvents
-                      .map((event) => _EventCard(event: event)),
-              ],
-            ),
-        ],
-      ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

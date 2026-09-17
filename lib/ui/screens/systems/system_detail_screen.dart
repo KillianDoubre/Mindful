@@ -6,6 +6,7 @@ import 'package:mindful/models/life_system.dart';
 import 'package:mindful/providers/systems/systems_provider.dart';
 import 'package:mindful/ui/common/glass_surface.dart';
 import 'package:mindful/ui/common/mindful_background.dart';
+import 'package:mindful/ui/common/page_app_bar.dart';
 import 'package:mindful/ui/screens/systems/system_editor_screen.dart';
 import 'package:mindful/ui/screens/systems/system_history_screen.dart';
 import 'package:mindful/ui/screens/systems/system_review_screen.dart';
@@ -32,10 +33,7 @@ class SystemDetailScreen extends ConsumerWidget {
         const MindfulBackground(),
         Scaffold(
           backgroundColor: Colors.transparent,
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            surfaceTintColor: Colors.transparent,
-            scrolledUnderElevation: 0,
+          appBar: PageAppBar(
             title: Text(system?.name ?? 'Système'),
             actions: [
               if (system != null)

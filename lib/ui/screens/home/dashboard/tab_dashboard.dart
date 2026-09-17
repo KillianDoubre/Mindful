@@ -190,7 +190,7 @@ class TabDashboard extends ConsumerWidget {
         /// Tasks and todos
         DefaultListTile(
           position: ItemPosition.top,
-          leadingIcon: FluentIcons.reading_list_20_regular,
+          leadingIcon: FluentIcons.task_list_square_ltr_20_regular,
           titleText: context.locale.tasks_tile_title,
           subtitleText: context.locale.tasks_tile_subtitle,
           trailing: _CountTrailing(count: todoCount),

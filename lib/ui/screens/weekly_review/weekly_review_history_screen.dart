@@ -14,6 +14,7 @@ import 'package:mindful/core/services/weekly_review_repository.dart';
 import 'package:mindful/models/weekly_review.dart';
 import 'package:mindful/ui/common/glass_surface.dart';
 import 'package:mindful/ui/common/mindful_background.dart';
+import 'package:mindful/ui/common/page_app_bar.dart';
 import 'package:mindful/ui/screens/weekly_review/weekly_review_screen.dart';
 
 /// Every saved Sunday review, newest first.
@@ -57,10 +58,7 @@ class _WeeklyReviewHistoryScreenState extends State<WeeklyReviewHistoryScreen> {
         const MindfulBackground(),
         Scaffold(
           backgroundColor: Colors.transparent,
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            surfaceTintColor: Colors.transparent,
-            scrolledUnderElevation: 0,
+          appBar: PageAppBar(
             title: const Text('Historique des bilans'),
           ),
           body: BackdropGroup(
@@ -79,7 +77,7 @@ class _WeeklyReviewHistoryScreenState extends State<WeeklyReviewHistoryScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            FluentIcons.calendar_week_numbers_24_regular,
+                            FluentIcons.calendar_checkmark_24_regular,
                             size: 48,
                             color: colors.primary,
                           ),

@@ -38,7 +38,7 @@ class SystemsRemindersSection extends ConsumerWidget {
         _ReminderCard(
           title: 'Systèmes du jour',
           subtitle: 'Un rappel quotidien pour passer à l’action.',
-          icon: FluentIcons.branch_20_filled,
+          icon: FluentIcons.leaf_two_20_filled,
           heroTag: 'systems-daily-reminder-time',
           reminder: config.daily,
           position: ItemPosition.top,
