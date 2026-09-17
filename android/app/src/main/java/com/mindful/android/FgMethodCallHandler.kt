@@ -9,9 +9,8 @@ import androidx.activity.result.ActivityResultLauncher
 import com.mindful.android.enums.DndWakeLock
 import com.mindful.android.generics.SafeServiceConnection
 import com.mindful.android.generics.ServiceBinder
-import com.mindful.android.helpers.AlarmTasksSchedulingHelper.cancelBedtimeRoutineTasks
+import com.mindful.android.helpers.AlarmTasksSchedulingHelper
 import com.mindful.android.helpers.AlarmTasksSchedulingHelper.cancelNotificationBatchTask
-import com.mindful.android.helpers.AlarmTasksSchedulingHelper.scheduleBedtimeRoutineTasks
 import com.mindful.android.helpers.AlarmTasksSchedulingHelper.scheduleNotificationBatchTask
 import com.mindful.android.helpers.AlarmTasksSchedulingHelper.scheduleSystemsReminders
 import com.mindful.android.helpers.AlarmTasksSchedulingHelper.scheduleTaskReminders
@@ -22,7 +21,6 @@ import com.mindful.android.helpers.device.PermissionsHelper
 import com.mindful.android.helpers.storage.SharedPrefsHelper
 import com.mindful.android.helpers.usages.AppsUsageHelper.getAppsUsageForInterval
 import com.mindful.android.models.AppRestriction
-import com.mindful.android.models.BedtimeSchedule
 import com.mindful.android.models.FocusSession
 import com.mindful.android.models.Notification
 import com.mindful.android.models.NotificationSettings
@@ -203,17 +201,8 @@ class FgMethodCallHandler(
                 result.success(true)
             }
 
-            "updateBedtimeSchedule" -> {
-                val jsonBedtimeSettings = call.arguments() ?: ""
-                val bedtimeSettings = BedtimeSchedule.fromJson(jsonBedtimeSettings)
-                if (bedtimeSettings.isScheduleOn) {
-                    scheduleBedtimeRoutineTasks(context, jsonBedtimeSettings)
-                } else {
-                    cancelBedtimeRoutineTasks(context)
-                    if (bedtimeSettings.shouldStartDnd) {
-                        NotificationHelper.toggleDnd(context, DndWakeLock.BEDTIME_MODE, false)
-                    }
-                }
+            "cleanupLegacyBedtime" -> {
+                AlarmTasksSchedulingHelper.cleanupLegacyBedtime(context)
                 result.success(true)
             }
 
@@ -252,6 +241,14 @@ class FgMethodCallHandler(
                     focusServiceConn.service?.giveUpOrStopFocusSession(call.arguments() ?: false)
                     focusServiceConn.unBindService()
                 }
+                result.success(true)
+            }
+
+            "updateIntentionSuggestions" -> {
+                SharedPrefsHelper.getSetIntentionSuggestionsJson(
+                    context,
+                    call.arguments() ?: "{}",
+                )
                 result.success(true)
             }
 

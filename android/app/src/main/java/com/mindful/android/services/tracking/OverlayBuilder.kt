@@ -19,8 +19,13 @@ import com.mindful.android.models.RestrictionState
 import com.mindful.android.utils.AppUtils
 import com.mindful.android.utils.DateTimeUtils
 import com.mindful.android.utils.ThreadUtils
+import com.mindful.android.helpers.storage.SharedPrefsHelper
+import org.json.JSONObject
+import kotlin.random.Random
 
 object OverlayBuilder {
+    private const val TASKS_DEEP_LINK = "com.mindful.android://open/tasks"
+
     /// Seconds the user must wait before the conscious-opening
     /// "Continue" button becomes tappable.
     private const val UNLOCK_DELAY_SECONDS = 15
@@ -71,7 +76,6 @@ object OverlayBuilder {
         limitType.text = context.getString(
             when (state.type) {
                 RestrictionType.FOCUS -> R.string.app_paused_restriction_focus_mode
-                RestrictionType.BEDTIME -> R.string.app_paused_restriction_bedtime_mode
                 RestrictionType.LAUNCH_COUNT -> R.string.app_paused_restriction_launch_count
                 RestrictionType.APP_TIMER -> R.string.app_paused_restriction_app_timer
                 RestrictionType.APP_ACTIVE_PERIOD -> R.string.app_paused_restriction_app_active_period
@@ -223,6 +227,8 @@ object OverlayBuilder {
         refreshContinueButton(sheetView)
         countDownTimer.start()
 
+        bindSuggestions(context, sheetView, dismissOverlay)
+
         sheetView.findViewById<Button>(R.id.overlay_sheet_btn_intention_cancel)
             .setOnClickListener {
                 val homeIntent = Intent(Intent.ACTION_MAIN).apply {
@@ -249,6 +255,86 @@ object OverlayBuilder {
         }
 
         return sheetView
+    }
+
+    /**
+     * Offers the most urgent task and a random system as better uses of the
+     * moment. Tapping one opens it in Mindful instead of the app.
+     */
+    @MainThread
+    private fun bindSuggestions(
+        context: Context,
+        sheetView: View,
+        dismissOverlay: () -> Unit,
+    ) {
+        val suggestions = runCatching {
+            JSONObject(SharedPrefsHelper.getSetIntentionSuggestionsJson(context, null))
+        }.getOrNull() ?: return
+
+        fun openInMindful(uri: String) {
+            runCatching {
+                context.applicationContext.startActivity(
+                    AppUtils.getIntentForMindfulUri(context, uri)
+                )
+            }
+            dismissOverlay.invoke()
+        }
+
+        var hasAny = false
+
+        suggestions.optJSONObject("task")?.let { task ->
+            val title = task.optString("title")
+            if (title.isBlank()) return@let
+            hasAny = true
+            sheetView.findViewById<View>(R.id.overlay_sheet_suggestion_task).apply {
+                visibility = View.VISIBLE
+                setOnClickListener { openInMindful(TASKS_DEEP_LINK) }
+            }
+            sheetView.findViewById<TextView>(R.id.overlay_sheet_suggestion_task_label).text =
+                context.getString(
+                    if (task.optBoolean("isUrgent")) R.string.opening_intent_suggestion_task_label
+                    else R.string.opening_intent_suggestion_next_task_label
+                )
+            sheetView.findViewById<TextView>(R.id.overlay_sheet_suggestion_task_title).text = title
+            val due = task.optString("dueLabel")
+            if (due.isNotBlank()) {
+                sheetView.findViewById<TextView>(R.id.overlay_sheet_suggestion_task_subtitle)
+                    .apply {
+                        visibility = View.VISIBLE
+                        text = due
+                    }
+            }
+        }
+
+        suggestions.optJSONArray("systems")?.let { systems ->
+            if (systems.length() == 0) return@let
+            val system = systems.optJSONObject(Random.nextInt(systems.length())) ?: return@let
+            val name = system.optString("name")
+            if (name.isBlank()) return@let
+            hasAny = true
+            val id = system.optInt("id")
+            sheetView.findViewById<View>(R.id.overlay_sheet_suggestion_system).apply {
+                visibility = View.VISIBLE
+                setOnClickListener {
+                    openInMindful("com.mindful.android://open/systemDetail?id=$id")
+                }
+            }
+            sheetView.findViewById<TextView>(R.id.overlay_sheet_suggestion_system_label).text =
+                context.getString(R.string.opening_intent_suggestion_system_label)
+            sheetView.findViewById<TextView>(R.id.overlay_sheet_suggestion_system_title).text = name
+            val identity = system.optString("identity")
+            if (identity.isNotBlank()) {
+                sheetView.findViewById<TextView>(R.id.overlay_sheet_suggestion_system_subtitle)
+                    .apply {
+                        visibility = View.VISIBLE
+                        text = "« $identity »"
+                    }
+            }
+        }
+
+        if (hasAny) {
+            sheetView.findViewById<View>(R.id.overlay_sheet_suggestions).visibility = View.VISIBLE
+        }
     }
 
     @MainThread
@@ -297,9 +383,6 @@ object OverlayBuilder {
         return when (state.type) {
             RestrictionType.FOCUS ->
                 context.getString(R.string.app_paused_reason_focus_session)
-
-            RestrictionType.BEDTIME ->
-                context.getString(R.string.app_paused_reason_bedtime)
 
             RestrictionType.LAUNCH_COUNT ->
                 context.getString(R.string.app_paused_reason_launch_count_out)

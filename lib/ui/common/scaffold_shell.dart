@@ -403,7 +403,7 @@ class AppBarTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Skeleton.leaf(
       child: StyledText(
-        titleText.isEmpty ? "Title" : titleText,
+        titleText.isEmpty ? "Titre" : titleText,
         fontSize: 24,
         maxLines: 2,
         fontWeight: FontWeight.w700,

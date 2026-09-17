@@ -28,7 +28,6 @@ object AppConstants {
     const val VPN_SERVICE_NOTIFICATION_ID: Int = 102
     const val EMERGENCY_PAUSE_SERVICE_NOTIFICATION_ID: Int = 103
     const val FOCUS_SESSION_SERVICE_NOTIFICATION_ID: Int = 104
-    const val BEDTIME_ROUTINE_NOTIFICATION_ID: Int = 105
     const val NOTIFICATION_BATCH_SCHEDULE_NOTIFICATION_ID: Int = 106
 
     const val SETTINGS_PACKAGE: String = "com.android.settings"

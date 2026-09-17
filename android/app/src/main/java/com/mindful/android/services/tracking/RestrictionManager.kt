@@ -20,7 +20,6 @@ class RestrictionManager(
 
     val isIdle: Boolean
         get() = focusedApps.isEmpty()
-                && bedtimeApps.isEmpty()
                 && appsRestrictions.isEmpty()
                 && restrictionGroups.isEmpty()
 
@@ -30,7 +29,6 @@ class RestrictionManager(
 
     // Focus
     private var focusedApps = setOf<String>()
-    private var bedtimeApps = setOf<String>()
 
     //  Cache
     private val appsLaunchCount = HashMap<String, Int>(0)
@@ -69,12 +67,6 @@ class RestrictionManager(
         Log.d(TAG, "updateFocusedApps: Focus apps updated: $focusedApps")
     }
 
-    fun updateBedtimeApps(apps: Set<String>?) {
-        bedtimeApps = apps ?: emptySet()
-        if (apps == null) stopIfNoUsage.invoke()
-        Log.d(TAG, "updateBedtimeApps: Bedtime apps updated: $bedtimeApps")
-    }
-
     fun getIntentPromptGroup(packageName: String): RestrictionGroup? =
         restrictionGroups.values.firstOrNull { group ->
             group.isIntentPromptEnabled && group.distractingApps.contains(packageName)
@@ -87,7 +79,7 @@ class RestrictionManager(
         includeScreenTime: Boolean = true,
         incrementLaunchCount: Boolean = true,
     ): RestrictionState? {
-        // If already restricted by focus or bedtime or cached
+        // If already restricted by focus or cached
         val alreadyRestrictedState = evaluateIfAlreadyRestricted(packageName)
         if (alreadyRestrictedState != null) {
             return alreadyRestrictedState
@@ -131,10 +123,6 @@ class RestrictionManager(
         return when {
             focusedApps.contains(packageName) -> RestrictionState(
                 type = RestrictionType.FOCUS
-            )
-
-            bedtimeApps.contains(packageName) -> RestrictionState(
-                type = RestrictionType.BEDTIME,
             )
 
             alreadyRestrictedApps.containsKey(packageName) -> alreadyRestrictedApps[packageName]

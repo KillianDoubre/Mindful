@@ -24,6 +24,9 @@ import 'package:mindful/ui/screens/shorts_blocking/shorts_blocking_screen.dart';
 import 'package:mindful/ui/screens/notifications/notifications_screen.dart';
 import 'package:mindful/ui/screens/productivity/notes_screen.dart';
 import 'package:mindful/ui/screens/productivity/tasks_screen.dart';
+import 'package:mindful/ui/screens/systems/system_detail_screen.dart';
+import 'package:mindful/ui/screens/weekly_review/weekly_review_history_screen.dart';
+import 'package:mindful/ui/screens/weekly_review/weekly_review_screen.dart';
 import 'package:mindful/ui/screens/websites_blocking/websites_blocking_screen.dart';
 import 'package:mindful/ui/splash_screen.dart';
 
@@ -43,6 +46,9 @@ class AppRoutes {
   static const String websitesBlockingPath = '/websitesBlocking';
   static const String tasksPath = '/tasks';
   static const String notesPath = '/notes';
+  static const String weeklyReviewPath = '/weeklyReview';
+  static const String weeklyReviewHistoryPath = '/weeklyReviewHistory';
+  static const String systemDetailPath = '/systemDetail';
 
   static const String appDashboardPath = '/appDashboard';
   static const String notificationsPath = '/notifications';
@@ -85,6 +91,15 @@ class AppRoutes {
     /// Personal productivity screens
     tasksPath: (context) => const TasksScreen(),
     notesPath: (context) => const NotesScreen(),
+
+    /// Sunday review and its history
+    weeklyReviewPath: (context) => const WeeklyReviewScreen(),
+    weeklyReviewHistoryPath: (context) => const WeeklyReviewHistoryScreen(),
+
+    /// One system, e.g. from the conscious-opening suggestion
+    systemDetailPath: (context) => SystemDetailScreen(
+          systemId: context.resolveParam<int>("id") ?? -1,
+        ),
 
     /// Notifications list screen
     notificationsPath: (context) => NotificationsScreen(

@@ -46,6 +46,9 @@ class SystemsReminderReceiver : BroadcastReceiver() {
 
         /// Deep link opening the Systems tab (index 1 on the home screen).
         private const val SYSTEMS_DEEP_LINK = "com.mindful.android://open/home?tab=1"
+
+        /// The weekly nudge leads to the Sunday review.
+        private const val WEEKLY_REVIEW_DEEP_LINK = "com.mindful.android://open/weeklyReview"
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -63,6 +66,7 @@ class SystemsReminderReceiver : BroadcastReceiver() {
                     today,
                     DAILY_NOTIFICATION_ID,
                     context.getString(R.string.systems_daily_reminder_notification_info),
+                    SYSTEMS_DEEP_LINK,
                 )
 
                 ACTION_WEEKLY_SYSTEMS_REVIEW -> maybePush(
@@ -71,6 +75,7 @@ class SystemsReminderReceiver : BroadcastReceiver() {
                     today,
                     WEEKLY_NOTIFICATION_ID,
                     context.getString(R.string.systems_weekly_reminder_notification_info),
+                    WEEKLY_REVIEW_DEEP_LINK,
                 )
             }
 
@@ -88,6 +93,7 @@ class SystemsReminderReceiver : BroadcastReceiver() {
         todayIndex: Int,
         notificationId: Int,
         text: String,
+        deepLink: String,
     ) {
         if (!reminder.isEnabled) return
         if (!reminder.days.getOrElse(todayIndex) { false }) return
@@ -102,7 +108,7 @@ class SystemsReminderReceiver : BroadcastReceiver() {
                 .setAutoCancel(true)
                 .setOnlyAlertOnce(true)
                 .setContentIntent(
-                    AppUtils.getPendingIntentForMindfulUri(context, SYSTEMS_DEEP_LINK)
+                    AppUtils.getPendingIntentForMindfulUri(context, deepLink)
                 )
                 .setContentTitle(context.getString(R.string.app_name))
                 .setContentText(text)

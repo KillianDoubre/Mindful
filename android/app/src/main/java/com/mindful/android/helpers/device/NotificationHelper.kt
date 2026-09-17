@@ -41,7 +41,7 @@ object NotificationHelper {
     // Notification channel IDs
     const val CRITICAL_CHANNEL_ID: String = "mindful.notification.channel.CRITICAL"
     const val FOCUS_CHANNEL_ID: String = "mindful.notification.channel.FOCUS"
-    const val BEDTIME_CHANNEL_ID: String = "mindful.notification.channel.BEDTIME"
+    private const val LEGACY_BEDTIME_CHANNEL_ID: String = "mindful.notification.channel.BEDTIME"
     const val NOTIFICATION_BATCHING_CHANNEL_ID: String =
         "mindful.notification.channel.NOTIFICATION_BATCHING"
     private const val SERVICE_CHANNEL_ID: String =
@@ -61,67 +61,58 @@ object NotificationHelper {
             // Create channels
             val criticalChannel = NotificationChannel(
                 CRITICAL_CHANNEL_ID,
-                "Critical Alerts",
+                "Alertes importantes",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description =
-                    "These notifications include crucial updates regarding the essential system operations to ensure Mindful runs smoothly."
+                    "Informations essentielles au bon fonctionnement de Mindful."
             }
 
             val focusChannel = NotificationChannel(
                 FOCUS_CHANNEL_ID,
-                "Focus Sessions",
+                "Sessions de concentration",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description =
-                    "These notifications include updates regarding focus sessions to help you stay on track."
-            }
-
-            val bedtimeChannel = NotificationChannel(
-                BEDTIME_CHANNEL_ID,
-                "Bedtime Routine",
-                NotificationManager.IMPORTANCE_DEFAULT
-            ).apply {
-                description =
-                    "These notifications include updates regarding bedtime routine to help you get a peaceful sleep."
+                    "Suivi de vos sessions de concentration."
             }
 
             val notificationBatchingChannel = NotificationChannel(
                 NOTIFICATION_BATCHING_CHANNEL_ID,
-                "Notification Batch",
+                "Notifications regroupées",
                 NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
                 description =
-                    "These notifications include summaries or all batched notifications from your scheduled notification batches."
+                    "Résumés et notifications regroupées envoyés à vos horaires."
             }
 
             val serviceChannel = NotificationChannel(
                 SERVICE_CHANNEL_ID,
-                "Running Services",
+                "Services en cours",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
                 description =
-                    "These are non-critical notifications. They can be disabled but are included to comply with Android requirements."
+                    "Notifications non essentielles, exigées par Android. Vous pouvez les désactiver."
             }
 
             val usageRemindersChannel = NotificationChannel(
                 USAGE_REMINDERS_CHANNEL_ID,
-                "Usage Reminders",
+                "Rappels d’utilisation",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 setSound(null, null)
                 enableVibration(true)
                 description =
-                    "These notifications include usage reminders for timed apps."
+                    "Rappels de temps d’utilisation des applications limitées."
             }
 
             val systemsChannel = NotificationChannel(
                 SYSTEMS_CHANNEL_ID,
-                "Systems Reminders",
+                "Rappels des systèmes",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description =
-                    "These notifications remind you to work on your systems and to run your weekly review."
+                    "Rappels pour faire avancer vos systèmes et faire votre bilan de la semaine."
             }
 
             val tasksChannel = NotificationChannel(
@@ -136,11 +127,12 @@ object NotificationHelper {
             // Register channels
             val notificationManager =
                 context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            // Bedtime was removed
+            notificationManager.deleteNotificationChannel(LEGACY_BEDTIME_CHANNEL_ID)
             notificationManager.createNotificationChannels(
                 listOf(
                     criticalChannel,
                     focusChannel,
-                    bedtimeChannel,
                     notificationBatchingChannel,
                     serviceChannel,
                     tasksChannel,
@@ -202,7 +194,7 @@ object NotificationHelper {
                 .setStyle(NotificationCompat.BigTextStyle().bigText(msg))
                 .addAction(
                     0, // No icon = text-only button
-                    "Allow",
+                    "Autoriser",
                     pendingIntent
                 )
                 .build()

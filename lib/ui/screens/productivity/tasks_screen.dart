@@ -243,19 +243,29 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
   Future<void> _toggleCompleted(ProductivityItem task) async {
     HapticFeedback.lightImpact();
     final messenger = ScaffoldMessenger.of(context);
-    final completing = !task.isCompleted;
-    await _saveTask(task, isCompleted: completing);
-    if (!completing) return;
+    final notifier = _notifier;
+    if (task.isCompleted) {
+      await notifier.uncompleteTask(task);
+      return;
+    }
+
+    final result = await notifier.completeTask(task);
+    if (!mounted) return;
+    final next = result.nextDueAt;
     messenger
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
           persist: false,
           duration: const Duration(seconds: 5),
-          content: Text('« ${task.title} » terminée'),
+          content: Text(
+            next == null
+                ? '« ${task.title} » terminée'
+                : 'Bien joué ! Prochaine fois : ${formatDue(context, next)}',
+          ),
           action: SnackBarAction(
             label: 'Annuler',
-            onPressed: () => _saveTask(task, isCompleted: false),
+            onPressed: () => notifier.undoCompletion(task, result),
           ),
         ),
       );
@@ -592,6 +602,17 @@ class _TaskCard extends StatelessWidget {
                                   isCompleted: task.isCompleted,
                                 ),
                               ),
+                              if (task.recurrence.isRepeating) ...[
+                                const SizedBox(width: 8),
+                                Tooltip(
+                                  message: task.recurrence.label,
+                                  child: Icon(
+                                    FluentIcons.arrow_repeat_all_16_regular,
+                                    size: 15,
+                                    color: colors.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
                               if (task.reminderOffsets.isNotEmpty &&
                                   !task.isCompleted) ...[
                                 const SizedBox(width: 8),

@@ -11,6 +11,7 @@
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:mindful/ui/screens/weekly_review/weekly_review_entry_card.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mindful/config/navigation/app_routes.dart';
 import 'package:mindful/core/enums/default_home_tab.dart';
@@ -83,6 +84,8 @@ class TabDashboard extends ConsumerWidget {
               ),
 
               12.vBox,
+              const WeeklyReviewEntryCard(),
+              8.vBox,
               SystemsSummaryCard(
                 onTap: () => TabControllerProvider.maybeOf(context)?.animateToTab(
                   DefaultHomeTab.systems.navigationIndex,
@@ -119,20 +122,9 @@ class TabDashboard extends ConsumerWidget {
           title: context.locale.restrictions_heading,
         ),
 
-        /// Apps blocking
-        DefaultListTile(
-          position: ItemPosition.top,
-          leadingIcon: FluentIcons.app_title_20_regular,
-          titleText: context.locale.apps_blocking_tile_title,
-          subtitleText: context.locale.apps_blocking_tile_subtitle,
-          onPressed: () => TabControllerProvider.maybeOf(context)?.animateToTab(
-            DefaultHomeTab.statistics.navigationIndex,
-          ),
-        ),
-
         /// Grouped apps blocking
         DefaultListTile(
-          position: ItemPosition.mid,
+          position: ItemPosition.top,
           leadingIcon: FluentIcons.app_recent_20_regular,
           titleText: context.locale.grouped_apps_blocking_tile_title,
           subtitleText: context.locale.grouped_apps_blocking_tile_subtitle,

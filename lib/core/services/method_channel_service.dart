@@ -249,11 +249,12 @@ class MethodChannelService {
   /// Updates the bedtime schedule.
   ///
   /// This method takes a [BedtimeSchedule] object and sends it to the native side
-  Future<bool> updateBedtimeSchedule(BedtimeSchedule bedtimeSettings) async =>
-      await _methodChannel.invokeMethod(
-        'updateBedtimeSchedule',
-        jsonEncode(bedtimeSettings),
-      );
+  Future<bool> cleanupLegacyBedtime() async =>
+      await _methodChannel.invokeMethod('cleanupLegacyBedtime');
+
+  /// Sends the task and systems the conscious-opening prompt offers instead.
+  Future<bool> updateIntentionSuggestions(String json) async =>
+      await _methodChannel.invokeMethod('updateIntentionSuggestions', json);
 
   /// Replaces every scheduled task reminder on the native side.
   ///

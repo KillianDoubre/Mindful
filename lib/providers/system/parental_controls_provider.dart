@@ -36,13 +36,13 @@ class ParentalControlsNotifier extends StateNotifier<ParentalControls> {
   ///
   /// When start == end the window is treated as unset and always open, so the
   /// user can never lock themselves out (e.g. on the zero/zero default).
-  bool get isBetweenWindow =>
-      state.uninstallWindowTime.toMinutes == state.invincibleWindowTime.toMinutes
-          ? true
-          : DateTime.now().isBetweenTod(
-              state.uninstallWindowTime,
-              state.invincibleWindowTime,
-            );
+  bool get isBetweenWindow => state.uninstallWindowTime.toMinutes ==
+          state.invincibleWindowTime.toMinutes
+      ? true
+      : DateTime.now().isBetweenTod(
+          state.uninstallWindowTime,
+          state.invincibleWindowTime,
+        );
 
   /// Kept for the existing call sites that gate uninstalling / editing
   /// restrictions — both now resolve to the shared [isBetweenWindow].
@@ -99,7 +99,4 @@ class ParentalControlsNotifier extends StateNotifier<ParentalControls> {
 
   void toggleIncludeShortsTimer() =>
       state = state.copyWith(includeShortsTimer: !state.includeShortsTimer);
-
-  void toggleIncludeBedtimeSchedule() => state =
-      state.copyWith(includeBedtimeSchedule: !state.includeBedtimeSchedule);
 }

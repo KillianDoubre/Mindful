@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mindful/models/productivity_item.dart';
+import 'package:mindful/models/task_recurrence.dart';
 import 'package:mindful/providers/productivity/productivity_items_provider.dart';
 import 'package:mindful/ui/common/glass_surface.dart';
 import 'package:mindful/core/services/task_reminders_service.dart';
@@ -55,6 +56,7 @@ class _TaskEditorSheetState extends ConsumerState<_TaskEditorSheet> {
   late bool _isCompleted;
   DateTime? _dueAt;
   late List<int> _reminders;
+  late TaskRecurrence _recurrence;
   int? _taskId;
 
   Timer? _saveTimer;
@@ -73,6 +75,7 @@ class _TaskEditorSheetState extends ConsumerState<_TaskEditorSheet> {
     _isCompleted = widget.task?.isCompleted ?? false;
     _dueAt = widget.task?.dueAt;
     _reminders = [...?widget.task?.reminderOffsets];
+    _recurrence = widget.task?.recurrence ?? TaskRecurrence.none;
     _taskId = widget.task?.id;
     _lastTitle = _titleController.text;
     _lastDetails = _detailsController.text;
@@ -127,6 +130,7 @@ class _TaskEditorSheetState extends ConsumerState<_TaskEditorSheet> {
         isCompleted: _isCompleted,
         dueAt: _dueAt,
         reminderOffsets: _reminders,
+        recurrence: _recurrence,
       ),
       id: _taskId,
     );
@@ -142,10 +146,65 @@ class _TaskEditorSheetState extends ConsumerState<_TaskEditorSheet> {
     _markChanged();
   }
 
-  void _toggleCompleted() {
-    HapticFeedback.lightImpact();
-    setState(() => _isCompleted = !_isCompleted);
+  void _setRecurrence(TaskRecurrence recurrence) {
+    setState(() {
+      _recurrence = recurrence;
+      // A repeating task needs a date to repeat from
+      if (recurrence.isRepeating && _dueAt == null) {
+        _dueAt = DueShortcut.today.resolve(DateTime.now(), null);
+      }
+    });
     _markChanged();
+  }
+
+  Future<void> _toggleCompleted() async {
+    HapticFeedback.lightImpact();
+    await _flush();
+    final id = _taskId;
+    final task = id == null
+        ? null
+        : ref
+            .read(productivityItemsProvider(ProductivityItemType.task))
+            .valueOrNull
+            ?.where((item) => item.id == id)
+            .firstOrNull;
+
+    // Not saved yet (no title): only the local state changes
+    if (task == null) {
+      setState(() => _isCompleted = !_isCompleted);
+      _markChanged();
+      return;
+    }
+
+    if (_isCompleted) {
+      await _tasks.uncompleteTask(task);
+      if (mounted) setState(() => _isCompleted = false);
+      return;
+    }
+
+    final result = await _tasks.completeTask(task);
+    if (!mounted) return;
+    final next = result.nextDueAt;
+    setState(() {
+      if (next == null) {
+        _isCompleted = true;
+      } else {
+        _dueAt = next;
+      }
+    });
+    if (next != null) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            persist: false,
+            duration: const Duration(seconds: 4),
+            content: Text(
+              'Bien joué ! Prochaine fois : ${formatDue(context, next)}',
+            ),
+          ),
+        );
+    }
   }
 
   Future<void> _delete() async {
@@ -269,6 +328,11 @@ class _TaskEditorSheetState extends ConsumerState<_TaskEditorSheet> {
                     onChanged: _setDue,
                     reminders: _reminders,
                     onRemindersChanged: _setReminders,
+                  ),
+                  const SizedBox(height: 16),
+                  _RecurrenceSection(
+                    recurrence: _recurrence,
+                    onChanged: _setRecurrence,
                   ),
                 ],
               ),
@@ -405,6 +469,60 @@ class _DueSection extends StatelessWidget {
       picked.hour,
       picked.minute,
     ));
+  }
+}
+
+/// How the task repeats.
+class _RecurrenceSection extends StatelessWidget {
+  const _RecurrenceSection({
+    required this.recurrence,
+    required this.onChanged,
+  });
+
+  final TaskRecurrence recurrence;
+  final ValueChanged<TaskRecurrence> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            'RÉPÉTER',
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: colors.onSurfaceVariant,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.8,
+                ),
+          ),
+        ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final value in TaskRecurrence.values)
+              ChoiceChip(
+                label: Text(value.label),
+                selected: value == recurrence,
+                onSelected: (_) => onChanged(value),
+              ),
+          ],
+        ),
+        if (recurrence.isRepeating)
+          Padding(
+            padding: const EdgeInsets.only(left: 4, top: 8),
+            child: Text(
+              'Une fois cochée, la tâche revient à sa prochaine date.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
+            ),
+          ),
+      ],
+    );
   }
 }
 

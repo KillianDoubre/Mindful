@@ -17,7 +17,11 @@ flutter build apk                     # release APK
 ```
 
 - **`build_runner` is not optional.** Drift generates `app_database.g.dart` and other `*.g.dart` files that are gitignored. A fresh checkout won't compile until you run it. Re-run after touching any `@DriftDatabase`, table, DAO, or other codegen-annotated file.
-- **No test suite exists** (`test/` is empty, only `flutter_test` is wired up). There is no `flutter test` to run.
+- **Tests:** `flutter test` runs the Dart suite (models, services, real SQLite repositories through an in-memory database, widgets). Native pure-Kotlin logic is tested with JUnit: `cd android && ./gradlew :app:testDebugUnitTest`. Run both before shipping a change.
+  - `test/helpers/test_env.dart` gives an in-memory database (`useInMemoryDatabase`) and a fake native channel (`mockNativeChannel`, `callsTo`).
+  - Repositories are singletons that create their tables once per isolate: open one database per test file (`setUpAll`) and empty tables in `setUp` (`clearTables`).
+  - The host SQLite has no `'localtime'` date modifier (it returns NULL): compute local days in Dart, never in SQL.
+  - `SystemsRepository._db` is `dynamic`, so the analyzer cannot type-check it: cast query results (`as List<QueryRow>`) and rely on the tests.
 - Development happens on the **`dev` branch**; PRs target `dev`, not `main` (see docs/CONTRIBUTING.md).
 - Native code is **Kotlin** under `android/app/src/main/java/com/mindful/android/` (74 files). App id `com.mindful.android`.
 

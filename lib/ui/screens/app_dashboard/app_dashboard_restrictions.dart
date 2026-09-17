@@ -121,9 +121,9 @@ class AppDashboardRestrictions extends ConsumerWidget {
                         type,
                       ),
               items: {
-                "None": ReminderType.none,
+                "Aucun": ReminderType.none,
                 "Notification": ReminderType.notification,
-                "Overlay": ReminderType.modalSheet,
+                "Fenêtre superposée": ReminderType.modalSheet,
               }
                   .entries
                   .map((e) => DefaultDropdownItem(label: e.key, value: e.value))

@@ -34,10 +34,44 @@
     <string name="opening_intent_overlay_helper">Le bouton Continuer se débloque à la fin du compte à rebours.</string>
     <string name="opening_intent_button_cancel">Annuler</string>
     <string name="opening_intent_button_continue">Continuer</string>
+    <string name="opening_intent_suggestions_title">Et si tu faisais plutôt…</string>
+    <string name="opening_intent_suggestion_task_label">Ta tâche la plus urgente</string>
+    <string name="opening_intent_suggestion_next_task_label">Ta prochaine tâche</string>
+    <string name="opening_intent_suggestion_system_label">Un système à faire avancer</string>
 
     <string name="app_screen_time_usage_info" formatted="true">Utilisé pendant %s</string>
     <string name="focus_session_completed_notification_info">Session de concentration terminée.</string>
     <string name="focus_session_stopped_notification_info">Session de concentration arrêtée.</string>
     <string name="systems_daily_reminder_notification_info">C\'est le moment d\'avancer sur tes systèmes du jour. Ouvre Systèmes et fais une petite preuve d\'identité.</string>
     <string name="systems_weekly_reminder_notification_info">C\'est l\'heure de ta revue hebdomadaire. Ouvre Systèmes pour faire le bilan de la semaine.</string>
+    <string name="accessibility_description">Mindful utilise les services d’accessibilité pour bloquer des sites web et les contenus courts dans les applications. Il compare les adresses et les contenus à votre liste de blocage et en empêche l’accès pour vous aider à rester concentré.\n\n⚠️ Remarque : votre vie privée est notre priorité. Mindful est 100 % sécurisé et fonctionne hors ligne. Nous ne collectons ni ne stockons aucune donnée personnelle.</string>
+    <string name="admin_description">Mindful ne collecte, ne stocke ni ne transmet aucune donnée. En tant que logiciel libre, son code source peut être consulté et modifié. L’accès administrateur sert uniquement à empêcher la désinstallation de l’application pendant les restrictions actives.</string>
+    <string name="toast_enable_notification">Veuillez activer les notifications</string>
+    <string name="toast_redirecting">Filtrage des résultats de recherche</string>
+    <string name="toast_dnd_utilized_by_feature">%s utilise actuellement le mode Ne pas déranger.</string>
+    <string name="service_running_notification_title">Mindful est actif</string>
+    <string name="shortcut_focus_mode_label">Mode concentration</string>
+    <string name="shortcut_focus_mode_description">Lancez rapidement une session de concentration avec vos profils.</string>
+    <string name="shortcut_upcoming_notifications_label">Notifications regroupées</string>
+    <string name="shortcut_upcoming_notifications_description">Consultez les prochaines notifications regroupées.</string>
+    <string name="shortcut_parental_controls_label">Contrôle parental</string>
+    <string name="shortcut_parental_controls_description">Gérez le contrôle parental et les réglages de sécurité</string>
+    <string name="focus_quick_tile_status_active">Active</string>
+    <string name="usage_widget_description">Suivez chaque jour votre temps d’écran et vos données</string>
+    <string name="widget_screen_time_label">Temps d’écran</string>
+    <string name="widget_mobile_data_label">Mobile</string>
+    <string name="widget_wifi_data_label">Wi-Fi</string>
+    <string name="widget_aggregated_usage_label">Utilisation totale</string>
+    <string name="internet_blocker_running_notification_info">Mindful gère maintenant l’accès à Internet pour vous aider à rester concentré.</string>
+    <string name="app_blocker_running_notification_info">Mindful suit maintenant l’utilisation des applications pour vous aider à rester concentré et à maîtriser vos habitudes numériques.</string>
+    <string name="overlay_permission_denied_notification_title">Autorisation refusée</string>
+    <string name="overlay_permission_denied_notification_info">Autorisez Mindful à s’afficher par-dessus les autres applications en touchant cette notification. Sur l’écran suivant, trouvez Mindful dans la liste et activez l’autorisation.</string>
+    <string name="emergency_pause_notification_title">Pause d’urgence</string>
+    <string name="emergency_pause_notification_info">Le blocage des applications reprendra dans %s</string>
+    <string name="emergency_pause_ended_notification_info">La pause d’urgence est terminée et le blocage des applications est de retour. Les distractions sont à nouveau bloquées, restez concentré !</string>
+    <string name="focus_session_notification_title">Session de concentration</string>
+    <string name="focus_session_notification_info">La session de concentration se termine dans %s</string>
+    <string name="focus_session_infinite_notification_info">Vous êtes concentré depuis %s</string>
+    <string name="notification_schedule_batch_title">Notifications non lues</string>
+    <string name="notification_schedule_batch_summery">Vous avez reçu %d notifications non lues pendant votre absence. Elles seront marquées comme lues après 24 heures.</string>
 </resources>

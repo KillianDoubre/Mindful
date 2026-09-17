@@ -181,7 +181,6 @@ class TabGeneral extends ConsumerWidget {
               label: context.locale.notifications_tab_title,
               value: DefaultHomeTab.notifications,
             ),
-            // NOTE: Bedtime option removed along with the hidden Bedtime tab.
           ],
         ).sliver,
 

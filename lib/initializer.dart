@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mindful/core/services/drift_db_service.dart';
 import 'package:mindful/core/services/method_channel_service.dart';
+import 'package:mindful/core/services/intention_suggestions_service.dart';
 import 'package:mindful/core/services/productivity_repository.dart';
 import 'package:mindful/core/services/systems_repository.dart';
 import 'package:mindful/core/services/task_reminders_service.dart';
@@ -45,9 +46,8 @@ class Initializer {
     await MethodChannelService.instance
         .updateRestrictionsGroups(restrictionGroups);
 
-    /// Fetch and update bedtime routine
-    final bedtime = await uniqueDao.loadBedtimeSchedule();
-    await MethodChannelService.instance.updateBedtimeSchedule(bedtime);
+    /// Bedtime was removed: clear any alarm or DND it left behind
+    await MethodChannelService.instance.cleanupLegacyBedtime();
 
     /// Fetch and update wellbeing
     final wellbeing = await uniqueDao.loadWellBeingSettings();
@@ -63,6 +63,8 @@ class Initializer {
         await SystemsRepository.instance.loadRemindersConfig();
     await MethodChannelService.instance
         .updateSystemsReminders(systemsReminders);
+
+    await IntentionSuggestionsService.push();
 
     // Alarms are lost on reboot: schedule the task reminders again
     await TaskRemindersService.sync(

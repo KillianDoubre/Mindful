@@ -65,7 +65,9 @@ class _ContextMenuCardState<T extends Object>
   static const _dragSlop = 12.0;
 
   OverlayEntry? _menuEntry;
-  Offset? _dragOrigin;
+
+  /// Where the finger went down, to measure how far a drag has moved.
+  Offset? _pointerDown;
 
   bool get _isMenuOpen => _menuEntry != null;
 
@@ -116,7 +118,7 @@ class _ContextMenuCardState<T extends Object>
   }
 
   void _onDragUpdate(DragUpdateDetails details) {
-    final origin = _dragOrigin ??= details.globalPosition;
+    final origin = _pointerDown ??= details.globalPosition;
     if (_isMenuOpen && (details.globalPosition - origin).distance > _dragSlop) {
       _hideMenu();
     }
@@ -143,7 +145,10 @@ class _ContextMenuCardState<T extends Object>
       },
       // The menu draws its own copy of the card on top; hide this one so the
       // copy's blur does not ghost it
-      child: Opacity(opacity: _isMenuOpen ? 0 : 1, child: content),
+      child: Listener(
+        onPointerDown: (event) => _pointerDown = event.position,
+        child: Opacity(opacity: _isMenuOpen ? 0 : 1, child: content),
+      ),
     );
   }
 
@@ -154,10 +159,7 @@ class _ContextMenuCardState<T extends Object>
           builder: (context, candidates, _) => LongPressDraggable<T>(
             data: dragData,
             hapticFeedbackOnStart: true,
-            onDragStarted: () {
-              _dragOrigin = null;
-              _showMenu();
-            },
+            onDragStarted: _showMenu,
             onDragUpdate: _onDragUpdate,
             feedback: Material(
               color: Colors.transparent,

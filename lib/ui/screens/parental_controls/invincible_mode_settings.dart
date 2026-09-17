@@ -181,7 +181,7 @@ class InvincibleModeSettings extends ConsumerWidget {
 
         /// Shorts timer
         DefaultListTile(
-          position: ItemPosition.mid,
+          position: ItemPosition.bottom,
           enabled: !parentalControls.isInvincibleModeOn ||
               !parentalControls.includeShortsTimer,
           isSelected: parentalControls.includeShortsTimer,
@@ -193,21 +193,6 @@ class InvincibleModeSettings extends ConsumerWidget {
           onPressed: ref
               .read(parentalControlsProvider.notifier)
               .toggleIncludeShortsTimer,
-        ).sliver,
-
-        /// Bedtime schedule
-        DefaultListTile(
-          position: ItemPosition.bottom,
-          enabled: !parentalControls.isInvincibleModeOn ||
-              !parentalControls.includeBedtimeSchedule,
-          isSelected: parentalControls.includeBedtimeSchedule,
-          leadingIcon: FluentIcons.sleep_20_regular,
-          titleText: context.locale.invincible_mode_include_bedtime_tile_title,
-          subtitleText:
-              context.locale.invincible_mode_include_bedtime_tile_subtitle,
-          onPressed: ref
-              .read(parentalControlsProvider.notifier)
-              .toggleIncludeBedtimeSchedule,
         ).sliver,
       ],
     );

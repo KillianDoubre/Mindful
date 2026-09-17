@@ -54,16 +54,29 @@ const defaultWellbeingModel = Wellbeing(
   datingResetTime: TimeOfDayAdapter.zero(),
 );
 
-const defaultBedtimeScheduleModel = BedtimeSchedule(
-  id: 0,
-  scheduleStartTime: TimeOfDayAdapter.zero(),
-  scheduleEndTime: TimeOfDayAdapter.zero(),
-  scheduleDurationInMins: 0,
-  scheduleDays: [true, true, true, true, true, false, false],
-  isScheduleOn: false,
-  shouldStartDnd: false,
-  distractingApps: [],
-);
+/// Default schedule names shipped in English by earlier versions.
+const legacyScheduleLabels = {
+  'Morning': 'Matin',
+  'Afternoon': 'Midi',
+  'Evening': 'Soir',
+  'Night': 'Nuit',
+};
+
+/// Renames the English default schedules; returns the same list when there
+/// is nothing to rename.
+List<NotificationSchedule> frenchifyScheduleLabels(
+  List<NotificationSchedule> schedules,
+) {
+  if (!schedules.any((s) => legacyScheduleLabels.containsKey(s.label))) {
+    return schedules;
+  }
+  return [
+    for (final schedule in schedules)
+      schedule.copyWith(
+        label: legacyScheduleLabels[schedule.label] ?? schedule.label,
+      ),
+  ];
+}
 
 NotificationSettings defaultNotificationSettingsModel = NotificationSettings(
   id: 0,
@@ -72,10 +85,10 @@ NotificationSettings defaultNotificationSettingsModel = NotificationSettings(
   notificationHistoryWeeks: 2,
   batchedApps: [],
   schedules: const {
-    'Morning': 480,
-    'Afternoon': 720,
-    'Evening': 960,
-    'Night': 1260,
+    'Matin': 480,
+    'Midi': 720,
+    'Soir': 960,
+    'Nuit': 1260,
   }
       .entries
       .map(

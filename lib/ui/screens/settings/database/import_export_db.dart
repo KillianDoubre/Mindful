@@ -25,6 +25,7 @@ import 'package:mindful/core/services/drift_db_service.dart';
 import 'package:mindful/core/services/method_channel_service.dart';
 import 'package:mindful/config/hero_tags.dart';
 import 'package:mindful/core/utils/db_utils.dart';
+import 'package:mindful/core/utils/db_backup_utils.dart';
 import 'package:mindful/ui/common/content_section_header.dart';
 import 'package:mindful/ui/common/default_list_tile.dart';
 import 'package:mindful/ui/dialogs/time_countdown_dialog.dart';
@@ -96,21 +97,23 @@ class _ImportExportDbState extends ConsumerState<ImportExportDb> {
         type: FileType.any,
       );
 
-      if (result == null ||
-          result.count < 1 ||
-          result.files.first.extension != 'sqlite') {
-        throw Exception(
-          'Either selected file is null or invalid extension',
-        );
+      if (result == null || result.count < 1) {
+        throw Exception('No file selected');
       }
 
       /// Backup DB file
       final backupFile = File(result.files.first.xFile.path);
 
       if (await backupFile.exists()) {
+        if (!await isSqliteDatabaseFile(backupFile)) {
+          throw Exception('Selected file is not a SQLite database');
+        }
+
         /// dispose, clean, copy
         await DriftDbService.instance.driftDb.close();
-        await originalDbFile.delete();
+        // Stale journal files of the old database would be replayed on top
+        // of the imported one and corrupt it
+        await deleteSqliteDbFiles(originalDbFile.path);
         await backupFile.copy(originalDbFile.path);
 
         /// let user know about the restart
@@ -149,8 +152,12 @@ class _ImportExportDbState extends ConsumerState<ImportExportDb> {
         throw Exception('Database file not found at ${dbFile.path}');
       }
 
-      /// export to file
-      final dbFileBytes = await dbFile.readAsBytes();
+      /// export to file: a consistent snapshot, including writes still
+      /// sitting in the write-ahead log
+      final dbFileBytes = await snapshotDatabase(
+        DriftDbService.instance.driftDb,
+        dbFile.path,
+      );
       final timeStamp = DateFormat('yyyy-MM-dThh-mm-ss').format(DateTime.now());
       final dbVersionCode = DriftDbService.instance.driftDb.schemaVersion;
       final mindfulVersionCode = MethodChannelService

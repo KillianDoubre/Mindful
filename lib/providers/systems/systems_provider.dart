@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mindful/core/services/intention_suggestions_service.dart';
 import 'package:mindful/core/services/systems_repository.dart';
 import 'package:mindful/models/life_system.dart';
 
@@ -51,6 +52,7 @@ class SystemsNotifier extends StateNotifier<AsyncValue<List<LifeSystem>>> {
     try {
       final systems = await _repository.loadSystems();
       if (mounted) state = AsyncData(systems);
+      unawaited(IntentionSuggestionsService.push());
     } catch (error, stackTrace) {
       debugPrint('SystemsRepository.loadSystems failed: $error');
       debugPrintStack(stackTrace: stackTrace);

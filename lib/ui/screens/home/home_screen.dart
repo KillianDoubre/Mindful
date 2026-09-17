@@ -81,15 +81,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             fab: const NewNotificationScheduleFab(),
             sliverBody: const TabNotifications(),
           ),
-          // NOTE: Bedtime tab is intentionally hidden (access removed on request).
-          // The page and all bedtime code are kept — to re-enable, restore this
-          // NavbarItem (and the `tab_bedtime.dart` import):
-          // NavbarItem(
-          //   titleText: context.locale.bedtime_tab_title,
-          //   icon: FluentIcons.sleep_20_regular,
-          //   filledIcon: FluentIcons.sleep_20_filled,
-          //   sliverBody: const TabBedtime(),
-          // ),
         ],
       ),
     );

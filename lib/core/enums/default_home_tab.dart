@@ -13,6 +13,8 @@ enum DefaultHomeTab {
   dashboard,
   statistics,
   notifications,
+
+  /// Retired (bedtime was removed). Kept so stored indices keep their meaning.
   bedtime,
   systems,
 }

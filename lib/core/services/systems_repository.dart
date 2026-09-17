@@ -5,6 +5,16 @@ import 'package:mindful/core/database/adapters/time_of_day_adapter.dart';
 import 'package:mindful/core/services/drift_db_service.dart';
 import 'package:mindful/models/life_system.dart';
 import 'package:mindful/models/systems_reminder.dart';
+import 'package:mindful/models/weekly_review.dart';
+
+/// Number of distinct local calendar days among epoch-millisecond stamps.
+int distinctLocalDays(Iterable<int> millis) => {
+      for (final ms in millis)
+        () {
+          final at = DateTime.fromMillisecondsSinceEpoch(ms);
+          return DateTime(at.year, at.month, at.day);
+        }(),
+    }.length;
 
 class SystemsLimitException implements Exception {
   const SystemsLimitException();
@@ -730,6 +740,56 @@ class SystemsRepository {
     _changes.add(null);
   }
 
+  /// Votes cast per system between [start] (inclusive) and [end] (exclusive),
+  /// with the number of distinct days that had at least one.
+  Future<List<SystemWeekVotes>> loadWeeklyVotes(
+    DateTime start,
+    DateTime end,
+  ) async {
+    await _ensureInitialized();
+    final rows = await _db.customSelect('''
+      SELECT s.id AS id, s.name AS name, s.priority AS priority,
+        e.occurred_at AS occurred_at
+      FROM life_systems s
+      LEFT JOIN system_events e ON e.system_id = s.id
+        AND e.event_type IN (?, ?)
+        AND e.occurred_at >= ? AND e.occurred_at < ?
+      WHERE s.status IN ('active', 'maintenance') OR e.id IS NOT NULL
+    ''', variables: [
+      Variable.withString(SystemEventType.weeklyVictory.databaseValue),
+      Variable.withString(SystemEventType.minimumVersion.databaseValue),
+      Variable.withInt(start.millisecondsSinceEpoch),
+      Variable.withInt(end.millisecondsSinceEpoch),
+    ]).get() as List<QueryRow>;
+
+    final names = <int, String>{};
+    final priorities = <int, int>{};
+    final stamps = <int, List<int>>{};
+    for (final row in rows) {
+      final systemId = row.read<int>('id');
+      names[systemId] = row.read<String>('name');
+      priorities[systemId] = row.read<int>('priority');
+      final stamp = row.readNullable<int>('occurred_at');
+      final list = stamps.putIfAbsent(systemId, () => []);
+      if (stamp != null) list.add(stamp);
+    }
+    final result = [
+      for (final systemId in names.keys)
+        SystemWeekVotes(
+          systemId: systemId,
+          name: names[systemId]!,
+          votes: stamps[systemId]!.length,
+          activeDays: distinctLocalDays(stamps[systemId]!),
+        ),
+    ]..sort((a, b) {
+        final byVotes = b.votes.compareTo(a.votes);
+        return byVotes != 0
+            ? byVotes
+            : priorities[a.systemId]!.compareTo(priorities[b.systemId]!);
+      });
+    return result;
+  }
+
   Future<int?> loadSelectedFocusSystemId() async {
     await _ensureInitialized();
     final row = await _db
@@ -974,17 +1034,19 @@ class SystemsRepository {
         }
       }
     }
-    final totalsRow = await _db.customSelect('''
-      SELECT COUNT(*) AS votes,
-        COUNT(DISTINCT date(occurred_at / 1000, 'unixepoch', 'localtime'))
-          AS days
-      FROM system_events
+    // Days are counted in Dart: SQLite's 'localtime' is not available on
+    // every build and would silently count nothing
+    final List<QueryRow> allVoteRows = await _db.customSelect('''
+      SELECT occurred_at FROM system_events
       WHERE system_id = ? AND event_type IN (?, ?)
     ''', variables: [
       Variable.withInt(id),
       Variable.withString(SystemEventType.weeklyVictory.databaseValue),
       Variable.withString(SystemEventType.minimumVersion.databaseValue),
-    ]).getSingle();
+    ]).get();
+    final lifetimeDays = distinctLocalDays(
+      allVoteRows.map((row) => row.read<int>('occurred_at')),
+    );
 
     return LifeSystem(
       id: id,
@@ -992,8 +1054,8 @@ class SystemsRepository {
       reward: data['reward'] as String? ?? '',
       activeDays: activeDays,
       todayVotes: todayVotes,
-      totalVotes: totalsRow.read<int>('votes'),
-      lifetimeActiveDays: totalsRow.read<int>('days'),
+      totalVotes: allVoteRows.length,
+      lifetimeActiveDays: lifetimeDays,
       name: data['name'] as String? ?? '',
       identity: data['identity_text'] as String? ?? '',
       status: status,

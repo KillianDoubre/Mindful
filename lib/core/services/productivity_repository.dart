@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:mindful/core/services/drift_db_service.dart';
 import 'package:mindful/models/productivity_item.dart';
+import 'package:mindful/models/task_recurrence.dart';
 
 /// Local persistence for personal notes and tasks.
 ///
@@ -41,6 +42,24 @@ class ProductivityRepository {
         .customSelect('PRAGMA table_info(productivity_items)')
         .map((row) => row.read<String>('name'))
         .get();
+    if (!columns.contains('recurrence')) {
+      await db.customStatement(
+        'ALTER TABLE productivity_items '
+        "ADD COLUMN recurrence TEXT NOT NULL DEFAULT ''",
+      );
+    }
+    await db.customStatement('''
+      CREATE TABLE IF NOT EXISTS task_completions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        task_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        completed_at INTEGER NOT NULL
+      )
+    ''');
+    await db.customStatement('''
+      CREATE INDEX IF NOT EXISTS task_completions_date
+      ON task_completions(completed_at)
+    ''');
     if (!columns.contains('reminders')) {
       await db.customStatement(
         'ALTER TABLE productivity_items '
@@ -86,7 +105,8 @@ class ProductivityRepository {
           UPDATE productivity_items
           SET title = ?, details = ?, color_value = ?, is_completed = ?,
               due_at = ?, is_pinned = COALESCE(?, is_pinned),
-              reminders = COALESCE(?, reminders), updated_at = ?
+              reminders = COALESCE(?, reminders),
+              recurrence = COALESCE(?, recurrence), updated_at = ?
           WHERE id = ? AND item_type = ?
         ''',
         [
@@ -103,6 +123,7 @@ class ProductivityRepository {
             null => null,
             final offsets => encodeReminderOffsets(offsets),
           },
+          draft.recurrence?.databaseValue,
           now,
           id,
           type.databaseValue,
@@ -130,8 +151,9 @@ class ProductivityRepository {
       '''
         INSERT INTO productivity_items (
           item_type, title, details, color_value, is_completed, due_at,
-          sort_order, is_pinned, created_at, updated_at, reminders
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          sort_order, is_pinned, created_at, updated_at, reminders,
+          recurrence
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ''',
       variables: [
         Variable.withString(type.databaseValue),
@@ -146,6 +168,9 @@ class ProductivityRepository {
         Variable.withInt(now),
         Variable.withString(
           encodeReminderOffsets(draft.reminderOffsets ?? const []),
+        ),
+        Variable.withString(
+          (draft.recurrence ?? TaskRecurrence.none).databaseValue,
         ),
       ],
     );
@@ -166,8 +191,9 @@ class ProductivityRepository {
       '''
         INSERT OR REPLACE INTO productivity_items (
           id, item_type, title, details, color_value, is_completed, due_at,
-          sort_order, is_pinned, created_at, updated_at, reminders
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          sort_order, is_pinned, created_at, updated_at, reminders,
+          recurrence
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ''',
       variables: [
         Variable.withInt(item.id),
@@ -182,8 +208,75 @@ class ProductivityRepository {
         Variable.withInt(item.createdAt.millisecondsSinceEpoch),
         Variable.withInt(item.updatedAt.millisecondsSinceEpoch),
         Variable.withString(encodeReminderOffsets(item.reminderOffsets)),
+        Variable.withString(item.recurrence.databaseValue),
       ],
     );
+  }
+
+  /// Records that [task] was done and returns the log entry id.
+  Future<int> logCompletion(ProductivityItem task, {DateTime? at}) async {
+    await _ensureInitialized();
+    return DriftDbService.instance.driftDb.customInsert(
+      'INSERT INTO task_completions (task_id, title, completed_at) '
+      'VALUES (?, ?, ?)',
+      variables: [
+        Variable.withInt(task.id),
+        Variable.withString(task.title),
+        Variable.withInt((at ?? DateTime.now()).millisecondsSinceEpoch),
+      ],
+    );
+  }
+
+  Future<void> deleteCompletion(int completionId) async {
+    await _ensureInitialized();
+    await DriftDbService.instance.driftDb.customStatement(
+      'DELETE FROM task_completions WHERE id = ?',
+      [completionId],
+    );
+  }
+
+  /// Removes the most recent completion of [taskId], when a task is unchecked.
+  Future<void> deleteLatestCompletion(int taskId) async {
+    await _ensureInitialized();
+    await DriftDbService.instance.driftDb.customStatement(
+      '''
+        DELETE FROM task_completions WHERE id = (
+          SELECT id FROM task_completions WHERE task_id = ?
+          ORDER BY completed_at DESC LIMIT 1
+        )
+      ''',
+      [taskId],
+    );
+  }
+
+  /// Completions within [start] (inclusive) and [end] (exclusive).
+  Future<List<TaskCompletion>> loadCompletions(
+    DateTime start,
+    DateTime end,
+  ) async {
+    await _ensureInitialized();
+    final rows = await DriftDbService.instance.driftDb.customSelect(
+      '''
+        SELECT * FROM task_completions
+        WHERE completed_at >= ? AND completed_at < ?
+        ORDER BY completed_at ASC
+      ''',
+      variables: [
+        Variable.withInt(start.millisecondsSinceEpoch),
+        Variable.withInt(end.millisecondsSinceEpoch),
+      ],
+    ).get();
+    return [
+      for (final row in rows)
+        TaskCompletion(
+          id: row.read<int>('id'),
+          taskId: row.read<int>('task_id'),
+          title: row.read<String>('title'),
+          completedAt: DateTime.fromMillisecondsSinceEpoch(
+            row.read<int>('completed_at'),
+          ),
+        ),
+    ];
   }
 
   Future<void> delete(ProductivityItem item) async {

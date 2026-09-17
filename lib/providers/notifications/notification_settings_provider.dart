@@ -35,7 +35,14 @@ class NotificationSettingsNotifier extends StateNotifier<NotificationSettings> {
   /// Initializes the well-being settings by loading them from the database and setting up a listener to save changes.
   void _init() async {
     _dao = DriftDbService.instance.driftDb.uniqueRecordsDao;
-    state = await _dao.loadNotificationSettings();
+    final loaded = await _dao.loadNotificationSettings();
+    final schedules = frenchifyScheduleLabels(loaded.schedules);
+    state = identical(schedules, loaded.schedules)
+        ? loaded
+        : loaded.copyWith(schedules: schedules);
+    if (!identical(schedules, loaded.schedules)) {
+      await _dao.saveNotificationSettings(state);
+    }
     await MethodChannelService.instance.updateNotificationSettings(state);
 
     /// Listen to provider and save changes to Isar database and platform service

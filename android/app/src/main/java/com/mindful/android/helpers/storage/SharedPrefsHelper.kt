@@ -37,6 +37,7 @@ object SharedPrefsHelper {
     private const val PREF_KEY_EXCLUDED_APPS = "excludedApps"
     private const val PREF_KEY_NOTIFICATION_SETTINGS = "notificationSettings"
     private const val PREF_KEY_TASK_REMINDER_CODES = "taskReminderCodes"
+    private const val PREF_KEY_INTENTION_SUGGESTIONS = "intentionSuggestions"
 
     private var mListenablePrefs: SharedPreferences? = null
     private const val LISTENABLE_PREFS_BOX = "UniquePrefs"
@@ -131,6 +132,19 @@ object SharedPrefsHelper {
         return mUniquePrefs!!.getString(PREF_KEY_NOTIFICATION_SETTINGS, "{}") ?: "{}"
     }
 
+
+    /**
+     * Task and systems offered on the conscious-opening prompt, as JSON.
+     * Stores [json] first when it is not null.
+     */
+    fun getSetIntentionSuggestionsJson(context: Context, json: String?): String {
+        checkAndInitializeUniquePrefs(context)
+        if (json != null) {
+            mUniquePrefs!!.edit().putString(PREF_KEY_INTENTION_SUGGESTIONS, json).apply()
+            return json
+        }
+        return mUniquePrefs!!.getString(PREF_KEY_INTENTION_SUGGESTIONS, "{}") ?: "{}"
+    }
 
     /**
      * Request codes of the task reminder alarms currently scheduled. Stores

@@ -72,17 +72,6 @@ class UniqueRecordsDao extends DatabaseAccessor<AppDatabase>
       await select(parentalControlsTable).getSingleOrNull() ??
       defaultParentalControlsModel;
 
-  /// Saves a single [BedtimeSchedule] object to the database.
-  Future<void> saveBedtimeSchedule(BedtimeSchedule bedtimeSchedule) async =>
-      into(bedtimeScheduleTable)
-          .insert(bedtimeSchedule, mode: InsertMode.insertOrReplace);
-
-  /// Loads the first (and likely only) [BedtimeSchedule] object
-  /// from the database. If none exists, returns default instance.
-  Future<BedtimeSchedule> loadBedtimeSchedule() async =>
-      await select(bedtimeScheduleTable).getSingleOrNull() ??
-      defaultBedtimeScheduleModel;
-
   /// Saves a single [FocusMode] object to the database.
   Future<void> saveFocusModeSettings(FocusMode focusMode) async =>
       into(focusModeTable).insert(focusMode, mode: InsertMode.insertOrReplace);
